@@ -37,7 +37,9 @@ import {
   Award,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MessageCircle,
+  Tag
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -74,9 +76,24 @@ const branchAdminNavItems = [
     icon: Package,
   },
   {
+    title: 'Categories',
+    href: '/admin/categories',
+    icon: Tag,
+  },
+  {
+    title: 'Membership',
+    href: '/admin/membership',
+    icon: Award,
+  },
+  {
     title: 'Analytics',
     href: '/admin/analytics',
     icon: TrendingUp,
+  },
+  {
+    title: 'Messages',
+    href: '/admin/messages',
+    icon: MessageCircle,
   },
   {
     title: 'Settings',
@@ -117,6 +134,16 @@ const superAdminNavItems = [
     icon: Package,
   },
   {
+    title: 'Categories',
+    href: '/super-admin/categories',
+    icon: Tag,
+  },
+  {
+    title: 'Membership',
+    href: '/super-admin/membership',
+    icon: Award,
+  },
+  {
     title: 'Mobile App',
     href: '/mobile-app',
     icon: Phone,
@@ -130,6 +157,11 @@ const superAdminNavItems = [
     title: 'Analytics',
     href: '/super-admin/analytics',
     icon: PieChart,
+  },
+  {
+    title: 'Messages',
+    href: '/super-admin/messages',
+    icon: MessageCircle,
   },
   {
     title: 'Financial',
@@ -184,7 +216,7 @@ function SidebarContent({ role, onLogout, onToggle, isCollapsed = false }: Omit<
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3">
+      <ScrollArea className="flex-1 px-3 h-full">
         <div className="space-y-2 py-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
@@ -208,7 +240,7 @@ function SidebarContent({ role, onLogout, onToggle, isCollapsed = false }: Omit<
       </ScrollArea>
 
       {/* Logout */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 mt-auto">
         <Button
           variant="outline"
           className={cn(
@@ -238,11 +270,12 @@ export function AdminSidebar({ role, onLogout, isOpen = true, onToggle }: Sideba
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 transform bg-white border-r transition-all duration-300 ease-in-out lg:relative lg:z-auto lg:translate-x-0",
-        // Mobile: slide in/out completely
+        "h-full flex-shrink-0 bg-white border-r transition-all duration-300 ease-in-out",
+        // Mobile: slide in/out completely (fixed positioning for mobile overlay)
+        "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto lg:translate-x-0",
         isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
-        // Desktop: collapse to narrow width
-        "lg:w-16 lg:translate-x-0",
+        // Desktop: normal flex item with appropriate width
+        "lg:static lg:w-16",
         isOpen && "lg:w-64"
       )}>
         <SidebarContent role={role} onLogout={onLogout} onToggle={onToggle} isCollapsed={!isOpen} />

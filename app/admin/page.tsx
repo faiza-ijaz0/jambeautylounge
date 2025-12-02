@@ -10,11 +10,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
 import { cn } from "@/lib/utils";
+import { useCurrencyStore } from "@/stores/currency.store";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { formatCurrency } = useCurrencyStore();
 
   const handleLogout = () => {
     logout();
@@ -59,7 +62,7 @@ export default function AdminDashboard() {
         {/* Main Content */}
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",
-          sidebarOpen ? "lg:ml-64" : "lg:ml-16"
+          sidebarOpen ? "lg:ml-0" : "lg:ml-1"
         )}>
           {/* Header */}
           <header className="bg-white shadow-sm border-b flex-shrink-0">
@@ -77,6 +80,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <CurrencySwitcher />
                 <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user?.email}</span>
                 <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
                   <LogOut className="w-4 h-4 mr-2" />
@@ -110,7 +114,7 @@ export default function AdminDashboard() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${todayStats.revenue}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(todayStats.revenue)}</div>
                     <p className="text-xs text-muted-foreground">
                       +8% from yesterday
                     </p>

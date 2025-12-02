@@ -29,15 +29,18 @@ import {
 } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
-import { cn } from "@/lib/utils";
+import { useCurrencyStore } from "@/stores/currency.store";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { formatDistanceToNow, parseISO, format } from "date-fns";
 
-export default function BookingApprovals() {
+export default function AdminBookingApprovals() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { formatCurrency } = useCurrencyStore();
 
   const handleLogout = () => {
     logout();
@@ -313,6 +316,7 @@ export default function BookingApprovals() {
                   <p className="text-sm text-gray-600">Manage appointment workflow and approvals</p>
                 </div>
                 <div className="flex items-center gap-4">
+                  <CurrencySwitcher />
                   <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user?.email}</span>
                   <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
                     Logout
@@ -479,7 +483,7 @@ export default function BookingApprovals() {
                     </div>
                     <div>
                       <label className="text-sm font-medium">Price</label>
-                      <p className="text-sm text-muted-foreground">${selectedAppointment.price}</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrency(selectedAppointment.price)}</p>
                     </div>
                   </div>
 

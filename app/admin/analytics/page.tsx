@@ -10,11 +10,14 @@ import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSideba
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useCurrencyStore } from "@/stores/currency.store";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 
 export default function AdminAnalytics() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { formatCurrency } = useCurrencyStore();
 
   const handleLogout = () => {
     logout();
@@ -62,13 +65,6 @@ export default function AdminAnalytics() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
   const formatPercentage = (value: number) => {
     return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
   };
@@ -84,7 +80,7 @@ export default function AdminAnalytics() {
         {/* Main Content */}
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out",
-          sidebarOpen ? "lg:ml-64" : "lg:ml-0"
+          sidebarOpen ? "lg:ml-0" : "lg:ml-1"
         )}>
           {/* Header */}
           <header className="bg-white shadow-sm border-b">
@@ -99,6 +95,7 @@ export default function AdminAnalytics() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <CurrencySwitcher />
                 <Select value={timeRange} onValueChange={setTimeRange}>
                   <SelectTrigger className="w-32">
                     <SelectValue />

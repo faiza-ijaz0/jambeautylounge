@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Calendar, Clock, User, Search, Filter, CheckCircle, XCircle, AlertCircle, Bell, Smartphone, Globe, Plus, Edit, Trash2, Phone, Mail, RefreshCw, FileText, Scissors, Package, DollarSign, Receipt, CheckCircle2 } from "lucide-react";
+import { Calendar, Clock, User, Search, Filter, CheckCircle, XCircle, AlertCircle, Bell, Smartphone, Globe, Plus, Edit, Trash2, Phone, Mail, RefreshCw, FileText, Scissors, Package, DollarSign, Receipt, CheckCircle2, Eye, Play, Star, FileCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
@@ -19,11 +19,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { AdvancedCalendar } from "@/components/ui/advanced-calendar";
 import { NotificationSystem, useNotifications } from "@/components/ui/notification-system";
+import { useCurrencyStore } from "@/stores/currency.store";
 import { cn } from "@/lib/utils";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 
 export default function AdminAppointments() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { formatCurrency } = useCurrencyStore();
 
   const handleLogout = () => {
     logout();
@@ -424,7 +427,7 @@ export default function AdminAppointments() {
         {/* Main Content */}
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",
-          sidebarOpen ? "lg:ml-64" : "lg:ml-16"
+          sidebarOpen ? "lg:ml-0" : "lg:ml-1"
         )}>
           {/* Header */}
           <header className="bg-white shadow-sm border-b flex-shrink-0">
@@ -442,6 +445,7 @@ export default function AdminAppointments() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <CurrencySwitcher />
                 {/* Notifications */}
                 <Sheet>
                   <SheetTrigger asChild>
@@ -573,33 +577,34 @@ export default function AdminAppointments() {
                       Create Booking
                     </Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
                     {/* Calendar */}
-                    <div className="md:col-span-2">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5" />
+                    <div className="lg:col-span-2">
+                      <Card className="border-2 shadow-sm">
+                        <CardHeader className="pb-4 border-b bg-gray-50/50">
+                          <CardTitle className="flex items-center gap-3 text-xl">
+                            <Calendar className="w-6 h-6 text-primary" />
                             Booking Calendar
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription className="text-base">
                             Click on a date to view appointments. Appointments from both website and mobile are shown.
                           </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                           <CalendarComponent
                             mode="single"
                             selected={selectedDate}
                             onSelect={setSelectedDate}
-                            className="rounded-md border"
+                            className="rounded-lg border-2 shadow-sm w-full"
                             modifiers={{
                               hasAppointments: (date) => getAppointmentsForDate(date).length > 0
                             }}
                             modifiersStyles={{
                               hasAppointments: {
-                                backgroundColor: 'rgb(59 130 246 / 0.1)',
+                                backgroundColor: 'rgb(59 130 246 / 0.15)',
                                 color: 'rgb(59 130 246)',
-                                fontWeight: 'bold'
+                                fontWeight: '600',
+                                borderRadius: '6px'
                               }
                             }}
                           />
@@ -607,11 +612,12 @@ export default function AdminAppointments() {
                       </Card>
                     </div>
 
-                    {/* Selected Date Appointments */}
-                    <div className="md:col-span-1">
-                      <Card className="h-fit">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base md:text-lg">
+                    {/* Selected Date Appointments Sidebar */}
+                    <div className="lg:col-span-2">
+                      <Card className="border-2 shadow-sm h-fit sticky top-6">
+                        <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 to-secondary/5">
+                          <CardTitle className="text-lg lg:text-xl flex items-center gap-3">
+                            <Clock className="w-6 h-6 text-primary" />
                             {selectedDate ? selectedDate.toLocaleDateString('en-US', {
                               weekday: 'long',
                               year: 'numeric',
@@ -619,44 +625,70 @@ export default function AdminAppointments() {
                               day: 'numeric'
                             }) : 'Select a date'}
                           </CardTitle>
-                          <CardDescription className="text-sm">
-                            {selectedDate && `${getAppointmentsForDate(selectedDate).length} appointment(s)`}
+                          <CardDescription className="text-base font-medium">
+                            {selectedDate ? (
+                              <span className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-primary/10 text-primary">
+                                  {getAppointmentsForDate(selectedDate).length} appointment(s)
+                                </span>
+                              </span>
+                            ) : 'Choose a date from the calendar'}
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="pt-0">
+                        <CardContent className="pt-6 px-6">
                           {selectedDate && (
-                            <div className="space-y-2 md:space-y-3">
+                            <div className="space-y-4">
                               {getAppointmentsForDate(selectedDate).map((appointment) => (
                                 <div
                                   key={appointment.id}
-                                  className="p-2 md:p-3 border rounded-lg cursor-pointer"
+                                  className="group p-4 border-2 border-gray-100 rounded-xl cursor-pointer hover:border-primary/30 hover:shadow-md transition-all duration-200 bg-white"
                                   onClick={() => handleAppointmentClick(appointment)}
                                 >
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-1 md:gap-2">
-                                      <span className="font-medium text-xs md:text-sm">{appointment.time}</span>
-                                      <div className={`flex items-center gap-1 ${getSourceColor(appointment.source)}`}>
-                                        {getSourceIcon(appointment.source)}
-                                        <span className="text-xs capitalize hidden sm:inline">{appointment.source}</span>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                        <User className="w-5 h-5 text-primary" />
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold text-base text-gray-900">{appointment.time}</span>
+                                        <div className={`flex items-center gap-1 mt-1 ${getSourceColor(appointment.source)}`}>
+                                          {getSourceIcon(appointment.source)}
+                                          <span className="text-xs font-medium capitalize">{appointment.source}</span>
+                                        </div>
                                       </div>
                                     </div>
-                                    <Badge className={`${getStatusColor(appointment.status)} border text-xs`}>
+                                    <Badge className={`${getStatusColor(appointment.status)} border-2 text-xs font-semibold px-3 py-1`}>
                                       {appointment.status}
                                     </Badge>
                                   </div>
-                                  <div className="text-xs md:text-sm">
-                                    <p className="font-medium truncate">{appointment.customer}</p>
-                                    <p className="text-gray-600 truncate">{appointment.service}</p>
-                                    <p className="text-gray-500 text-xs truncate">with {appointment.barber}</p>
+                                  <div className="space-y-2">
+                                    <p className="font-semibold text-gray-900 text-base">{appointment.customer}</p>
+                                    <p className="text-gray-700 text-sm font-medium">{appointment.service}</p>
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-gray-600 text-sm">with {appointment.barber}</p>
+                                      <span className="text-sm font-semibold text-primary">{formatCurrency(appointment.price)}</span>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
                               {getAppointmentsForDate(selectedDate).length === 0 && (
-                                <div className="text-center py-6 md:py-8 text-gray-500">
-                                  <Calendar className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 opacity-50" />
-                                  <p className="text-sm">No appointments scheduled</p>
+                                <div className="text-center py-12 px-6">
+                                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Calendar className="w-8 h-8 text-gray-400" />
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No appointments</h3>
+                                  <p className="text-gray-500 text-sm">No appointments scheduled for this date</p>
                                 </div>
                               )}
+                            </div>
+                          )}
+                          {!selectedDate && (
+                            <div className="text-center py-12 px-6">
+                              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Calendar className="w-8 h-8 text-primary" />
+                              </div>
+                              <h3 className="text-lg font-semibold text-gray-600 mb-2">Select a date</h3>
+                              <p className="text-gray-500 text-sm">Choose a date from the calendar to view appointments</p>
                             </div>
                           )}
                         </CardContent>
@@ -674,95 +706,225 @@ export default function AdminAppointments() {
                   />
                 </TabsContent>
 
-                <TabsContent value="list" className="space-y-6">
+                <TabsContent value="list" className="space-y-8">
                   {/* Appointments List */}
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {filteredAppointments.map((appointment) => (
-                      <Card key={appointment.id}>
-                        <CardHeader className="pb-3">
+                      <Card key={appointment.id} className="border-2 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+                        <CardHeader className="pb-4 border-b bg-gradient-to-r from-gray-50/50 to-white">
                           <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
-                                <User className="w-6 h-6 text-secondary" />
+                            <div className="flex items-start gap-6">
+                              <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                <User className="w-7 h-7 text-primary" />
                               </div>
-                              <div>
-                                <CardTitle className="text-lg text-primary flex items-center gap-2">
+                              <div className="space-y-2">
+                                <CardTitle className="text-xl text-primary flex items-center gap-3">
                                   {appointment.customer}
-                                  <div className={`flex items-center gap-1 ${getSourceColor(appointment.source)}`}>
+                                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${getSourceColor(appointment.source)} bg-current/10`}>
                                     {getSourceIcon(appointment.source)}
-                                    <span className="text-xs capitalize">{appointment.source}</span>
+                                    <span className="capitalize">{appointment.source}</span>
                                   </div>
                                 </CardTitle>
-                                <CardDescription className="flex items-center gap-2 mt-1">
-                                  <span>{appointment.service}</span>
-                                  <span>•</span>
-                                  <span>{appointment.barber}</span>
-                                  <span>•</span>
-                                  <span>{appointment.branch}</span>
+                                <CardDescription className="flex items-center gap-3 text-base">
+                                  <span className="font-medium text-gray-700">{appointment.service}</span>
+                                  <span className="text-gray-400">•</span>
+                                  <span className="text-gray-600">{appointment.barber}</span>
+                                  <span className="text-gray-400">•</span>
+                                  <span className="text-gray-600">{appointment.branch}</span>
                                 </CardDescription>
                               </div>
                             </div>
-                            <Badge className={`${getStatusColor(appointment.status)} border flex items-center gap-1`}>
+                            <Badge className={`${getStatusColor(appointment.status)} border-2 flex items-center gap-2 px-4 py-2 text-sm font-semibold`}>
                               {getStatusIcon(appointment.status)}
-                              {appointment.status}
+                              <span className="capitalize">{appointment.status}</span>
                             </Badge>
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Calendar className="w-4 h-4" />
-                              <span>{appointment.date} at {appointment.time}</span>
+                        <CardContent className="pt-6">
+                          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+                            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                              <Calendar className="w-5 h-5 text-blue-600" />
+                              <div>
+                                <p className="text-sm font-medium text-blue-900">{appointment.date}</p>
+                                <p className="text-xs text-blue-700">at {appointment.time}</p>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Clock className="w-4 h-4" />
-                              <span>{appointment.duration}</span>
+                            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                              <Clock className="w-5 h-5 text-green-600" />
+                              <div>
+                                <p className="text-sm font-medium text-green-900">{appointment.duration}</p>
+                                <p className="text-xs text-green-700">Duration</p>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-sm font-semibold text-secondary">
-                              <span>${appointment.price}</span>
+                            <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                              <DollarSign className="w-5 h-5 text-purple-600" />
+                              <div>
+                                <p className="text-sm font-medium text-purple-900">{formatCurrency(appointment.price)}</p>
+                                <p className="text-xs text-purple-700">Total Price</p>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Phone className="w-4 h-4" />
-                              <span>{appointment.phone}</span>
+                            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                              <Phone className="w-5 h-5 text-orange-600" />
+                              <div>
+                                <p className="text-sm font-medium text-orange-900">{appointment.phone}</p>
+                                <p className="text-xs text-orange-700">Contact</p>
+                              </div>
                             </div>
                           </div>
                           {appointment.notes && (
-                            <p className="text-sm text-gray-600 mb-4 bg-gray-50 p-3 rounded">
-                              <strong>Notes:</strong> {appointment.notes}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <span>Created: {new Date(appointment.createdAt).toLocaleDateString()}</span>
-                              <span>Updated: {new Date(appointment.updatedAt).toLocaleDateString()}</span>
+                            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <FileText className="w-5 h-5 text-yellow-600 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-medium text-yellow-900 mb-1">Notes</p>
+                                  <p className="text-sm text-yellow-800">{appointment.notes}</p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleAppointmentClick(appointment)}>
-                                <Edit className="w-4 h-4 mr-1" />
-                                Edit
+                          )}
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="flex items-center gap-6 text-sm text-gray-500">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                <span>Created: {new Date(appointment.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                <span>Updated: {new Date(appointment.updatedAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-3 flex-wrap">
+                              {/* View Details Button - Available for all statuses */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleAppointmentClick(appointment)}
+                                className="flex items-center gap-2 border-2 hover:bg-primary hover:text-white transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View Details
                               </Button>
-                              {appointment.status === 'scheduled' && (
+
+                              {/* Status-based Action Buttons */}
+                              {appointment.status === 'pending' && (
                                 <>
-                                  <Button size="sm" variant="outline">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStatusChange(appointment.id, 'approved')}
+                                    className="flex items-center gap-2 text-green-600 hover:text-white hover:bg-green-600 border-green-300 border-2 transition-colors"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStatusChange(appointment.id, 'rejected')}
+                                    className="flex items-center gap-2 text-red-600 hover:text-white hover:bg-red-600 border-red-300 border-2 transition-colors"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+
+                              {(appointment.status === 'approved' || appointment.status === 'scheduled') && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStatusChange(appointment.id, 'in-progress')}
+                                    className="flex items-center gap-2 text-blue-600 hover:text-white hover:bg-blue-600 border-blue-300 border-2 transition-colors"
+                                  >
+                                    <Play className="w-4 h-4" />
+                                    Start Service
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStatusChange(appointment.id, 'rescheduled')}
+                                    className="flex items-center gap-2 text-yellow-600 hover:text-white hover:bg-yellow-600 border-yellow-300 border-2 transition-colors"
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
                                     Reschedule
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-red-600 hover:text-red-700"
                                     onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                    className="flex items-center gap-2 text-red-600 hover:text-white hover:bg-red-600 border-red-300 border-2 transition-colors"
                                   >
+                                    <XCircle className="w-4 h-4" />
                                     Cancel
                                   </Button>
                                 </>
                               )}
+
                               {appointment.status === 'in-progress' && (
                                 <Button
                                   size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
+                                  className="bg-green-600 hover:bg-green-700 flex items-center gap-2 border-2 border-green-500 text-white shadow-sm"
                                   onClick={() => handleStatusChange(appointment.id, 'completed')}
                                 >
+                                  <CheckCircle2 className="w-4 h-4" />
                                   Mark Complete
+                                </Button>
+                              )}
+
+                              {appointment.status === 'completed' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex items-center gap-2 text-blue-600 hover:text-white hover:bg-blue-600 border-blue-300 border-2 transition-colors"
+                                  >
+                                    <Receipt className="w-4 h-4" />
+                                    Generate Invoice
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex items-center gap-2 text-purple-600 hover:text-white hover:bg-purple-600 border-purple-300 border-2 transition-colors"
+                                  >
+                                    <Star className="w-4 h-4" />
+                                    Add Review
+                                  </Button>
+                                </>
+                              )}
+
+                              {appointment.status === 'rescheduled' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStatusChange(appointment.id, 'approved')}
+                                    className="flex items-center gap-2 text-green-600 hover:text-white hover:bg-green-600 border-green-300 border-2 transition-colors"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Confirm New Time
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                    className="flex items-center gap-2 text-red-600 hover:text-white hover:bg-red-600 border-red-300 border-2 transition-colors"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Cancel
+                                  </Button>
+                                </>
+                              )}
+
+                              {appointment.status === 'cancelled' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleStatusChange(appointment.id, 'scheduled')}
+                                  className="flex items-center gap-2 text-blue-600 hover:text-white hover:bg-blue-600 border-blue-300 border-2 transition-colors"
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                  Rebook
                                 </Button>
                               )}
                             </div>
@@ -773,10 +935,12 @@ export default function AdminAppointments() {
                   </div>
 
                   {filteredAppointments.length === 0 && (
-                    <div className="text-center py-12">
-                      <Calendar className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-600 mb-2">No appointments found</h3>
-                      <p className="text-gray-500">Try adjusting your filters or search query</p>
+                    <div className="text-center py-16 px-8">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Calendar className="w-10 h-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-2xl font-semibold text-gray-600 mb-3">No appointments found</h3>
+                      <p className="text-gray-500 text-lg">Try adjusting your filters or search query</p>
                     </div>
                   )}
                 </TabsContent>
@@ -788,125 +952,257 @@ export default function AdminAppointments() {
 
       {/* Appointment Details Sheet */}
       <Sheet open={showAppointmentDetails} onOpenChange={setShowAppointmentDetails}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader className="border-b-2 pb-6 mb-8 bg-gradient-to-r from-primary/5 to-secondary/5 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg">
+            <SheetTitle className="flex items-center gap-3 text-2xl">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-primary" />
+              </div>
               Appointment Details
               {selectedAppointment && (
-                <div className={`flex items-center gap-1 ${getSourceColor(selectedAppointment.source)}`}>
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${getSourceColor(selectedAppointment.source)} bg-current/10`}>
                   {getSourceIcon(selectedAppointment.source)}
-                  <span className="text-sm capitalize">{selectedAppointment.source}</span>
+                  <span className="capitalize">{selectedAppointment.source}</span>
                 </div>
               )}
             </SheetTitle>
-            <SheetDescription>
-              Complete appointment information and management
+            <SheetDescription className="text-base mt-2">
+              Complete appointment information and management options
             </SheetDescription>
           </SheetHeader>
 
           {selectedAppointment && (
-            <div className="mt-6 space-y-6">
-              {/* Customer Info */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Customer Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Name</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.customer}</p>
+            <div className="space-y-8">
+              {/* Status Overview */}
+              <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Appointment Status
+                  </h3>
+                  <Badge className={`${getStatusColor(selectedAppointment.status)} border-2 px-4 py-2 text-sm font-semibold flex items-center gap-2`}>
+                    {getStatusIcon(selectedAppointment.status)}
+                    <span className="capitalize">{selectedAppointment.status}</span>
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span>Created: {new Date(selectedAppointment.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Phone</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.phone}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Email</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.email}</p>
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span>Updated: {new Date(selectedAppointment.updatedAt).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Appointment Info */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Appointment Details</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Service</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.service}</p>
+              {/* Customer Information */}
+              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-green-600" />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Barber</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.barber}</p>
+                  Customer Information
+                </h3>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Full Name
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border">{selectedAppointment.customer}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        Phone Number
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border">{selectedAppointment.phone}</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Date & Time</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.date} at {selectedAppointment.time}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Duration</label>
-                    <p className="text-sm text-gray-900">{selectedAppointment.duration}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Price</label>
-                    <p className="text-sm font-semibold text-secondary">${selectedAppointment.price}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Status</label>
-                    <Badge className={`${getStatusColor(selectedAppointment.status)} border`}>
-                      {selectedAppointment.status}
-                    </Badge>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email Address
+                    </label>
+                    <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border break-all">{selectedAppointment.email}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Notes */}
-              {selectedAppointment.notes && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Notes</label>
-                  <Textarea
-                    value={selectedAppointment.notes}
-                    readOnly
-                    className="min-h-[80px]"
-                  />
-                </div>
-              )}
-
-              {/* Timestamps */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Timestamps</label>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>Created: {new Date(selectedAppointment.createdAt).toLocaleString()}</p>
-                  <p>Last Updated: {new Date(selectedAppointment.updatedAt).toLocaleString()}</p>
+              {/* Service Details */}
+              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Scissors className="w-5 h-5 text-purple-600" />
+                  </div>
+                  Service Details
+                </h3>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Scissors className="w-4 h-4" />
+                        Service Type
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200">{selectedAppointment.service}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Assigned Barber
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200">{selectedAppointment.barber}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Date
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">{selectedAppointment.date}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Time
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">{selectedAppointment.time}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Duration
+                      </label>
+                      <p className="text-base font-medium text-gray-900 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">{selectedAppointment.duration}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Service Price
+                    </label>
+                    <p className="text-xl font-bold text-green-600 bg-green-50 px-4 py-3 rounded-lg border-2 border-green-200 text-center">{formatCurrency(selectedAppointment.price)}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Appointment
-                </Button>
-                {selectedAppointment.status === 'scheduled' && (
-                  <>
-                    <Button variant="outline" className="flex-1">
-                      Reschedule
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => handleStatusChange(selectedAppointment.id, 'cancelled')}
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                )}
-                {selectedAppointment.status === 'in-progress' && (
-                  <Button
-                    className="bg-green-600 hover:bg-green-700 flex-1"
-                    onClick={() => handleStatusChange(selectedAppointment.id, 'completed')}
-                  >
-                    Mark Complete
+              {/* Additional Information */}
+              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-orange-600" />
+                  </div>
+                  Additional Information
+                </h3>
+                <div className="space-y-6">
+                  {selectedAppointment.notes && (
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Special Notes & Instructions
+                      </label>
+                      <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                        <Textarea
+                          value={selectedAppointment.notes}
+                          readOnly
+                          className="min-h-[100px] bg-transparent border-0 resize-none text-gray-800"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Branch Location
+                    </label>
+                    <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border">{selectedAppointment.branch}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Created</p>
+                      <p className="text-sm font-medium text-gray-900">{new Date(selectedAppointment.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-500">{new Date(selectedAppointment.createdAt).toLocaleTimeString()}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Last Updated</p>
+                      <p className="text-sm font-medium text-gray-900">{new Date(selectedAppointment.updatedAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-500">{new Date(selectedAppointment.updatedAt).toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-4 p-6 bg-gray-50 border-2 border-gray-200 rounded-xl">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <Button variant="outline" className="h-12 flex items-center gap-3 border-2 hover:bg-primary hover:text-white transition-colors">
+                    <Edit className="w-5 h-5" />
+                    Edit Appointment Details
                   </Button>
-                )}
+
+                  {selectedAppointment.status === 'scheduled' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button variant="outline" className="h-12 flex items-center gap-3 border-2 border-yellow-300 text-yellow-700 hover:bg-yellow-50 transition-colors">
+                        <RefreshCw className="w-5 h-5" />
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-12 flex items-center gap-3 border-2 border-red-300 text-red-700 hover:bg-red-50 transition-colors"
+                        onClick={() => handleStatusChange(selectedAppointment.id, 'cancelled')}
+                      >
+                        <XCircle className="w-5 h-5" />
+                        Cancel Appointment
+                      </Button>
+                    </div>
+                  )}
+
+                  {selectedAppointment.status === 'in-progress' && (
+                    <Button
+                      className="h-12 bg-green-600 hover:bg-green-700 flex items-center gap-3 border-2 border-green-500 text-white shadow-sm"
+                      onClick={() => handleStatusChange(selectedAppointment.id, 'completed')}
+                    >
+                      <CheckCircle2 className="w-5 h-5" />
+                      Mark as Completed
+                    </Button>
+                  )}
+
+                  {selectedAppointment.status === 'completed' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button variant="outline" className="h-12 flex items-center gap-3 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors">
+                        <Receipt className="w-5 h-5" />
+                        Generate Invoice
+                      </Button>
+                      <Button variant="outline" className="h-12 flex items-center gap-3 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 transition-colors">
+                        <Star className="w-5 h-5" />
+                        Add Review
+                      </Button>
+                    </div>
+                  )}
+
+                  {selectedAppointment.status === 'pending' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button variant="outline" className="h-12 flex items-center gap-3 border-2 border-green-300 text-green-700 hover:bg-green-50 transition-colors">
+                        <CheckCircle className="w-5 h-5" />
+                        Approve
+                      </Button>
+                      <Button variant="outline" className="h-12 flex items-center gap-3 border-2 border-red-300 text-red-700 hover:bg-red-50 transition-colors">
+                        <XCircle className="w-5 h-5" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -998,12 +1294,71 @@ export default function AdminAppointments() {
                       <SelectValue placeholder="Select a barber" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Mike Johnson">Mike Johnson</SelectItem>
-                      <SelectItem value="Alex Rodriguez">Alex Rodriguez</SelectItem>
-                      <SelectItem value="Sarah Chen">Sarah Chen</SelectItem>
-                      <SelectItem value="David Kim">David Kim</SelectItem>
+                      <SelectItem value="Mike Johnson">
+                        <div className="flex flex-col">
+                          <span className="font-medium">Mike Johnson</span>
+                          <span className="text-xs text-gray-500">Senior Barber • Haircuts & Styling • 8 years exp • ⭐ 4.8</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Alex Rodriguez">
+                        <div className="flex flex-col">
+                          <span className="font-medium">Alex Rodriguez</span>
+                          <span className="text-xs text-gray-500">Beard Specialist • Grooming Expert • 6 years exp • ⭐ 4.9</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Sarah Chen">
+                        <div className="flex flex-col">
+                          <span className="font-medium">Sarah Chen</span>
+                          <span className="text-xs text-gray-500">Color Specialist • Premium Services • 7 years exp • ⭐ 4.7</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="David Kim">
+                        <div className="flex flex-col">
+                          <span className="font-medium">David Kim</span>
+                          <span className="text-xs text-gray-500">All Services • Master Barber • 10 years exp • ⭐ 4.9</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  {bookingData.barber && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="text-sm">
+                        <div className="font-medium text-blue-900 mb-1">Employee Details</div>
+                        {bookingData.barber === 'Mike Johnson' && (
+                          <div className="text-blue-800 space-y-1">
+                            <div><strong>Specialization:</strong> Haircuts & Men's Styling</div>
+                            <div><strong>Experience:</strong> 8 years</div>
+                            <div><strong>Rating:</strong> ⭐ 4.8/5 (127 reviews)</div>
+                            <div><strong>Working Hours:</strong> Mon-Fri 9AM-7PM, Sat 8AM-5PM</div>
+                          </div>
+                        )}
+                        {bookingData.barber === 'Alex Rodriguez' && (
+                          <div className="text-blue-800 space-y-1">
+                            <div><strong>Specialization:</strong> Beard Grooming & Facial Treatments</div>
+                            <div><strong>Experience:</strong> 6 years</div>
+                            <div><strong>Rating:</strong> ⭐ 4.9/5 (98 reviews)</div>
+                            <div><strong>Working Hours:</strong> Tue-Sat 10AM-8PM, Sun 12PM-6PM</div>
+                          </div>
+                        )}
+                        {bookingData.barber === 'Sarah Chen' && (
+                          <div className="text-blue-800 space-y-1">
+                            <div><strong>Specialization:</strong> Hair Coloring & Premium Treatments</div>
+                            <div><strong>Experience:</strong> 7 years</div>
+                            <div><strong>Rating:</strong> ⭐ 4.7/5 (89 reviews)</div>
+                            <div><strong>Working Hours:</strong> Mon-Wed 9AM-6PM, Thu-Fri 9AM-8PM</div>
+                          </div>
+                        )}
+                        {bookingData.barber === 'David Kim' && (
+                          <div className="text-blue-800 space-y-1">
+                            <div><strong>Specialization:</strong> All Services & Complex Styling</div>
+                            <div><strong>Experience:</strong> 10 years</div>
+                            <div><strong>Rating:</strong> ⭐ 4.9/5 (156 reviews)</div>
+                            <div><strong>Working Hours:</strong> Mon-Sat 9AM-7PM</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1034,7 +1389,7 @@ export default function AdminAppointments() {
                       <SelectContent>
                         {mockProducts.map((product) => (
                           <SelectItem key={product.name} value={product.name}>
-                            {product.name} - {product.category} - ${product.price}
+                            {product.name} - {product.category} - {formatCurrency(product.price)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1080,7 +1435,7 @@ export default function AdminAppointments() {
                             <div className="text-xs text-gray-500">{product.category}</div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">${product.price}</span>
+                            <span className="text-sm font-medium">{formatCurrency(product.price)}</span>
                             <span className="text-sm text-gray-500">x{product.quantity}</span>
                             <Button
                               type="button"
@@ -1143,23 +1498,23 @@ export default function AdminAppointments() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Service:</span>
-                    <span>${getServicePrice(bookingData.service)}</span>
+                    <span>{formatCurrency(getServicePrice(bookingData.service))}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Products:</span>
-                    <span>${bookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0)}</span>
+                    <span>{formatCurrency(bookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0))}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Service Charges:</span>
-                    <span>${bookingData.serviceCharges}</span>
+                    <span>{formatCurrency(bookingData.serviceCharges)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Tax ({bookingData.tax}%):</span>
-                    <span>${calculateTax()}</span>
+                    <span>{formatCurrency(parseFloat(calculateTax()))}</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between font-semibold">
                     <span>Total:</span>
-                    <span>${calculateTotal()}</span>
+                    <span>{formatCurrency(parseFloat(calculateTotal()))}</span>
                   </div>
                 </div>
               </div>
@@ -1174,7 +1529,11 @@ export default function AdminAppointments() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Status</label>
-                <Select value={bookingData.status} onValueChange={(value) => setBookingData({...bookingData, status: value})}>
+                <Select value={bookingData.status} onValueChange={(value) => setBookingData(prev => ({
+                  ...prev,
+                  status: value,
+                  generateInvoice: value === 'completed' ? prev.generateInvoice : false
+                }))}>
                   <SelectTrigger className="h-11">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -1225,29 +1584,43 @@ export default function AdminAppointments() {
               </h3>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="generateInvoice" className="text-sm font-medium text-gray-700">
-                    Generate invoice automatically after booking
-                  </label>
-                  <Switch
-                    id="generateInvoice"
-                    checked={bookingData.generateInvoice}
-                    onCheckedChange={(checked) => setBookingData({...bookingData, generateInvoice: checked})}
-                  />
-                </div>
-
-                {bookingData.generateInvoice && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-blue-800">
-                      <Receipt className="w-4 h-4" />
-                      <span className="text-sm font-medium">Invoice will be generated with:</span>
+                {bookingData.status === 'completed' ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="generateInvoice" className="text-sm font-medium text-gray-700">
+                        Generate invoice automatically after booking
+                      </label>
+                      <Switch
+                        id="generateInvoice"
+                        checked={bookingData.generateInvoice}
+                        onCheckedChange={(checked) => setBookingData({...bookingData, generateInvoice: checked})}
+                      />
                     </div>
-                    <ul className="mt-2 text-sm text-blue-700 space-y-1">
-                      <li>• Customer details and booking information</li>
-                      <li>• Itemized services and products</li>
-                      <li>• Tax calculation and total amount</li>
-                      <li>• Payment terms and due date</li>
-                    </ul>
+
+                    {bookingData.generateInvoice && (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-800">
+                          <Receipt className="w-4 h-4" />
+                          <span className="text-sm font-medium">Invoice will be generated with:</span>
+                        </div>
+                        <ul className="mt-2 text-sm text-blue-700 space-y-1">
+                          <li>• Customer details and booking information</li>
+                          <li>• Itemized services and products</li>
+                          <li>• Tax calculation and total amount</li>
+                          <li>• Payment terms and due date</li>
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-yellow-800">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">Invoice generation is only available for completed services</span>
+                    </div>
+                    <p className="mt-2 text-sm text-yellow-700">
+                      Set the booking status to "Completed" to enable invoice generation options.
+                    </p>
                   </div>
                 )}
               </div>

@@ -15,11 +15,14 @@ import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSideba
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useCurrencyStore } from "@/stores/currency.store";
+import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 
 export default function AdminSettings() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { currency, setCurrency } = useCurrencyStore();
 
   const handleLogout = () => {
     logout();
@@ -108,7 +111,7 @@ export default function AdminSettings() {
         {/* Main Content */}
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out",
-          sidebarOpen ? "lg:ml-64" : "lg:ml-0"
+          sidebarOpen ? "lg:ml-0" : "lg:ml-0"
         )}>
           {/* Header */}
           <header className="bg-white shadow-sm border-b">
@@ -123,6 +126,7 @@ export default function AdminSettings() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <CurrencySwitcher />
                 <Button onClick={handleSave} className="bg-secondary hover:bg-secondary/90">
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
@@ -449,6 +453,20 @@ export default function AdminSettings() {
                             onCheckedChange={(checked) => handleSettingChange('acceptDigital', checked)}
                           />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currency">Currency</Label>
+                        <Select value={currency} onValueChange={(value: any) => setCurrency(value)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
+                            <SelectItem value="INR">INR - Indian Rupee (₹)</SelectItem>
+                            <SelectItem value="PKR">PKR - Pakistani Rupee (₨)</SelectItem>
+                            <SelectItem value="AED">AED - UAE Dirham (د.إ)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="taxRate">Tax Rate (%)</Label>

@@ -5,8 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Scissors, Clock, DollarSign, Plus, Edit, MoreVertical, Search, Filter, Building } from "lucide-react";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { Scissors, Clock, DollarSign, Plus, Edit, MoreVertical, Search, Filter, Building, Check } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
@@ -26,6 +29,28 @@ export default function SuperAdminServices() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Add Service Dialog State
+  const [showAddServiceDialog, setShowAddServiceDialog] = useState(false);
+  const [serviceForm, setServiceForm] = useState({
+    name: '',
+    category: '',
+    description: '',
+    price: '',
+    duration: '',
+    status: 'active' as 'active' | 'inactive',
+    branches: [] as string[]
+  });
+
+  // Available branches
+  const availableBranches = [
+    "Downtown Premium",
+    "Midtown Elite", 
+    "Uptown Luxury",
+    "Eastside Classic",
+    "Suburban Comfort",
+    "Westside Modern"
+  ];
 
   // Mock services data across all branches
   const services = [
@@ -135,6 +160,50 @@ export default function SuperAdminServices() {
     }
   };
 
+  const handleSaveService = () => {
+    if (!serviceForm.name || !serviceForm.category || !serviceForm.price || !serviceForm.duration || serviceForm.branches.length === 0) {
+      alert('Please fill in all required fields and select at least one branch');
+      return;
+    }
+
+    // In a real app, this would save to the database
+    console.log('Saving service:', serviceForm);
+    alert('Service added successfully!');
+
+    // Reset form and close dialog
+    setServiceForm({
+      name: '',
+      category: '',
+      description: '',
+      price: '',
+      duration: '',
+      status: 'active',
+      branches: []
+    });
+    setShowAddServiceDialog(false);
+  };
+
+  const resetServiceForm = () => {
+    setServiceForm({
+      name: '',
+      category: '',
+      description: '',
+      price: '',
+      duration: '',
+      status: 'active',
+      branches: []
+    });
+  };
+
+  const toggleBranchSelection = (branchName: string) => {
+    setServiceForm(prev => ({
+      ...prev,
+      branches: prev.branches.includes(branchName)
+        ? prev.branches.filter(b => b !== branchName)
+        : [...prev.branches, branchName]
+    }));
+  };
+
   return (
     <ProtectedRoute requiredRole="super_admin">
       <div className="flex h-screen bg-gray-50">
@@ -161,7 +230,10 @@ export default function SuperAdminServices() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <Button className="bg-secondary hover:bg-secondary/90">
+                <Button 
+                  className="bg-secondary hover:bg-secondary/90"
+                  onClick={() => setShowAddServiceDialog(true)}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Service
                 </Button>
@@ -371,6 +443,240 @@ export default function SuperAdminServices() {
             </div>
           </div>
         </div>
+
+        {/* Add Service Sheet */}
+        <Sheet open={showAddServiceDialog} onOpenChange={(open) => {
+          if (!open) resetServiceForm();
+          setShowAddServiceDialog(open);
+        }}>
+          <SheetContent className="w-full sm:max-w-4xl max-h-[98vh] overflow-hidden flex flex-col bg-white border-l-2 border-gray-200 shadow-2xl">
+            <div className="flex-shrink-0 px-6 py-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <SheetHeader className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <SheetTitle className="text-2xl font-bold text-gray-900">Add New Service</SheetTitle>
+                    <SheetDescription className="text-gray-600 mt-1">
+                      Create a new service and assign it to specific branches.
+                    </SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+              <div className="space-y-8">
+                {/* Service Details */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <Card className="border-2 border-gray-100 shadow-sm">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Scissors className="w-5 h-5 text-blue-600" />
+                          Basic Information
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-3">
+                          <Label htmlFor="service-name" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            Service Name *
+                          </Label>
+                          <Input
+                            id="service-name"
+                            placeholder="e.g., Classic Haircut"
+                            value={serviceForm.name || ''}
+                            onChange={(e) => setServiceForm({...serviceForm, name: e.target.value})}
+                            className="h-12 border-2 border-gray-200 focus:border-primary focus:ring-primary/20"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label htmlFor="service-category" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <Filter className="w-4 h-4" />
+                            Category *
+                          </Label>
+                          <Select value={serviceForm.category} onValueChange={(value) => setServiceForm({...serviceForm, category: value})}>
+                            <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-primary">
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent className="border-2">
+                              <SelectItem value="Haircuts">Haircuts</SelectItem>
+                              <SelectItem value="Beard Care">Beard Care</SelectItem>
+                              <SelectItem value="Color Services">Color Services</SelectItem>
+                              <SelectItem value="Shaving">Shaving</SelectItem>
+                              <SelectItem value="Styling">Styling</SelectItem>
+                              <SelectItem value="Treatments">Treatments</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label htmlFor="service-description" className="text-sm font-semibold text-gray-700">Description</Label>
+                          <Textarea
+                            id="service-description"
+                            placeholder="Describe the service..."
+                            value={serviceForm.description || ''}
+                            onChange={(e) => setServiceForm({...serviceForm, description: e.target.value})}
+                            className="min-h-24 border-2 border-gray-200 focus:border-primary focus:ring-primary/20"
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="space-y-6">
+                    <Card className="border-2 border-gray-100 shadow-sm">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Building className="w-5 h-5 text-purple-600" />
+                          Service Settings
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label htmlFor="service-price" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                              <DollarSign className="w-4 h-4" />
+                              Price *
+                            </Label>
+                            <Input
+                              id="service-price"
+                              type="number"
+                              placeholder="0.00"
+                              value={serviceForm.price || ''}
+                              onChange={(e) => setServiceForm({...serviceForm, price: e.target.value})}
+                              className="h-12 border-2 border-gray-200 focus:border-primary focus:ring-primary/20"
+                            />
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label htmlFor="service-duration" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              Duration *
+                            </Label>
+                            <Input
+                              id="service-duration"
+                              type="number"
+                              placeholder="30"
+                              value={serviceForm.duration || ''}
+                              onChange={(e) => setServiceForm({...serviceForm, duration: e.target.value})}
+                              className="h-12 border-2 border-gray-200 focus:border-primary focus:ring-primary/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label htmlFor="service-status" className="text-sm font-semibold text-gray-700">Status</Label>
+                          <Select value={serviceForm.status} onValueChange={(value: 'active' | 'inactive') => setServiceForm({...serviceForm, status: value})}>
+                            <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-primary">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="border-2">
+                              <SelectItem value="active">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                  Active
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="inactive">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                                  Inactive
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Branch Selection */}
+                <Card className="border-2 border-gray-100 shadow-sm">
+                  <CardHeader className="pb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                        <Building className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg text-gray-900">Branch Assignment</CardTitle>
+                        <CardDescription className="text-gray-600">Select which branches this service will be available at</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">Selected branches:</span>
+                        <span className="text-primary font-semibold">{serviceForm.branches.length} of {availableBranches.length}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {availableBranches.map((branch) => (
+                          <div
+                            key={branch}
+                            className={cn(
+                              "flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md",
+                              serviceForm.branches.includes(branch)
+                                ? "border-primary bg-primary/5 shadow-sm"
+                                : "border-gray-200 hover:border-gray-300"
+                            )}
+                            onClick={() => toggleBranchSelection(branch)}
+                          >
+                            <div className={cn(
+                              "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                              serviceForm.branches.includes(branch)
+                                ? "bg-primary border-primary"
+                                : "border-gray-300"
+                            )}>
+                              {serviceForm.branches.includes(branch) && (
+                                <Check className="w-3 h-3 text-white" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">{branch}</p>
+                              <p className="text-sm text-gray-500">Branch location</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {serviceForm.branches.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <Building className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                          <p className="font-medium">No branches selected</p>
+                          <p className="text-sm">Please select at least one branch for this service</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 px-6 py-6 border-t-2 border-gray-100 bg-gray-50">
+              <div className="flex justify-between items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddServiceDialog(false)}
+                  className="px-6 py-3 border-2 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveService}
+                  className="px-8 py-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Add Service
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </ProtectedRoute>
   );
