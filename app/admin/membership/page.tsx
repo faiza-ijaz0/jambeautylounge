@@ -351,7 +351,7 @@ if (user?.role === 'admin' && user?.branchId) {
             
             if (user?.role === 'admin' && user?.branchId) {
               filteredOffers = offersData.filter(offer => 
-                offer.branches.includes(user.branchId)
+                offer.branches.includes(user.branchId as string)
               );
             }
             
@@ -402,7 +402,7 @@ if (user?.role === 'admin' && user?.branchId) {
             
             if (user?.role === 'admin' && user?.branchId) {
               filteredPromoCodes = promoCodesData.filter(promo => 
-                promo.branches.includes(user.branchId)
+                promo.branches.includes(user.branchId as string)
               );
             }
             
@@ -451,7 +451,7 @@ if (user?.role === 'admin' && user?.branchId) {
             
             if (user?.role === 'admin' && user?.branchId) {
               filteredCashback = cashbackData.filter(cashback => 
-                cashback.branches.includes(user.branchId)
+                cashback.branches.includes(user.branchId as string)
               );
             }
             
@@ -496,7 +496,7 @@ if (user?.role === 'admin' && user?.branchId) {
             
             if (user?.role === 'admin' && user?.branchId) {
               filteredLoyalty = loyaltyData.filter(loyalty => 
-                loyalty.branches.includes(user.branchId)
+                loyalty.branches.includes(user.branchId as string)
               );
             }
             
