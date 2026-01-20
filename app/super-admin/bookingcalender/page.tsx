@@ -29,10 +29,6 @@ import { generateInvoiceNumber } from "@/lib/invoice-utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { InvoiceModal } from "@/components/ui/invoice-modal";
-import { CalendarEventModal } from "@/components/ui/calendar-event-modal";
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 // ===================== TYPE DEFINITIONS =====================
 
@@ -61,6 +57,7 @@ interface FirebaseProductOrder {
 }
 
 interface FirebaseBooking {
+  createdBy: string;
   id: string;
   firebaseId: string;
   bookingNumber: string;
@@ -217,6 +214,16 @@ interface BookingFormData {
   branch: string;
 }
 
+// Types for notification system
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+}
+
 // ===================== FIREBASE FUNCTIONS =====================
 
 const fetchProductOrders = async (addNotification: (notification: { type: string; title: string; message: string }) => void): Promise<FirebaseProductOrder[]> => {
@@ -348,7 +355,8 @@ const fetchBookings = async (addNotification: (notification: { type: string; tit
         pointsAwarded: data.pointsAwarded || false,
         createdAt,
         updatedAt,
-        customerId: data.customerId || ""
+        customerId: data.customerId || "",
+        createdBy: ''
       };
       bookings.push(bookingData);
     });
@@ -570,14 +578,15 @@ const deleteProductOrderInFirebase = async (orderId: string): Promise<boolean> =
 };
 
 // ===================== CREATE BOOKING IN FIREBASE =====================
-
 const createBookingInFirebase = async (
   bookingData: BookingFormData, 
   selectedService: FirebaseService | null,
   selectedCategory: FirebaseCategory | null,
   selectedBranch: FirebaseBranch | null,
-  addNotification: (notification: { type: string; title: string; message: string }) => void
+  addNotification: (notification: { type: 'error' | 'success' | 'warning' | 'info'; title: string; message: string }) => void
 ): Promise<{success: boolean, bookingId?: string, booking?: FirebaseBooking}> => {
+  // ... existing code remains same
+
   try {
     // Calculate pricing
     const servicePrice = selectedService?.price || 0;
@@ -731,7 +740,8 @@ const createBookingInFirebase = async (
       pointsAwarded: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-      customerId: ""
+      customerId: "",
+      createdBy: ''
     };
     
     return {success: true, bookingId: docRef.id, booking: newBooking};
@@ -771,12 +781,8 @@ export default function AdminAppointments() {
   const [showAppointmentDetails, setShowAppointmentDetails] = useState(false);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // NEW STATES FOR INVOICE AND CALENDAR MODALS
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedAppointmentForInvoice, setSelectedAppointmentForInvoice] = useState<Appointment | null>(null);
-  const [showCalendarEventModal, setShowCalendarEventModal] = useState(false);
-  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<Appointment | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   
   const [loading, setLoading] = useState({
@@ -1203,7 +1209,7 @@ export default function AdminAppointments() {
     console.log('Creating booking:', bookingData);
 
     // Save to Firebase
-    const result = await createBookingInFirebase(bookingData, selectedService, selectedCategory, selectedBranch, addNotification);
+    const result = await createBookingInFirebase(bookingData, selectedService, selectedCategory, selectedBranch, addNotification) ;
     
     if (result.success && result.booking) {
       // Add to state manually
@@ -1258,18 +1264,6 @@ export default function AdminAppointments() {
     setShowAppointmentDetails(true);
   };
 
-  // NEW: Handle Calendar Event Click (Advanced Calendar se)
-  const handleCalendarEventClick = (appointment: Appointment) => {
-    setSelectedCalendarEvent(appointment);
-    setShowCalendarEventModal(true);
-  };
-
-  // NEW: Handle Generate Invoice
-  const handleGenerateInvoice = (appointment: Appointment) => {
-    setSelectedAppointmentForInvoice(appointment);
-    setShowInvoiceModal(true);
-  };
-
   const handleStatusChange = async (appointmentId: string, newStatus: string) => {
     try {
       const booking = bookings.find(b => b.firebaseId === appointmentId);
@@ -1309,6 +1303,23 @@ export default function AdminAppointments() {
         message: 'Failed to update appointment status'
       });
     }
+  };
+
+  const handleGenerateInvoice = (appointment: Appointment) => {
+    const branch = getBranchByName(appointment.branch);
+    if (!branch) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Branch details not found. Please configure branch in settings.'
+      });
+      return;
+    }
+
+    const newInvoiceNumber = generateInvoiceNumber();
+    setInvoiceNumber(newInvoiceNumber);
+    setSelectedAppointmentForInvoice(appointment);
+    setShowInvoiceModal(true);
   };
 
   const handleApproveBooking = async (bookingId: string) => {
@@ -1955,7 +1966,7 @@ export default function AdminAppointments() {
                 <TabsContent value="advanced-calendar" className="space-y-6">
                   <AdvancedCalendar
                     appointments={finalAppointments as any}
-                    onAppointmentClick={handleCalendarEventClick}
+                    onAppointmentClick={handleAppointmentClick as any}
                     onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
                     onCreateBooking={handleCreateBooking}
                     staff={staffMembers}
@@ -3630,21 +3641,82 @@ export default function AdminAppointments() {
         </SheetContent>
       </Sheet>
 
-      {/* NEW: Invoice Modal */}
-      <InvoiceModal
-        isOpen={showInvoiceModal}
-        onClose={() => setShowInvoiceModal(false)}
-        appointment={selectedAppointmentForInvoice}
-      />
+      {/* Invoice Generation Modal */}
+      <Sheet open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
+        <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Generate Invoice</SheetTitle>
+            <SheetDescription>
+              Preview and generate invoice for appointment
+            </SheetDescription>
+          </SheetHeader>
 
-      {/* NEW: Calendar Event Modal */}
-      <CalendarEventModal
-        isOpen={showCalendarEventModal}
-        onClose={() => setShowCalendarEventModal(false)}
-        appointment={selectedCalendarEvent}
-        onStatusChange={handleStatusChange}
-        onGenerateInvoice={handleGenerateInvoice}
-      />
+          {selectedAppointmentForInvoice && (
+            <div className="space-y-6 mt-6">
+              {/* Invoice Preview */}
+              {getBranchByName(selectedAppointmentForInvoice.branch) && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div id="invoice-container">
+                    {(() => {
+                      const TemplateComponent = getTemplate(
+                        getBranchByName(selectedAppointmentForInvoice.branch)?.invoiceTemplate || 'modern'
+                      );
+                      const invoiceData: InvoiceData = {
+                       id: Number(selectedAppointmentForInvoice.id) || Date.now(),
+                        invoiceNumber,
+                        customer: selectedAppointmentForInvoice.customer,
+                        email: selectedAppointmentForInvoice.email,
+                        phone: selectedAppointmentForInvoice.phone,
+                        service: selectedAppointmentForInvoice.service,
+                        date: selectedAppointmentForInvoice.date,
+                        time: selectedAppointmentForInvoice.time,
+                        duration: selectedAppointmentForInvoice.duration,
+                        price: selectedAppointmentForInvoice.price,
+                        status: selectedAppointmentForInvoice.status,
+                        barber: selectedAppointmentForInvoice.barber,
+                        notes: selectedAppointmentForInvoice.notes,
+                        tax: 5,
+                        discount: 0
+                      };
+
+                      return (
+                        <TemplateComponent
+                          invoice={invoiceData}
+                          branch={getBranchByName(selectedAppointmentForInvoice.branch)!}
+                        />
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-end pt-6 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowInvoiceModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    window.print();
+                    addNotification({
+                      type: 'success',
+                      title: 'Print Dialog Opened',
+                      message: 'Use your browser print function to save as PDF'
+                    });
+                  }}
+                  className="gap-2 bg-primary hover:bg-primary/90"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print / Save PDF
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </ProtectedRoute>
   );
 }

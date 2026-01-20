@@ -137,26 +137,16 @@ const superAdminNavItems = [
     icon: BarChart3,
   },
   {
-    title: 'Clients',
-    href: '/super-admin/clients',
-    icon: Users,
+    title: 'All Appointments',
+    href: '/super-admin/appointments',
+    icon: Calendar,
   },
   {
-    title: 'Branches',
-    href: '/super-admin/branches',
-    icon: Building,
+    title: 'Booking Calender',
+    href: '/super-admin/bookingcalender',
+    icon: DollarSign,
   },
   {
-    title: 'Staff Management',
-    href: '/super-admin/staff',
-    icon: Users,
-  },
-  {
-    title: 'Categories',
-    href: '/super-admin/categories',
-    icon: Tag,
-  },
-   {
     title: 'Services',
     href: '/super-admin/services',
     icon: Scissors,
@@ -167,57 +157,88 @@ const superAdminNavItems = [
     icon: Package,
   },
   {
-    title: 'Membership',
-    href: '/super-admin/membership',
-    icon: Award,
+    title: 'Clients',
+    href: '/super-admin/clients',
+    icon: Users,
   },
   {
-    title: 'Users',
-    href: '/super-admin/users',
-    icon: Award,
-  },
-  {
-    title: 'All Appointments',
-    href: '/super-admin/appointments',
-    icon: Calendar,
-  },
-   {
-    title: 'All Orders',
-    href: '/super-admin/orders',
-    icon: Calendar,
+    title: 'Staff Management',
+    href: '/super-admin/staff',
+    icon: Users,
   },
   {
     title: 'All Feedback',
     href: '/super-admin/feedback',
     icon: Calendar,
   },
-  
-//  {
-//     title: 'Analytics',
-//     href: '/super-admin/analytics',
-//     icon: PieChart,
-//   },
+  {
+    title: 'Categories',
+    href: '/super-admin/categories',
+    icon: Tag,
+  },
+   {
+    title: 'Analytics',
+    href: '/super-admin/analytics',
+    icon: PieChart,
+  },
   {
     title: 'Expenses',
     href: '/super-admin/expenses',
     icon: DollarSign,
   },
+   {
+    title: 'All Orders',
+    href: '/super-admin/orders',
+    icon: Calendar,
+  },
+  
+   {
+    title: 'Membership',
+    href: '/super-admin/membership',
+    icon: Award,
+  },
   {
-    title: 'Booking Calender',
-    href: '/super-admin/bookingcalender',
+    title: 'Branches',
+    href: '/super-admin/branches',
+    icon: Building,
+  },
+  
+  
+   
+ 
+
+  {
+    title: 'Users',
+    href: '/super-admin/users',
+    icon: Award,
+  },
+  
+  
+  
+  
+  
+ {
+    title: 'Analytics',
+    href: '/super-admin/analytics',
+    icon: PieChart,
+  },
+  {
+    title: 'Expenses',
+    href: '/super-admin/expenses',
     icon: DollarSign,
   },
+  
  {
     title: '  Custom Invoice Generator',
     href: '/super-admin/custom-invoice',
     icon: DollarSign,
   },
 
-  {
-    title: 'Financial',
-    href: '/super-admin/financial',
-    icon: DollarSign,
-  },
+  // {
+  //   title: 'Financial',
+  //   href: '/super-admin/financial',
+  //   icon: DollarSign,
+  // },
   
   {
     title: 'Mobile App',
