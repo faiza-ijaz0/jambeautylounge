@@ -493,6 +493,11 @@ const branchAdminNavItems = [
     icon: TrendingUp,
   },
   {
+    title: 'custom Invoice',
+    href: '/admin/custominvoice',
+    icon: TrendingUp,
+  },
+  {
     title: 'Messages',
     href: '/admin/messages',
     icon: MessageCircle,
