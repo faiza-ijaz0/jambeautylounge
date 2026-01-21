@@ -4338,151 +4338,151 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* UPDATED: Multiple Services Selection */}
-            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Scissors className="w-5 h-5 text-primary" />
-                Select Services (Choose Multiple)
-                {selectedServices.length > 0 && (
-                  <Badge className="bg-green-500 text-white ml-2">
-                    {selectedServices.length} Selected
-                  </Badge>
-                )}
-              </h3>
+            
+            {/* UPDATED: Multiple Services Selection - DROPDOWN VERSION */}
+<div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+    <Scissors className="w-5 h-5 text-primary" />
+    Select Services (Choose Multiple)
+    {selectedServices.length > 0 && (
+      <Badge className="bg-green-500 text-white ml-2">
+        {selectedServices.length} Selected
+      </Badge>
+    )}
+  </h3>
 
-              <div className="space-y-4">
-                {/* Service Selection Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {loading.services ? (
-                    <div className="col-span-2 text-center py-8">
-                      <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-                      <p className="text-sm text-gray-600">Loading services...</p>
-                    </div>
-                  ) : filteredServices.length === 0 && bookingData.branch ? (
-                    <div className="col-span-2 text-center py-8">
-                      <AlertCircle className="w-10 h-10 text-yellow-500 mx-auto mb-2" />
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-gray-600">
-                          No services found for <strong>{bookingData.branch}</strong>
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Please select a different branch or add services to this branch first.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    filteredServices.map((service) => {
-                      const isSelected = selectedServices.some(s => s.name === service.name);
-                      return (
-                        <div
-                          key={service.firebaseId}
-                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                            isSelected 
-                              ? 'bg-blue-50 border-blue-300 shadow-sm' 
-                              : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50'
-                          }`}
-                          onClick={() => handleServiceSelection(service.name)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-medium text-gray-900">{service.name}</h4>
-                                {isSelected && (
-                                  <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">
-                                    ✓ Selected
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{service.description}</p>
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <div className="flex items-center gap-3">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {service.duration} min
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Tag className="w-3 h-3" />
-                                    {service.category}
-                                  </span>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-bold text-primary text-base">
-                                    {formatCurrency(service.price)}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                
-                {/* Selected Services Summary */}
-                {selectedServices.length > 0 && (
-                  <div className="mt-6 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-                    <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5" />
-                      Selected Services Summary
-                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                        {selectedServices.length} service(s)
+  <div className="space-y-4">
+    {/* Service Selection DROPDOWN */}
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-gray-700">
+        Select Services from Dropdown
+      </label>
+      <Select 
+        value="" 
+        onValueChange={(serviceName) => handleServiceSelection(serviceName)}
+        disabled={!bookingData.branch}
+      >
+        <SelectTrigger className="h-11">
+          <SelectValue placeholder={bookingData.branch ? "Select services from dropdown..." : "First select a branch"} />
+        </SelectTrigger>
+        <SelectContent className="max-h-60">
+          {loading.services ? (
+            <div className="text-center py-2">
+              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+              <p className="text-xs text-gray-600 mt-1">Loading services...</p>
+            </div>
+          ) : filteredServices.length === 0 && bookingData.branch ? (
+            <div className="text-center py-2">
+              <AlertCircle className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
+              <p className="text-sm text-gray-600">No services available for {bookingData.branch}</p>
+            </div>
+          ) : (
+            filteredServices.map((service) => {
+              const isSelected = selectedServices.some(s => s.name === service.name);
+              return (
+                <SelectItem 
+                  key={service.firebaseId} 
+                  value={service.name}
+                  className={`flex items-center justify-between py-3 ${isSelected ? 'bg-blue-50' : ''}`}
+                >
+                  <div className="flex items-center gap-2">
+                    {isSelected && (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    )}
+                    <div className="text-left">
+                      <span className={isSelected ? 'font-medium' : ''}>
+                        {service.name}
                       </span>
-                    </h4>
-                    
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                      {selectedServices.map((service, index) => (
-                        <div 
-                          key={service.id} 
-                          className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-100"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                              <span className="font-bold text-green-700">{index + 1}</span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{service.name}</p>
-                              <p className="text-xs text-gray-500">{service.category} • {service.duration} min</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-gray-900">{formatCurrency(service.price)}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleServiceSelection(service.name)}
-                              className="h-7 w-7 p-0 hover:bg-red-50"
-                            >
-                              <XCircle className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="pt-4 mt-4 border-t border-green-200">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-green-800 mb-1">Total Duration:</p>
-                          <p className="text-lg font-bold text-green-900">
-                            {selectedServices.reduce((sum, s) => sum + s.duration, 0)} minutes
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-green-800 mb-1">Total Services Price:</p>
-                          <p className="text-2xl font-bold text-green-700">
-                            {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}
-                          </p>
-                        </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                        <span>{service.category}</span>
+                        <span>•</span>
+                        <span>{service.duration}min</span>
                       </div>
                     </div>
                   </div>
-                )}
+                  <span className="text-sm font-medium text-primary">
+                    {formatCurrency(service.price)}
+                  </span>
+                </SelectItem>
+              );
+            })
+          )}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-gray-500">
+        Use dropdown to select services. Select multiple times to add multiple services.
+      </p>
+    </div>
+    
+    {/* Selected Services Summary */}
+    {selectedServices.length > 0 ? (
+      <div className="mt-4 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+        <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          Selected Services Summary
+          <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+            {selectedServices.length} service(s)
+          </span>
+        </h4>
+        
+        <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+          {selectedServices.map((service, index) => (
+            <div 
+              key={service.id} 
+              className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-100"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="font-bold text-green-700">{index + 1}</span>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{service.name}</p>
+                  <p className="text-xs text-gray-500">{service.category} • {service.duration} min</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-gray-900">{formatCurrency(service.price)}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleServiceSelection(service.name)}
+                  className="h-7 w-7 p-0 hover:bg-red-50"
+                >
+                  <XCircle className="w-4 h-4 text-red-500" />
+                </Button>
               </div>
             </div>
-
+          ))}
+        </div>
+        
+        <div className="pt-4 mt-4 border-t border-green-200">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-green-800 mb-1">Total Duration:</p>
+              <p className="text-lg font-bold text-green-900">
+                {selectedServices.reduce((sum, s) => sum + s.duration, 0)} minutes
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-green-800 mb-1">Total Services Price:</p>
+              <p className="text-2xl font-bold text-green-700">
+                {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg">
+        <Scissors className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+        <p className="text-sm text-gray-600">No services selected yet</p>
+        <p className="text-xs text-gray-500">Select services from dropdown above</p>
+      </div>
+    )}
+  </div>
+</div>
             {/* Service Staff Selection */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
