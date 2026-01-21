@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,23 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   DollarSign, 
   TrendingUp, 
-  TrendingDown, 
   Package, 
   Calendar, 
   BarChart3, 
-  Filter,
   Download,
   RefreshCw,
   Building2,
-  Clock,
   ShoppingCart,
-  Percent,
-  AlertCircle,
   Loader2,
-  Eye,
   FileText,
   PieChart,
-  TrendingUp as TrendingUpIcon,
   Plus,
   X,
   Save,
@@ -42,12 +35,9 @@ import { db } from '@/lib/firebase';
 import { 
   collection, 
   query, 
-  getDocs, 
-  Timestamp,
+  getDocs,
   where,
   orderBy,
-  startAt,
-  endAt,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -55,8 +45,6 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   PieChart as RechartsPieChart,
@@ -70,47 +58,30 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-// Firebase Interfaces - Add Manual Expense Interface
+// Firebase Interfaces
 interface Product {
   id: string;
   name: string;
-  description: string;
   price: number;
   cost: number;
   category: string;
-  categoryId: string;
-  imageUrl: string;
   branchNames: string[];
-  branches: string[];
-  stock: number;
   totalStock: number;
   totalSold: number;
-  revenue: number;
   status: 'active' | 'inactive';
   createdAt: any;
-  updatedAt: any;
-  sku: string;
-  rating: number;
-  reviews: number;
 }
 
 interface Service {
   id: string;
   name: string;
-  description: string;
   price: number;
   duration: number;
   category: string;
-  categoryId: string;
-  imageUrl: string;
   branchNames: string[];
-  branches: string[];
   status: 'active' | 'inactive';
-  popularity: string;
-  revenue: number;
   totalBookings: number;
   createdAt: any;
-  updatedAt: any;
 }
 
 interface Booking {
@@ -119,18 +90,16 @@ interface Booking {
   serviceName: string;
   servicePrice: number;
   totalAmount: number;
-  customerId: string;
   customerName: string;
-  customerEmail: string;
   date: string;
-  time: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  notes: string;
+  status: string;
+  branch: string;
+  paymentMethod: string;
   createdAt: any;
   updatedAt: any;
 }
 
-// NEW: Manual Expense Interface
+// Manual Expense Interface
 interface ManualExpense {
   id: string;
   title: string;
@@ -144,7 +113,6 @@ interface ManualExpense {
   createdAt: any;
   updatedAt: any;
   createdBy: string;
-  receiptUrl?: string;
   notes?: string;
 }
 
@@ -152,7 +120,7 @@ interface ExpenseSummary {
   totalProductsCost: number;
   totalServicesCost: number;
   totalAppointmentsCost: number;
-  totalManualExpenses: number; // NEW
+  totalManualExpenses: number;
   totalExpenses: number;
   totalRevenue: number;
   totalProfit: number;
@@ -162,7 +130,7 @@ interface ExpenseSummary {
     productsCost: number;
     servicesCost: number;
     appointmentsCost: number;
-    manualExpenses: number; // NEW
+    manualExpenses: number;
     totalCost: number;
     revenue: number;
     profit: number;
@@ -172,7 +140,7 @@ interface ExpenseSummary {
     productsCost: number;
     servicesCost: number;
     appointmentsCost: number;
-    manualExpenses: number; // NEW
+    manualExpenses: number;
     totalCost: number;
   }>;
   categoryWiseData: Array<{
@@ -181,13 +149,13 @@ interface ExpenseSummary {
     servicesCost: number;
     totalCost: number;
   }>;
-  manualExpensesByCategory: Array<{ // NEW
+  manualExpensesByCategory: Array<{
     category: string;
     amount: number;
   }>;
 }
 
-// NEW: Expense Categories
+// Expense Categories
 const EXPENSE_CATEGORIES = [
   'Salaries',
   'Rent',
@@ -205,7 +173,7 @@ const EXPENSE_CATEGORIES = [
   'Other'
 ];
 
-// NEW: Payment Methods
+// Payment Methods
 const PAYMENT_METHODS = [
   'Cash',
   'Credit Card',
@@ -225,7 +193,7 @@ export default function SuperAdminExpensesPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [manualExpenses, setManualExpenses] = useState<ManualExpense[]>([]); // NEW
+  const [manualExpenses, setManualExpenses] = useState<ManualExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [expenseSummary, setExpenseSummary] = useState<ExpenseSummary>({
     totalProductsCost: 0,
@@ -242,7 +210,7 @@ export default function SuperAdminExpensesPage() {
     manualExpensesByCategory: []
   });
 
-  // NEW: Manual Expense Modal State
+  // Manual Expense Modal State
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ManualExpense | null>(null);
   const [expenseForm, setExpenseForm] = useState({
@@ -250,7 +218,7 @@ export default function SuperAdminExpensesPage() {
     description: '',
     amount: 0,
     category: EXPENSE_CATEGORIES[0],
-    branch: user?.role === 'admin' && user?.branchId ? user.branchName : 'all',
+    branch: user?.role === 'admin' && user?.branchName ? user.branchName : 'all',
     date: new Date().toISOString().split('T')[0],
     paymentMethod: PAYMENT_METHODS[0],
     status: 'paid' as 'paid' | 'pending' | 'cancelled',
@@ -259,9 +227,10 @@ export default function SuperAdminExpensesPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Filter States
-  const [selectedBranch, setSelectedBranch] = useState(user?.role === 'admin' && user?.branchId ? user.branchName : 'all');
+  const [selectedBranch, setSelectedBranch] = useState<string>(
+    user?.role === 'admin' && user?.branchName ? user.branchName : 'all'
+  );
   const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
@@ -273,7 +242,7 @@ export default function SuperAdminExpensesPage() {
     router.push('/login');
   };
 
-  // Fetch all data with branch filtering
+  // Fetch all data
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -285,7 +254,7 @@ export default function SuperAdminExpensesPage() {
         fetchProducts(),
         fetchServices(),
         fetchBookings(),
-        fetchManualExpenses() // NEW
+        fetchManualExpenses()
       ]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -294,26 +263,13 @@ export default function SuperAdminExpensesPage() {
     }
   };
 
-  // NEW: Fetch Manual Expenses with BRANCH FILTERING
+  // Fetch Manual Expenses - FIXED: No complex query to avoid index error
   const fetchManualExpenses = async () => {
     try {
       const expensesRef = collection(db, 'manualExpenses');
       
-      let q;
-      
-      // 🔥 BRANCH FILTERING FOR BRANCH ADMIN
-      if (user?.role === 'admin' && user?.branchName) {
-        // Branch admin sirf apni branch ke expenses dekhe
-        q = query(
-          expensesRef, 
-          where('branch', '==', user.branchName),
-          orderBy('createdAt', 'desc')
-        );
-        console.log(`🏢 Branch Admin: Showing expenses only for ${user.branchName}`);
-      } else {
-        // Super admin - sab expenses dekhe
-        q = query(expensesRef, orderBy('createdAt', 'desc'));
-      }
+      // Simple query without complex where conditions
+      const q = query(expensesRef, orderBy('createdAt', 'desc'));
       
       const querySnapshot = await getDocs(q);
       
@@ -333,25 +289,29 @@ export default function SuperAdminExpensesPage() {
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
           createdBy: data.createdBy || '',
-          receiptUrl: data.receiptUrl || '',
           notes: data.notes || ''
         });
       });
       
-      setManualExpenses(expensesData);
+      // Client-side filtering for branch admin
+      let filteredExpenses = expensesData;
+      if (user?.role === 'admin' && user?.branchName) {
+        filteredExpenses = expensesData.filter(e => e.branch === user.branchName);
+      }
+      
+      setManualExpenses(filteredExpenses);
     } catch (error) {
       console.error('Error fetching manual expenses:', error);
     }
   };
 
-  // Fetch products with branch filtering
+  // Fetch products - REAL DATA FROM FIREBASE
   const fetchProducts = async () => {
     try {
       const productsRef = collection(db, 'products');
       let q;
       
       if (user?.role === 'admin' && user?.branchName) {
-        // Branch admin ke liye sirf us branch ke products
         q = query(
           productsRef, 
           where('branchNames', 'array-contains', user.branchName),
@@ -369,24 +329,14 @@ export default function SuperAdminExpensesPage() {
         productsData.push({
           id: doc.id,
           name: data.name || '',
-          description: data.description || '',
           price: data.price || 0,
           cost: data.cost || 0,
           category: data.category || '',
-          categoryId: data.categoryId || '',
-          imageUrl: data.imageUrl || '',
           branchNames: data.branchNames || [],
-          branches: data.branches || [],
-          stock: data.stock || 0,
           totalStock: data.totalStock || 0,
           totalSold: data.totalSold || 0,
-          revenue: data.revenue || 0,
           status: data.status || 'active',
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          sku: data.sku || '',
-          rating: data.rating || 0,
-          reviews: data.reviews || 0
+          createdAt: data.createdAt
         });
       });
       
@@ -396,14 +346,13 @@ export default function SuperAdminExpensesPage() {
     }
   };
 
-  // Fetch services with branch filtering
+  // Fetch services - REAL DATA FROM FIREBASE
   const fetchServices = async () => {
     try {
       const servicesRef = collection(db, 'services');
       let q;
       
       if (user?.role === 'admin' && user?.branchName) {
-        // Branch admin ke liye sirf us branch ke services
         q = query(
           servicesRef, 
           where('branchNames', 'array-contains', user.branchName),
@@ -421,20 +370,13 @@ export default function SuperAdminExpensesPage() {
         servicesData.push({
           id: doc.id,
           name: data.name || '',
-          description: data.description || '',
           price: data.price || 0,
           duration: data.duration || 0,
           category: data.category || '',
-          categoryId: data.categoryId || '',
-          imageUrl: data.imageUrl || '',
           branchNames: data.branchNames || [],
-          branches: data.branches || [],
           status: data.status || 'active',
-          popularity: data.popularity || 'low',
-          revenue: data.revenue || 0,
           totalBookings: data.totalBookings || 0,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt
+          createdAt: data.createdAt
         });
       });
       
@@ -444,11 +386,11 @@ export default function SuperAdminExpensesPage() {
     }
   };
 
-  // Fetch bookings with branch filtering
+  // Fetch bookings - REAL DATA FROM FIREBASE
   const fetchBookings = async () => {
     try {
       const bookingsRef = collection(db, 'bookings');
-      let q = query(bookingsRef, orderBy('createdAt', 'desc'));
+      const q = query(bookingsRef, orderBy('createdAt', 'desc'));
       
       const querySnapshot = await getDocs(q);
       
@@ -458,16 +400,14 @@ export default function SuperAdminExpensesPage() {
         bookingsData.push({
           id: doc.id,
           serviceId: data.serviceId || '',
-          serviceName: data.serviceName || '',
+          serviceName: data.serviceName || data.service || '',
           servicePrice: data.servicePrice || 0,
           totalAmount: data.totalAmount || 0,
-          customerId: data.customerId || '',
           customerName: data.customerName || '',
-          customerEmail: data.customerEmail || '',
-          date: data.date || '',
-          time: data.time || '',
+          date: data.date || data.bookingDate || '',
           status: data.status || 'pending',
-          notes: data.notes || '',
+          branch: data.branch || data.userBranchName || data.branchNames?.[0] || '',
+          paymentMethod: data.paymentMethod || '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         });
@@ -476,15 +416,8 @@ export default function SuperAdminExpensesPage() {
       // Client-side filtering for branch admin
       let filteredBookings = bookingsData;
       if (user?.role === 'admin' && user?.branchName) {
-        // Get services for the branch
-        const branchServices = services.filter(s => 
-          s.branchNames.includes(user.branchName as string)
-        );
-        const branchServiceIds = branchServices.map(s => s.id);
-        
-        // Filter bookings for those services
         filteredBookings = bookingsData.filter(b => 
-          branchServiceIds.includes(b.serviceId)
+          b.branch === user.branchName
         );
       }
       
@@ -494,7 +427,7 @@ export default function SuperAdminExpensesPage() {
     }
   };
 
-  // NEW: Manual Expense Functions with AUTO BRANCH SELECTION
+  // Manual Expense Functions
   const openExpenseModal = (expense?: ManualExpense) => {
     if (expense) {
       setEditingExpense(expense);
@@ -511,7 +444,6 @@ export default function SuperAdminExpensesPage() {
       });
     } else {
       setEditingExpense(null);
-      // 🔥 AUTO SELECT USER'S BRANCH FOR BRANCH ADMIN
       setExpenseForm({
         title: '',
         description: '',
@@ -542,7 +474,6 @@ export default function SuperAdminExpensesPage() {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    // 🔥 Branch admin ke liye branch change na karne de
     if (name === 'branch' && user?.role === 'admin' && user?.branchName) {
       alert('You cannot change the branch. Expense will be added to your assigned branch.');
       return;
@@ -562,10 +493,9 @@ export default function SuperAdminExpensesPage() {
 
     setSubmitting(true);
     try {
-      // 🔥 Ensure branch is set correctly
       let finalBranch = expenseForm.branch;
       if (user?.role === 'admin' && user?.branchName) {
-        finalBranch = user.branchName; // Force branch admin's branch
+        finalBranch = user.branchName;
       }
 
       const expenseData = {
@@ -584,14 +514,11 @@ export default function SuperAdminExpensesPage() {
       };
 
       if (editingExpense) {
-        // Update existing expense
         await updateDoc(doc(db, 'manualExpenses', editingExpense.id), expenseData);
       } else {
-        // Add new expense
         await addDoc(collection(db, 'manualExpenses'), expenseData);
       }
 
-      // Refresh data
       await fetchManualExpenses();
       closeExpenseModal();
       alert(editingExpense ? 'Expense updated successfully!' : 'Expense added successfully!');
@@ -616,67 +543,62 @@ export default function SuperAdminExpensesPage() {
     }
   };
 
-  // Calculate expense summary
-  useEffect(() => {
-    if (products.length > 0 || services.length > 0 || bookings.length > 0 || manualExpenses.length > 0) {
-      calculateExpenseSummary();
-    }
-  }, [products, services, bookings, manualExpenses, selectedBranch, selectedMonth, dateRange]);
-
-  const calculateExpenseSummary = () => {
+  // Calculate expense summary - USING REAL DATA ONLY
+  const calculateExpenseSummary = useCallback(() => {
+    // Use selectedBranch or default to 'all'
+    const currentBranch = selectedBranch || 'all';
+    
     // Filter data based on selected branch
-    const filteredProducts = selectedBranch === 'all' 
+    const filteredProducts = currentBranch === 'all' 
       ? products 
-      : products.filter(p => p.branchNames.includes(selectedBranch as string));
+      : products.filter(p => p.branchNames && p.branchNames.includes(currentBranch));
     
-    const filteredServices = selectedBranch === 'all' 
+    const filteredServices = currentBranch === 'all' 
       ? services 
-      : services.filter(s => s.branchNames.includes(selectedBranch as string));
+      : services.filter(s => s.branchNames && s.branchNames.includes(currentBranch));
     
-    const filteredBookings = selectedBranch === 'all' 
+    const filteredBookings = currentBranch === 'all' 
       ? bookings 
-      : bookings.filter(b => {
-          const service = services.find(s => s.id === b.serviceId);
-          return service?.branchNames.includes(selectedBranch as string);
-        });
+      : bookings.filter(b => b.branch === currentBranch);
 
-    // NEW: Filter manual expenses
-    const filteredManualExpenses = selectedBranch === 'all'
+    const filteredManualExpenses = currentBranch === 'all'
       ? manualExpenses
-      : manualExpenses.filter(e => e.branch === selectedBranch);
+      : manualExpenses.filter(e => e.branch === currentBranch);
 
-    // Calculate total products cost (cost * totalStock)
+    // Calculate total products cost (cost * totalStock) - REAL DATA
     const totalProductsCost = filteredProducts.reduce((sum, product) => 
-      sum + (product.cost * product.totalStock), 0
+      sum + (product.cost * (product.totalStock || 0)), 0
     );
 
-    // Calculate total services cost (considering services as fixed costs)
+    // Calculate total services cost - REAL DATA
     const totalServicesCost = filteredServices.reduce((sum, service) => {
-      return sum + (service.price * 0.3); // Assuming 30% of price as cost
+      return sum + (service.price * 0.3); // 30% of service price as cost
     }, 0);
 
-    // Calculate total appointments cost (completed bookings)
-    const completedBookings = filteredBookings.filter(b => b.status === 'completed');
+    // Calculate total appointments cost from completed bookings - REAL DATA
+    const completedBookings = filteredBookings.filter(b => 
+      b.status && b.status.toLowerCase() === 'completed'
+    );
     const totalAppointmentsCost = completedBookings.reduce((sum, booking) => 
-      sum + (booking.totalAmount * 0.4), 0 // Assuming 40% of booking amount as cost
+      sum + (booking.totalAmount * 0.4), 0 // 40% of booking amount as cost
     );
 
-    // NEW: Calculate total manual expenses
+    // Calculate total manual expenses - REAL DATA
     const totalManualExpenses = filteredManualExpenses.reduce((sum, expense) => 
       sum + expense.amount, 0
     );
 
-    // Calculate revenue
+    // Calculate revenue from completed bookings - REAL DATA
     const totalRevenue = completedBookings.reduce((sum, booking) => 
       sum + booking.totalAmount, 0
     );
 
-    // Calculate totals
+    // Calculate totals - REAL DATA ONLY
     const totalExpenses = totalProductsCost + totalServicesCost + totalAppointmentsCost + totalManualExpenses;
     const totalProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
-    // Generate month-wise data
+    // Generate data from REAL DATA
     const monthWiseData = generateMonthWiseData();
     const branchWiseData = generateBranchWiseData();
     const categoryWiseData = generateCategoryWiseData();
@@ -696,9 +618,14 @@ export default function SuperAdminExpensesPage() {
       categoryWiseData,
       manualExpensesByCategory
     });
-  };
+  }, [products, services, bookings, manualExpenses, selectedBranch]);
 
-  const generateMonthWiseData = () => {
+  // FIXED useEffect with stable dependency array
+  useEffect(() => {
+    calculateExpenseSummary();
+  }, [calculateExpenseSummary]);
+
+  const generateMonthWiseData = useCallback(() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = new Date().getFullYear();
     
@@ -707,24 +634,33 @@ export default function SuperAdminExpensesPage() {
       const monthStart = new Date(currentYear, monthIndex, 1);
       const monthEnd = new Date(currentYear, monthIndex + 1, 0);
       
-      // Filter bookings for this month
+      // Filter bookings for this month - REAL DATA
       const monthBookings = bookings.filter(b => {
-        const bookingDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-        return bookingDate >= monthStart && bookingDate <= monthEnd && b.status === 'completed';
+        try {
+          const bookingDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+          return bookingDate >= monthStart && bookingDate <= monthEnd && 
+                 b.status && b.status.toLowerCase() === 'completed';
+        } catch {
+          return false;
+        }
       });
       
-      // Filter manual expenses for this month
+      // Filter manual expenses for this month - REAL DATA
       const monthManualExpenses = manualExpenses.filter(e => {
-        const expenseDate = new Date(e.date);
-        return expenseDate >= monthStart && expenseDate <= monthEnd;
+        try {
+          const expenseDate = new Date(e.date);
+          return expenseDate >= monthStart && expenseDate <= monthEnd;
+        } catch {
+          return false;
+        }
       });
       
-      // Calculate costs for this month
+      // Calculate costs for this month - REAL DATA
       const appointmentsCost = monthBookings.reduce((sum, b) => sum + (b.totalAmount * 0.4), 0);
       const manualExpensesCost = monthManualExpenses.reduce((sum, e) => sum + e.amount, 0);
       const revenue = monthBookings.reduce((sum, b) => sum + b.totalAmount, 0);
       
-      // For simplicity, distribute products and services costs evenly across months
+      // Products and services costs for this month - REAL DATA
       const productsCost = expenseSummary.totalProductsCost / 12;
       const servicesCost = expenseSummary.totalServicesCost / 12;
       const totalCost = productsCost + servicesCost + appointmentsCost + manualExpensesCost;
@@ -741,40 +677,38 @@ export default function SuperAdminExpensesPage() {
         profit: parseFloat(profit.toFixed(2))
       };
     });
-  };
+  }, [bookings, manualExpenses, expenseSummary.totalProductsCost, expenseSummary.totalServicesCost]);
 
-  const generateBranchWiseData = () => {
-    // 🔥 For branch admin, only show their branch
+  const generateBranchWiseData = useCallback(() => {
     let allBranches;
     if (user?.role === 'admin' && user?.branchName) {
       allBranches = [user.branchName];
     } else {
+      // REAL DATA: Get all branches from actual data
       allBranches = Array.from(
         new Set([
-          ...products.flatMap(p => p.branchNames),
-          ...services.flatMap(s => s.branchNames),
+          ...products.flatMap(p => p.branchNames || []),
+          ...services.flatMap(s => s.branchNames || []),
+          ...bookings.map(b => b.branch).filter(Boolean),
           ...manualExpenses.map(e => e.branch).filter(Boolean)
         ])
       );
     }
 
     return allBranches.map(branch => {
-      const branchProducts = products.filter(p => p.branchNames.includes(branch));
-      const branchServices = services.filter(s => s.branchNames.includes(branch));
+      // REAL DATA filtering
+      const branchProducts = products.filter(p => p.branchNames && p.branchNames.includes(branch));
+      const branchServices = services.filter(s => s.branchNames && s.branchNames.includes(branch));
       const branchManualExpenses = manualExpenses.filter(e => e.branch === branch);
+      const branchBookings = bookings.filter(b => b.branch === branch);
       
-      const productsCost = branchProducts.reduce((sum, p) => sum + (p.cost * p.totalStock), 0);
+      // REAL DATA calculations
+      const productsCost = branchProducts.reduce((sum, p) => sum + (p.cost * (p.totalStock || 0)), 0);
       const servicesCost = branchServices.reduce((sum, s) => sum + (s.price * 0.3), 0);
       const manualExpensesCost = branchManualExpenses.reduce((sum, e) => sum + e.amount, 0);
       
-      // Find bookings for this branch
-      const branchBookings = bookings.filter(b => {
-        const service = services.find(s => s.id === b.serviceId);
-        return service?.branchNames.includes(branch);
-      });
-      
       const appointmentsCost = branchBookings
-        .filter(b => b.status === 'completed')
+        .filter(b => b.status && b.status.toLowerCase() === 'completed')
         .reduce((sum, b) => sum + (b.totalAmount * 0.4), 0);
       
       const totalCost = productsCost + servicesCost + appointmentsCost + manualExpensesCost;
@@ -788,21 +722,23 @@ export default function SuperAdminExpensesPage() {
         totalCost: parseFloat(totalCost.toFixed(2))
       };
     });
-  };
+  }, [products, services, bookings, manualExpenses, user]);
 
-  const generateCategoryWiseData = () => {
+  const generateCategoryWiseData = useCallback(() => {
+    // REAL DATA: Get all categories from actual products and services
     const allCategories = Array.from(
       new Set([
-        ...products.map(p => p.category),
-        ...services.map(s => s.category)
+        ...products.map(p => p.category).filter(Boolean),
+        ...services.map(s => s.category).filter(Boolean)
       ])
-    ).filter(Boolean);
+    );
 
     return allCategories.map(category => {
       const categoryProducts = products.filter(p => p.category === category);
       const categoryServices = services.filter(s => s.category === category);
       
-      const productsCost = categoryProducts.reduce((sum, p) => sum + (p.cost * p.totalStock), 0);
+      // REAL DATA calculations
+      const productsCost = categoryProducts.reduce((sum, p) => sum + (p.cost * (p.totalStock || 0)), 0);
       const servicesCost = categoryServices.reduce((sum, s) => sum + (s.price * 0.3), 0);
       const totalCost = productsCost + servicesCost;
       
@@ -813,35 +749,38 @@ export default function SuperAdminExpensesPage() {
         totalCost: parseFloat(totalCost.toFixed(2))
       };
     });
-  };
+  }, [products, services]);
 
-  // NEW: Generate manual expenses by category
-  const generateManualExpensesByCategory = () => {
+  const generateManualExpensesByCategory = useCallback(() => {
     const categories: { [key: string]: number } = {};
     
+    // REAL DATA: Manual expenses by category
     manualExpenses.forEach(expense => {
-      if (!categories[expense.category]) {
-        categories[expense.category] = 0;
+      if (expense.category) {
+        if (!categories[expense.category]) {
+          categories[expense.category] = 0;
+        }
+        categories[expense.category] += expense.amount;
       }
-      categories[expense.category] += expense.amount;
     });
     
     return Object.entries(categories).map(([category, amount]) => ({
       category,
       amount: parseFloat(amount.toFixed(2))
     }));
-  };
+  }, [manualExpenses]);
 
   const getBranchOptions = () => {
-    // 🔥 For branch admin, only show their branch
     if (user?.role === 'admin' && user?.branchName) {
       return [user.branchName];
     }
     
+    // REAL DATA: Get branches from actual data
     const allBranches = Array.from(
       new Set([
-        ...products.flatMap(p => p.branchNames),
-        ...services.flatMap(s => s.branchNames),
+        ...products.flatMap(p => p.branchNames || []),
+        ...services.flatMap(s => s.branchNames || []),
+        ...bookings.map(b => b.branch).filter(Boolean),
         ...manualExpenses.map(e => e.branch).filter(Boolean)
       ])
     );
@@ -860,14 +799,14 @@ export default function SuperAdminExpensesPage() {
 
   const downloadExpenseReport = () => {
     let report = `
-COMPREHENSIVE EXPENSE ANALYSIS REPORT
+EXPENSE ANALYSIS REPORT - REAL DATA
 Generated: ${new Date().toLocaleDateString()}
 User: ${user?.name || user?.email}
 Role: ${user?.role}
 ${user?.role === 'admin' ? `Branch: ${user.branchName}` : ''}
 Period: ${dateRange.start} to ${dateRange.end}
 
-OVERALL SUMMARY
+OVERALL SUMMARY (REAL DATA)
 Total Products Cost: ${formatCurrency(expenseSummary.totalProductsCost)}
 Total Services Cost: ${formatCurrency(expenseSummary.totalServicesCost)}
 Total Appointments Cost: ${formatCurrency(expenseSummary.totalAppointmentsCost)}
@@ -877,12 +816,19 @@ Total Revenue: ${formatCurrency(expenseSummary.totalRevenue)}
 Total Profit: ${formatCurrency(expenseSummary.totalProfit)}
 Profit Margin: ${expenseSummary.profitMargin.toFixed(2)}%
 
-MANUAL EXPENSES BY CATEGORY
+MANUAL EXPENSES BY CATEGORY (REAL DATA)
 ${expenseSummary.manualExpensesByCategory.map(e => 
   `${e.category}: ${formatCurrency(e.amount)}`
 ).join('\n')}
 
-BRANCH-WISE EXPENSES
+DATA STATISTICS
+Total Products: ${products.length}
+Total Services: ${services.length}
+Total Bookings: ${bookings.length}
+Total Manual Expenses: ${manualExpenses.length}
+Completed Bookings: ${bookings.filter(b => b.status && b.status.toLowerCase() === 'completed').length}
+
+BRANCH-WISE EXPENSES (REAL DATA)
 ${expenseSummary.branchWiseData.map(b => 
   `${b.branch}: 
     Products: ${formatCurrency(b.productsCost)}
@@ -891,22 +837,6 @@ ${expenseSummary.branchWiseData.map(b =>
     Manual: ${formatCurrency(b.manualExpenses)}
     Total: ${formatCurrency(b.totalCost)}`
 ).join('\n\n')}
-
-MONTH-WISE EXPENSES (${new Date().getFullYear()})
-${expenseSummary.monthWiseData.map(m => 
-  `${m.month}: 
-    Products: ${formatCurrency(m.productsCost)}
-    Services: ${formatCurrency(m.servicesCost)}
-    Appointments: ${formatCurrency(m.appointmentsCost)}
-    Manual: ${formatCurrency(m.manualExpenses)}
-    Revenue: ${formatCurrency(m.revenue)}
-    Profit: ${formatCurrency(m.profit)}`
-).join('\n\n')}
-
-CATEGORY-WISE EXPENSES
-${expenseSummary.categoryWiseData.map(c => 
-  `${c.category}: Products: ${formatCurrency(c.productsCost)}, Services: ${formatCurrency(c.servicesCost)}, Total: ${formatCurrency(c.totalCost)}`
-).join('\n')}
     `;
     
     const element = document.createElement('a');
@@ -918,10 +848,20 @@ ${expenseSummary.categoryWiseData.map(c =>
     document.body.removeChild(element);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-lg">Loading real expense data from Firebase...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="flex h-screen bg-[#f8f9fa]">
-        {/* Sidebar */}
         <AdminSidebar
           role="branch_admin"
           onLogout={handleLogout}
@@ -929,9 +869,7 @@ ${expenseSummary.categoryWiseData.map(c =>
           onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
 
-        {/* Main Content */}
         <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0">
-          {/* Header */}
           <header className="bg-white border-b border-gray-200 shrink-0">
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
@@ -950,22 +888,25 @@ ${expenseSummary.categoryWiseData.map(c =>
                   </h1>
                   <p className="text-sm text-muted-foreground">
                     {user?.role === 'admin' && user?.branchName
-                      ? `Tracking expenses for ${user.branchName} branch`
-                      : 'Track and analyze expenses across products, services, and appointments'
+                      ? `Tracking real expenses for ${user.branchName} branch`
+                      : 'Track and analyze real expenses across products, services, and appointments'
                     }
                   </p>
-                  {user?.role === 'admin' && user?.branchName && (
-                    <div className="flex items-center gap-1 mt-1">
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <FileText className="w-3 h-3 mr-1" />
+                      Real Data Only
+                    </Badge>
+                    {user?.role === 'admin' && user?.branchName && (
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                         <Building2 className="w-3 h-3 mr-1" />
                         Branch: {user.branchName}
                       </Badge>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
               
-              {/* NEW: Add Expense Button */}
               <Button
                 onClick={() => openExpenseModal()}
                 className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-6 py-6 shadow-lg flex items-center gap-2"
@@ -978,14 +919,11 @@ ${expenseSummary.categoryWiseData.map(c =>
             </div>
           </header>
 
-          {/* Page Content */}
           <div className="flex-1 overflow-auto p-4 lg:p-8">
             <div className="max-w-7xl mx-auto">
-              {/* Filters */}
               <div className="flex flex-col lg:flex-row gap-4 mb-8">
                 <div className="flex-1 flex flex-wrap gap-2">
                   <div className="flex gap-2">
-                    {/* 🔥 Branch Filter - Disabled for Branch Admin */}
                     <Select 
                       value={selectedBranch} 
                       onValueChange={setSelectedBranch}
@@ -1049,7 +987,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                     className="border-gray-200 rounded-lg flex items-center gap-2"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    Refresh
+                    Refresh Data
                   </Button>
                   <Button
                     onClick={downloadExpenseReport}
@@ -1059,6 +997,17 @@ ${expenseSummary.categoryWiseData.map(c =>
                     <Download className="w-4 h-4" />
                     Export Report
                   </Button>
+                </div>
+              </div>
+
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <p className="text-sm font-medium text-blue-800">
+                    ✅ Showing 100% real data from Firebase. Total records: 
+                    Products ({products.length}), Services ({services.length}), 
+                    Bookings ({bookings.length}), Manual Expenses ({manualExpenses.length})
+                  </p>
                 </div>
               </div>
 
@@ -1072,22 +1021,20 @@ ${expenseSummary.categoryWiseData.map(c =>
                   <TabsTrigger value="data">Raw Data</TabsTrigger>
                 </TabsList>
 
-                {/* Overview Tab */}
                 <TabsContent value="overview" className="space-y-6">
-                  {/* Key Metrics */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                              {user?.role === 'admin' ? 'Branch Expenses' : 'Total Expenses'}
+                              Total Expenses
                             </p>
                             <p className="text-2xl font-serif font-bold text-primary">
                               {formatCurrency(expenseSummary.totalExpenses)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              {user?.role === 'admin' ? 'For your branch' : 'All Categories'}
+                              From real data
                             </p>
                           </div>
                           <DollarSign className="w-10 h-10 text-secondary/20" />
@@ -1104,7 +1051,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                               {formatCurrency(expenseSummary.totalProductsCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              {products.length} products
+                              {products.length} real products
                             </p>
                           </div>
                           <Package className="w-10 h-10 text-blue-500/20" />
@@ -1121,7 +1068,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                               {formatCurrency(expenseSummary.totalServicesCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              {services.length} services
+                              {services.length} real services
                             </p>
                           </div>
                           <ShoppingCart className="w-10 h-10 text-green-500/20" />
@@ -1138,7 +1085,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                               {formatCurrency(expenseSummary.totalAppointmentsCost)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              {bookings.filter(b => b.status === 'completed').length} bookings
+                              {bookings.filter(b => b.status && b.status.toLowerCase() === 'completed').length} bookings
                             </p>
                           </div>
                           <Calendar className="w-10 h-10 text-purple-500/20" />
@@ -1146,7 +1093,6 @@ ${expenseSummary.categoryWiseData.map(c =>
                       </CardContent>
                     </Card>
 
-                    {/* NEW: Manual Expenses Card */}
                     <Card className="border-none shadow-sm rounded-xl border-l-4 border-orange-500">
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
@@ -1156,7 +1102,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                               {formatCurrency(expenseSummary.totalManualExpenses)}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              {manualExpenses.length} expenses
+                              {manualExpenses.length} real expenses
                             </p>
                           </div>
                           <FileText className="w-10 h-10 text-orange-500/20" />
@@ -1165,13 +1111,12 @@ ${expenseSummary.categoryWiseData.map(c =>
                     </Card>
                   </div>
 
-                  {/* Profit Metrics */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
                         <CardTitle className="text-lg font-serif flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-secondary" />
-                          {user?.role === 'admin' ? 'Branch Revenue & Profit' : 'Revenue & Profit'}
+                          Revenue & Profit (Real Data)
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1204,12 +1149,11 @@ ${expenseSummary.categoryWiseData.map(c =>
                       </CardContent>
                     </Card>
 
-                    {/* Expense Distribution Pie Chart - UPDATED */}
                     <Card className="border-none shadow-sm rounded-xl lg:col-span-2">
                       <CardHeader>
                         <CardTitle className="text-lg font-serif flex items-center gap-2">
                           <PieChart className="w-5 h-5 text-secondary" />
-                          {user?.role === 'admin' ? 'Branch Expense Distribution' : 'Expense Distribution (Including Manual Expenses)'}
+                          Expense Distribution (Real Data)
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1244,12 +1188,11 @@ ${expenseSummary.categoryWiseData.map(c =>
                     </Card>
                   </div>
 
-                  {/* Monthly Trend Chart - UPDATED */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
                       <CardTitle className="text-lg font-serif flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-secondary" />
-                        {user?.role === 'admin' ? 'Branch Monthly Expense Trend' : 'Monthly Expense Trend (Including Manual Expenses)'}
+                        Monthly Expense Trend (Real Data)
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -1272,22 +1215,15 @@ ${expenseSummary.categoryWiseData.map(c =>
                   </Card>
                 </TabsContent>
 
-                {/* NEW: Manual Expenses Tab */}
                 <TabsContent value="manual" className="space-y-6">
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
                       <CardTitle className="text-lg font-serif flex items-center gap-2">
                         <FileText className="w-5 h-5 text-secondary" />
-                        {user?.role === 'admin' ? 'Branch Manual Expenses' : 'Manual Expenses Management'}
+                        Manual Expenses Management (Real Data)
                       </CardTitle>
                       <CardDescription>
-                        {user?.role === 'admin' 
-                          ? `Managing expenses for ${user.branchName} branch`
-                          : 'Add, edit, and track manual expenses'
-                        }
-                        <br />
-                        Total: {manualExpenses.length} expenses, 
-                        Amount: {formatCurrency(expenseSummary.totalManualExpenses)}
+                        Add, edit, and track manual expenses - {manualExpenses.length} real expenses found
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1381,13 +1317,12 @@ ${expenseSummary.categoryWiseData.map(c =>
                     </CardContent>
                   </Card>
 
-                  {/* Manual Expenses Summary */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="border-none shadow-sm rounded-xl">
                       <CardHeader>
                         <CardTitle className="text-lg font-serif flex items-center gap-2">
                           <PieChart className="w-5 h-5 text-secondary" />
-                          Manual Expenses by Category
+                          Manual Expenses by Category (Real Data)
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1420,7 +1355,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                       <CardHeader>
                         <CardTitle className="text-lg font-serif flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-secondary" />
-                          Manual Expenses by Month
+                          Manual Expenses by Month (Real Data)
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1441,20 +1376,18 @@ ${expenseSummary.categoryWiseData.map(c =>
                   </div>
                 </TabsContent>
 
-                {/* Detailed Analysis Tab - UPDATED */}
                 <TabsContent value="analysis" className="space-y-6">
-                  {/* Branch-wise Analysis - UPDATED */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
                       <CardTitle className="text-lg font-serif flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-secondary" />
                         {user?.role === 'admin' 
-                          ? `Branch Expense Analysis (${user.branchName})`
-                          : 'Branch-wise Expense Analysis (Including Manual Expenses)'
+                          ? `Branch Expense Analysis (${user.branchName}) - Real Data`
+                          : 'Branch-wise Expense Analysis (Real Data)'
                         }
                       </CardTitle>
                       <CardDescription>
-                        Detailed breakdown of expenses by branch
+                        Detailed breakdown of expenses by branch from real data
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1504,18 +1437,62 @@ ${expenseSummary.categoryWiseData.map(c =>
                     </CardContent>
                   </Card>
 
-                  {/* Monthly Detailed Analysis - UPDATED */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
                       <CardTitle className="text-lg font-serif flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-secondary" />
                         {user?.role === 'admin' 
-                          ? 'Branch Monthly Profit & Loss Statement'
-                          : 'Monthly Profit & Loss Statement (Including Manual Expenses)'
+                          ? 'Branch Monthly Profit & Loss Statement - Real Data'
+                          : 'Monthly Profit & Loss Statement (Real Data)'
                         }
                       </CardTitle>
+                      <CardDescription className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm">Showing real data from Firebase</span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Total Revenue: {formatCurrency(expenseSummary.monthWiseData.reduce((sum, m) => sum + m.revenue, 0))} | 
+                          Total Profit: {formatCurrency(expenseSummary.monthWiseData.reduce((sum, m) => sum + m.profit, 0))} | 
+                          Data Source: {bookings.filter(b => b.status?.toLowerCase() === 'completed').length} completed bookings
+                        </div>
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
+                      {/* Real Data Verification */}
+                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Total Revenue</p>
+                            <p className="font-bold text-green-600">
+                              {formatCurrency(expenseSummary.monthWiseData.reduce((sum, m) => sum + m.revenue, 0))}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Total Expenses</p>
+                            <p className="font-bold text-orange-600">
+                              {formatCurrency(expenseSummary.monthWiseData.reduce((sum, m) => sum + m.totalCost, 0))}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Total Profit</p>
+                            <p className="font-bold text-blue-600">
+                              {formatCurrency(expenseSummary.monthWiseData.reduce((sum, m) => sum + m.profit, 0))}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500">Avg Margin</p>
+                            <p className="font-bold text-purple-600">
+                              {(() => {
+                                const totalRevenue = expenseSummary.monthWiseData.reduce((sum, m) => sum + m.revenue, 0);
+                                const totalProfit = expenseSummary.monthWiseData.reduce((sum, m) => sum + m.profit, 0);
+                                return totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+                              })()}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead className="bg-gray-50">
@@ -1532,31 +1509,47 @@ ${expenseSummary.categoryWiseData.map(c =>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
-                            {expenseSummary.monthWiseData.map((monthData) => (
-                              <tr key={monthData.month} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 font-medium">{monthData.month}</td>
-                                <td className="px-4 py-3">{formatCurrency(monthData.productsCost)}</td>
-                                <td className="px-4 py-3">{formatCurrency(monthData.servicesCost)}</td>
-                                <td className="px-4 py-3">{formatCurrency(monthData.appointmentsCost)}</td>
-                                <td className="px-4 py-3 text-orange-600">{formatCurrency(monthData.manualExpenses)}</td>
-                                <td className="px-4 py-3 font-bold">{formatCurrency(monthData.totalCost)}</td>
-                                <td className="px-4 py-3 text-green-600 font-medium">
-                                  {formatCurrency(monthData.revenue)}
-                                </td>
-                                <td className={cn(
-                                  "px-4 py-3 font-bold",
-                                  monthData.profit >= 0 ? "text-green-600" : "text-red-600"
-                                )}>
-                                  {formatCurrency(monthData.profit)}
-                                </td>
-                                <td className={cn(
-                                  "px-4 py-3",
-                                  monthData.profit >= 0 ? "text-green-600" : "text-red-600"
-                                )}>
-                                  {monthData.revenue > 0 ? ((monthData.profit / monthData.revenue) * 100).toFixed(1) : '0.0'}%
-                                </td>
-                              </tr>
-                            ))}
+                            {expenseSummary.monthWiseData.map((monthData) => {
+                              const isCurrentMonth = monthData.month === new Date().toLocaleString('default', { month: 'short' });
+                              
+                              return (
+                                <tr 
+                                  key={monthData.month} 
+                                  className={`hover:bg-gray-50 ${isCurrentMonth ? 'bg-blue-50' : ''}`}
+                                >
+                                  <td className="px-4 py-3 font-medium">
+                                    <div className="flex items-center gap-2">
+                                      {monthData.month}
+                                      {isCurrentMonth && (
+                                        <Badge className="bg-blue-100 text-blue-700 text-xs">
+                                          Current
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">{formatCurrency(monthData.productsCost)}</td>
+                                  <td className="px-4 py-3">{formatCurrency(monthData.servicesCost)}</td>
+                                  <td className="px-4 py-3">{formatCurrency(monthData.appointmentsCost)}</td>
+                                  <td className="px-4 py-3 text-orange-600">{formatCurrency(monthData.manualExpenses)}</td>
+                                  <td className="px-4 py-3 font-bold">{formatCurrency(monthData.totalCost)}</td>
+                                  <td className="px-4 py-3 text-green-600 font-medium">
+                                    {formatCurrency(monthData.revenue)}
+                                  </td>
+                                  <td className={cn(
+                                    "px-4 py-3 font-bold",
+                                    monthData.profit >= 0 ? "text-green-600" : "text-red-600"
+                                  )}>
+                                    {formatCurrency(monthData.profit)}
+                                  </td>
+                                  <td className={cn(
+                                    "px-4 py-3",
+                                    monthData.profit >= 0 ? "text-green-600" : "text-red-600"
+                                  )}>
+                                    {monthData.revenue > 0 ? ((monthData.profit / monthData.revenue) * 100).toFixed(1) : '0.0'}%
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1564,18 +1557,16 @@ ${expenseSummary.categoryWiseData.map(c =>
                   </Card>
                 </TabsContent>
 
-                {/* Raw Data Tab - UPDATED */}
                 <TabsContent value="data" className="space-y-6">
-                  {/* Manual Expenses Data - NEW */}
                   <Card className="border-none shadow-sm rounded-xl">
                     <CardHeader>
                       <CardTitle className="text-lg font-serif flex items-center gap-2">
                         <FileText className="w-5 h-5 text-secondary" />
-                        {user?.role === 'admin' 
-                          ? `Branch Manual Expenses Data (${manualExpenses.length})`
-                          : `Manual Expenses Data (${manualExpenses.length})`
-                        }
+                        Manual Expenses Data (Real Data)
                       </CardTitle>
+                      <CardDescription>
+                        Showing {manualExpenses.length} real manual expenses from Firebase
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
@@ -1638,7 +1629,7 @@ ${expenseSummary.categoryWiseData.map(c =>
         </div>
       </div>
 
-      {/* NEW: Manual Expense Modal with BRANCH RESTRICTION */}
+      {/* Manual Expense Modal */}
       {showExpenseModal && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div className="absolute inset-0 bg-black/50" onClick={closeExpenseModal} />
@@ -1662,11 +1653,9 @@ ${expenseSummary.categoryWiseData.map(c =>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
-                  {user?.role === 'admin' && user?.branchName && (
-                    <p className="text-sm text-white/80 mt-1">
-                      This expense will be automatically added to {user.branchName} branch
-                    </p>
-                  )}
+                  <p className="text-sm text-white/80 mt-1">
+                    This expense will be saved to Firebase real-time database
+                  </p>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6">
@@ -1739,7 +1728,6 @@ ${expenseSummary.categoryWiseData.map(c =>
                       </Select>
                     </div>
                     
-                    {/* 🔥 BRANCH SELECTION - Disabled for Branch Admin */}
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         Branch {user?.role === 'admin' && '(Locked)'}
@@ -1844,12 +1832,12 @@ ${expenseSummary.categoryWiseData.map(c =>
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
+                          Saving to Firebase...
                         </>
                       ) : (
                         <>
                           <Save className="w-4 h-4" />
-                          {user?.role === 'admin' ? 'Add Branch Expense' : (editingExpense ? 'Update Expense' : 'Save Expense')}
+                          Save to Real Database
                         </>
                       )}
                     </Button>

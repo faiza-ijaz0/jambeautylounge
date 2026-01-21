@@ -3399,6 +3399,159 @@ export default function SuperAdminStaff() {
                   </div>
                 </div>
 
+                {/* 🔥 NEW: Weekly Schedule & Lunch Break - ADDED TO ADD STAFF POPUP */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Weekly Schedule & Lunch Break</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                        Lunch Break Timing
+                      </Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="add-lunch-start" className="text-xs text-gray-500 mb-1 block">
+                            Start Time
+                          </Label>
+                          <Input
+                            id="add-lunch-start"
+                            type="time"
+                            value={formData.lunchBreak.start}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              lunchBreak: {
+                                ...prev.lunchBreak,
+                                start: e.target.value
+                              }
+                            }))}
+                            className="h-9"
+                            disabled={isAdding}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="add-lunch-end" className="text-xs text-gray-500 mb-1 block">
+                            End Time
+                          </Label>
+                          <Input
+                            id="add-lunch-end"
+                            type="time"
+                            value={formData.lunchBreak.end}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              lunchBreak: {
+                                ...prev.lunchBreak,
+                                end: e.target.value
+                              }
+                            }))}
+                            className="h-9"
+                            disabled={isAdding}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <Label htmlFor="add-lunch-duration" className="text-xs text-gray-500 mb-1 block">
+                          Duration
+                        </Label>
+                        <Select
+                          value={formData.lunchBreak.duration}
+                          onValueChange={(value) => setFormData(prev => ({
+                            ...prev,
+                            lunchBreak: {
+                              ...prev.lunchBreak,
+                              duration: value
+                            }
+                          }))}
+                          disabled={isAdding}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="30 minutes">30 minutes</SelectItem>
+                            <SelectItem value="45 minutes">45 minutes</SelectItem>
+                            <SelectItem value="1 hour">1 hour</SelectItem>
+                            <SelectItem value="1.5 hours">1.5 hours</SelectItem>
+                            <SelectItem value="2 hours">2 hours</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                        Weekly Timings
+                      </Label>
+                      <div className="space-y-3">
+                        {Object.entries(formData.weeklyTimings).map(([day, timing]) => (
+                          <div key={day} className="flex items-center gap-4">
+                            <div className="w-24">
+                              <span className="text-sm font-medium text-gray-700 capitalize">
+                                {day}
+                              </span>
+                            </div>
+                            <div className="flex-1 grid grid-cols-2 gap-3">
+                              <div>
+                                <Input
+                                  type="time"
+                                  value={timing.start}
+                                  onChange={(e) => setFormData(prev => ({
+                                    ...prev,
+                                    weeklyTimings: {
+                                      ...prev.weeklyTimings,
+                                      [day]: {
+                                        ...prev.weeklyTimings[day as keyof typeof prev.weeklyTimings],
+                                        start: e.target.value
+                                      }
+                                    }
+                                  }))}
+                                  className="h-8 text-sm"
+                                  disabled={isAdding}
+                                />
+                              </div>
+                              <div>
+                                <Input
+                                  type="time"
+                                  value={timing.end}
+                                  onChange={(e) => setFormData(prev => ({
+                                    ...prev,
+                                    weeklyTimings: {
+                                      ...prev.weeklyTimings,
+                                      [day]: {
+                                        ...prev.weeklyTimings[day as keyof typeof prev.weeklyTimings],
+                                        end: e.target.value
+                                      }
+                                    }
+                                  }))}
+                                  className="h-8 text-sm"
+                                  disabled={isAdding}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <Clock className="w-4 h-4 text-blue-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">Schedule Summary</p>
+                          <p className="text-xs text-blue-700 mt-1">
+                            Lunch: {formData.lunchBreak.start} - {formData.lunchBreak.end} ({formData.lunchBreak.duration})
+                          </p>
+                          <p className="text-xs text-blue-700">
+                            Weekly: Mon-Fri {formData.weeklyTimings.monday.start} - {formData.weeklyTimings.monday.end}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Additional Information */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
@@ -3896,11 +4049,11 @@ export default function SuperAdminStaff() {
                       </Label>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="lunch-start" className="text-xs text-gray-500 mb-1 block">
+                          <Label htmlFor="edit-lunch-start" className="text-xs text-gray-500 mb-1 block">
                             Start Time
                           </Label>
                           <Input
-                            id="lunch-start"
+                            id="edit-lunch-start"
                             type="time"
                             value={formData.lunchBreak.start}
                             onChange={(e) => setFormData(prev => ({
@@ -3915,11 +4068,11 @@ export default function SuperAdminStaff() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="lunch-end" className="text-xs text-gray-500 mb-1 block">
+                          <Label htmlFor="edit-lunch-end" className="text-xs text-gray-500 mb-1 block">
                             End Time
                           </Label>
                           <Input
-                            id="lunch-end"
+                            id="edit-lunch-end"
                             type="time"
                             value={formData.lunchBreak.end}
                             onChange={(e) => setFormData(prev => ({
@@ -3935,7 +4088,7 @@ export default function SuperAdminStaff() {
                         </div>
                       </div>
                       <div className="mt-2">
-                        <Label htmlFor="lunch-duration" className="text-xs text-gray-500 mb-1 block">
+                        <Label htmlFor="edit-lunch-duration" className="text-xs text-gray-500 mb-1 block">
                           Duration
                         </Label>
                         <Select
