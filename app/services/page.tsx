@@ -1949,7 +1949,7 @@ const handleAddToCart = (service: Service) => {
       </section>
 
       {/* Filters Section */}
-      <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
+      <section className=" top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Search and Multi-select Row */}
           <div className="flex flex-col md:flex-row gap-6 items-center justify-between">

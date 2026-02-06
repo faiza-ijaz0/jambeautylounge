@@ -29,6 +29,7 @@ export function Header() {
             { name: "Services", href: "/services" },
             { name: "Products", href: "/products" },
             { name: "Branches", href: "/branches" },
+             { name: "Blogs", href: "/blog" },
           ].map((link) => (
             <Link 
               key={link.name}

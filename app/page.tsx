@@ -10,7 +10,9 @@ import {
   Quote, Instagram, CheckCircle2, ShieldCheck, Zap, Building,
   TrendingUp, Package, DollarSign, RefreshCw,
   Crown, Gem, Shield, Sparkles, Check, UserCheck,
-  Grid3X3
+  Grid3X3,
+  InstagramIcon,
+  Facebook
 } from "lucide-react";
 import { Header } from "@/components/shared/Header";
 import Link from "next/link";
@@ -605,15 +607,162 @@ export default function Home() {
     <div className="min-h-screen bg-[#fcfcfc]">
       <Header />
 
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button
-          onClick={fetchHomeData}
-          className="rounded-full w-12 h-12 bg-primary hover:bg-primary/90 shadow-xl"
-          title="Refresh data from Firebase"
-        >
-          <RefreshCw className="w-5 h-5" />
-        </Button>
-      </div>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-4">
+  
+  {/* WhatsApp Icon - Green */}
+  <a 
+    href="https://wa.me/923001234567" // Aapka WhatsApp number daalo
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110 group"
+    title="Contact on WhatsApp"
+  >
+    <svg 
+      className="w-6 h-6" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor"
+    >
+      <defs>
+        <linearGradient id="whatsapp-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#25D366" />
+          <stop offset="50%" stopColor="#128C7E" />
+          <stop offset="100%" stopColor="#075E54" />
+        </linearGradient>
+      </defs>
+      
+      {/* Background Circle */}
+      <circle 
+        cx="12" 
+        cy="12" 
+        r="10" 
+        stroke="url(#whatsapp-gradient)" 
+        strokeWidth="1.5" 
+        fill="transparent"
+      />
+      
+      {/* WhatsApp Symbol */}
+      <path 
+        d="M12 2C6.48 2 2 6.48 2 12C2 13.81 2.47 15.5 3.32 16.96L2 22L7.04 20.68C8.5 21.53 10.19 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" 
+        fill="url(#whatsapp-gradient)"
+      />
+      <path 
+        d="M16.75 13.27C16.53 13.03 15.78 12.77 15.5 12.7C15.24 12.63 15.04 12.61 14.85 12.84C14.66 13.07 14.11 13.63 13.97 13.79C13.83 13.95 13.69 13.97 13.42 13.84C13.15 13.71 12.32 13.46 11.34 12.59C10.55 11.88 10.02 10.98 9.88 10.71C9.74 10.44 9.86 10.29 9.97 10.18C10.07 10.07 10.21 9.89 10.34 9.74C10.47 9.59 10.51 9.48 10.58 9.33C10.65 9.18 10.6 9.04 10.53 8.92C10.46 8.8 9.83 7.64 9.59 7.18C9.36 6.73 9.12 6.79 8.95 6.79C8.78 6.79 8.6 6.77 8.43 6.77C8.26 6.77 7.97 6.84 7.74 7.11C7.51 7.38 6.85 8.05 6.85 9.36C6.85 10.67 7.67 11.93 7.81 12.12C7.95 12.31 9.89 15.05 12.58 16.26C13.89 16.89 14.85 17.21 15.61 17.35C16.37 17.49 17.14 17.4 17.7 17.2C18.26 17 18.99 16.49 19.19 15.91C19.39 15.33 19.39 14.85 19.33 14.75C19.27 14.65 19.12 14.58 18.95 14.51C18.78 14.44 17.12 13.68 16.75 13.27Z" 
+        fill="white"
+      />
+    </svg>
+  </a>
+
+  {/* Email Icon - Blue */}
+  <a 
+    href="mailto:contact@manofcave.com" // Aapka email address daalo
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110 group"
+    title="Send Email"
+  >
+    <svg 
+      className="w-6 h-6" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor"
+    >
+      <defs>
+        <linearGradient id="email-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#4285F4" />
+          <stop offset="50%" stopColor="#34A853" />
+          <stop offset="100%" stopColor="#EA4335" />
+        </linearGradient>
+      </defs>
+      
+      {/* Background Circle */}
+      <circle 
+        cx="12" 
+        cy="12" 
+        r="10" 
+        stroke="url(#email-gradient)" 
+        strokeWidth="1.5" 
+        fill="transparent"
+      />
+      
+      {/* Envelope */}
+      <path 
+        d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" 
+        stroke="url(#email-gradient)" 
+        strokeWidth="1.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        fill="white"
+      />
+      <path 
+        d="M22 6L12 13L2 6" 
+        stroke="url(#email-gradient)" 
+        strokeWidth="1.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      />
+    </svg>
+  </a>
+
+  {/* Instagram Icon - Original wala */}
+  <a 
+    href="https://instagram.com" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+    title="Follow on Instagram"
+  >
+    <svg 
+      className="w-6 h-6" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor"
+    >
+      <defs>
+        <linearGradient id="instagram-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#405DE6" />
+          <stop offset="25%" stopColor="#5851DB" />
+          <stop offset="50%" stopColor="#833AB4" />
+          <stop offset="75%" stopColor="#C13584" />
+          <stop offset="100%" stopColor="#E1306C" />
+        </linearGradient>
+      </defs>
+      
+      {/* Background Circle */}
+      <rect 
+        x="2" 
+        y="2" 
+        width="20" 
+        height="20" 
+        rx="6" 
+        stroke="url(#instagram-gradient)" 
+        strokeWidth="2" 
+        fill="transparent"
+      />
+      
+      {/* Inner Circle */}
+      <circle 
+        cx="12" 
+        cy="12" 
+        r="4.5" 
+        stroke="url(#instagram-gradient)" 
+        strokeWidth="2" 
+        fill="transparent"
+      />
+      
+      {/* Top Right Dot */}
+      <circle 
+        cx="17.5" 
+        cy="6.5" 
+        r="1" 
+        fill="url(#instagram-gradient)"
+      />
+    </svg>
+  </a>
+  
+</div>
+
+    
 
       <section className="relative h-[85vh] flex items-center justify-center overflow-hidden mt-[3.5rem]">
         <div 
@@ -1541,7 +1690,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex gap-6">
-                {[Instagram, Phone, Mail].map((Icon, i) => (
+                {[Instagram, Phone, Mail,Facebook].map((Icon, i) => (
                   <div key={i} className="w-12 h-12 rounded-2xl border border-white/10 flex items-center justify-center hover:bg-secondary hover:text-primary transition-all duration-500 cursor-pointer group shadow-xl">
                     <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   </div>
