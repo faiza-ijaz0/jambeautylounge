@@ -22,7 +22,8 @@ import {
   getDoc,
   getDocs,
   query,
-  where
+  where,
+  updateDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -43,13 +44,10 @@ interface BookingData {
   customerName: string;
   customerPhone: string;
   date: string;
-  discount: number;
-  discountAmount: number;
-  discountType: string;
-  id?: string;
   notes: string;
   paymentAmounts: {
     wallet: number;
+    cash: number;
   };
   paymentMethod: string;
   paymentStatus: string;
@@ -251,13 +249,10 @@ export default function BookingCheckout() {
   
   // New state variables for your exact structure
   const [branch, setBranch] = useState('first branch');
-  const [discount, setDiscount] = useState(100);
-  const [discountAmount, setDiscountAmount] = useState(15);
-  const [discountType, setDiscountType] = useState('points');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Mixed payment state - CHANGE THESE TO STRING
+  // Mixed payment state
   const [walletAmount, setWalletAmount] = useState<string>('');
   const [cashAmount, setCashAmount] = useState<string>('');
 
@@ -287,6 +282,16 @@ export default function BookingCheckout() {
     clearCart,
   } = useBookingStore();
 
+  // Function to convert loyalty points to AED
+  const convertPointsToAED = (points: number): number => {
+    return points / 100; // 100 points = 1 AED
+  };
+
+  // Function to convert AED to loyalty points
+  const convertAEDToPoints = (aed: number): number => {
+    return aed * 100; // 1 AED = 100 points
+  };
+
   // Check for logged in customer and fetch wallet balance from wallets collection
   useEffect(() => {
     const fetchCustomerData = async () => {
@@ -312,15 +317,6 @@ export default function BookingCheckout() {
                   // Get the first wallet document (should be only one per customer)
                   const walletDoc = walletSnapshot.docs[0];
                   const walletData = walletDoc.data();
-                  
-                  // Fetch user data from 'users' collection
-                  const userDocRef = doc(db, 'users', customerData.id);
-                  const userDoc = await getDoc(userDocRef);
-                  
-                  let userData = {};
-                  if (userDoc.exists()) {
-                    userData = userDoc.data();
-                  }
                   
                   // Set customer with wallet balance and loyalty points
                   setCustomer({
@@ -415,21 +411,40 @@ export default function BookingCheckout() {
     }
   }, [selectedStaff, staffMembers]);
 
-  // Calculate points value
+  // Calculate total
   const cartTotal = getCartTotal();
-  
-  // Calculate final amounts according to your sample
-  const finalTotal = Math.max(0, cartTotal - discountAmount);
+  const finalTotal = cartTotal; // No discount now
+
+  // Calculate wallet balance in AED from loyalty points
+  const getWalletBalanceInAED = () => {
+    if (!customer || customer.loyaltyPoints === undefined) return 0;
+    return convertPointsToAED(customer.loyaltyPoints);
+  };
+
+  // Calculate remaining balance after wallet payment
+  const getRemainingBalanceInAED = () => {
+    const walletBalance = getWalletBalanceInAED();
+    const walletPayment = getNumericWalletAmount();
+    return walletBalance - walletPayment;
+  };
+
+  // Calculate remaining loyalty points after wallet payment
+  const getRemainingLoyaltyPoints = () => {
+    if (!customer || customer.loyaltyPoints === undefined) return 0;
+    const walletPayment = getNumericWalletAmount();
+    const pointsToDeduct = convertAEDToPoints(walletPayment);
+    return customer.loyaltyPoints - pointsToDeduct;
+  };
 
   // Auto-calculate mixed payment amounts when payment method changes
   useEffect(() => {
     if (paymentMethod === 'mixed' && customer) {
-      const walletBalance = customer.walletBalance || 0;
-      const walletPay = Math.min(walletBalance, finalTotal);
+      const walletBalanceAED = getWalletBalanceInAED();
+      const walletPay = Math.min(walletBalanceAED, finalTotal);
       const cashPay = finalTotal - walletPay;
       
-      setWalletAmount(walletPay === 0 ? '' : walletPay.toString());
-      setCashAmount(cashPay === 0 ? '' : cashPay.toString());
+      setWalletAmount(walletPay === 0 ? '' : walletPay.toFixed(2));
+      setCashAmount(cashPay === 0 ? '' : cashPay.toFixed(2));
     } else {
       setWalletAmount('');
       setCashAmount('');
@@ -437,17 +452,50 @@ export default function BookingCheckout() {
   }, [paymentMethod, finalTotal, customer]);
 
   // Handle wallet amount change
-  const handleWalletAmountChange = (value: SetStateAction<string>) => {
+  const handleWalletAmountChange = (value: string) => {
     setWalletAmount(value);
     
-   
+    // Auto-calculate cash amount
+    const numWallet = parseFloat(value) || 0;
+    const walletBalanceAED = getWalletBalanceInAED();
+    
+    // Don't allow more than wallet balance
+    if (numWallet > walletBalanceAED) {
+      setWalletAmount(walletBalanceAED.toFixed(2));
+      const remaining = finalTotal - walletBalanceAED;
+      setCashAmount(remaining > 0 ? remaining.toFixed(2) : '0.00');
+    } else if (numWallet > finalTotal) {
+      setWalletAmount(finalTotal.toFixed(2));
+      setCashAmount('0.00');
+    } else {
+      const remaining = finalTotal - numWallet;
+      setCashAmount(remaining.toFixed(2));
+    }
   };
 
   // Handle cash amount change
-  const handleCashAmountChange = (value:SetStateAction<string>) => {
+  const handleCashAmountChange = (value: string) => {
     setCashAmount(value);
     
+    // Auto-calculate wallet amount
+    const numCash = parseFloat(value) || 0;
+    const walletBalanceAED = getWalletBalanceInAED();
     
+    if (numCash > finalTotal) {
+      setCashAmount(finalTotal.toFixed(2));
+      setWalletAmount('0.00');
+    } else {
+      const remaining = finalTotal - numCash;
+      // Don't allow more than wallet balance
+      const walletPay = Math.min(remaining, walletBalanceAED);
+      setWalletAmount(walletPay.toFixed(2));
+      
+      // Adjust cash if wallet can't cover the remaining
+      if (walletPay < remaining) {
+        const adjustedCash = finalTotal - walletPay;
+        setCashAmount(adjustedCash.toFixed(2));
+      }
+    }
   };
 
   // Generate unique booking number
@@ -516,10 +564,17 @@ export default function BookingCheckout() {
       return;
     }
 
+    // Calculate total amount from all services
+    const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+    const finalAmount = servicesTotal; // No discount
+
+    // Get wallet balance in AED
+    const walletBalanceAED = getWalletBalanceInAED();
+
     // Check if wallet has sufficient balance for digital wallet payment
-    if (paymentMethod === 'wallet' && customer && customer.walletBalance !== undefined) {
-      if (customer.walletBalance < finalTotal) {
-        setValidationError(`Insufficient wallet balance. Your balance is $${customer.walletBalance.toFixed(2)} but total is $${finalTotal.toFixed(2)}. Please choose another payment method.`);
+    if (paymentMethod === 'wallet' && customer) {
+      if (walletBalanceAED < finalAmount) {
+        setValidationError(`Insufficient wallet balance. Your balance is $${walletBalanceAED.toFixed(2)} but total is $${finalAmount.toFixed(2)}. Please choose another payment method.`);
         return;
       }
     }
@@ -529,13 +584,16 @@ export default function BookingCheckout() {
       const numWalletAmount = getNumericWalletAmount();
       const numCashAmount = getNumericCashAmount();
       
-      if (numWalletAmount + numCashAmount !== finalTotal) {
-        setValidationError(`Mixed payment amounts must equal the total of $${finalTotal.toFixed(2)}. Current: Wallet $${numWalletAmount.toFixed(2)} + Cash $${numCashAmount.toFixed(2)} = $${(numWalletAmount + numCashAmount).toFixed(2)}`);
+      // Check if amounts equal total
+      const totalPaid = numWalletAmount + numCashAmount;
+      if (Math.abs(totalPaid - finalAmount) > 0.01) { // Allow small floating point difference
+        setValidationError(`Mixed payment amounts must equal the total of $${finalAmount.toFixed(2)}. Current: Wallet $${numWalletAmount.toFixed(2)} + Cash $${numCashAmount.toFixed(2)} = $${totalPaid.toFixed(2)}`);
         return;
       }
       
-      if (customer && customer.walletBalance !== undefined && numWalletAmount > customer.walletBalance) {
-        setValidationError(`Wallet amount ($${numWalletAmount.toFixed(2)}) exceeds your balance ($${customer.walletBalance.toFixed(2)})`);
+      // Check if wallet amount exceeds balance
+      if (numWalletAmount > walletBalanceAED) {
+        setValidationError(`Wallet amount ($${numWalletAmount.toFixed(2)}) exceeds your balance ($${walletBalanceAED.toFixed(2)})`);
         return;
       }
     }
@@ -562,12 +620,28 @@ export default function BookingCheckout() {
       // Find selected staff details
       const staffMember = staffMembers.find(s => s.name === selectedStaff);
       
-      // Get first service details for service-specific fields
-      const firstService = cartItems[0];
+      // Calculate totals
+      const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+      const finalAmount = servicesTotal; // No discount
       
       // Get numeric amounts for booking
       const numWalletAmount = getNumericWalletAmount();
       const numCashAmount = getNumericCashAmount();
+      
+      // Calculate wallet payment vs cash payment
+      let walletPayment = 0;
+      let cashPayment = 0;
+      
+      if (paymentMethod === 'wallet') {
+        walletPayment = finalAmount;
+        cashPayment = 0;
+      } else if (paymentMethod === 'mixed') {
+        walletPayment = numWalletAmount;
+        cashPayment = numCashAmount;
+      } else if (paymentMethod === 'cod') {
+        walletPayment = 0;
+        cashPayment = finalAmount;
+      }
       
       // Prepare booking data according to your EXACT structure
       const bookingData: BookingData = {
@@ -586,27 +660,25 @@ export default function BookingCheckout() {
         customerName: customerName,
         customerPhone: customerPhone,
         date: formatFirebaseDate(),
-        discount: discount,
-        discountAmount: discountAmount,
-        discountType: discountType,
         notes: notes || specialRequests || (paymentMethod === 'mixed' 
-          ? `Payment Method: Mixed Payment. Wallet: $${numWalletAmount.toFixed(2)}, Cash: $${numCashAmount.toFixed(2)}` 
-          : `Payment Method: ${paymentMethod}.`),
+          ? `Payment Method: Mixed Payment. Wallet: $${walletPayment.toFixed(2)} AED, Cash: $${cashPayment.toFixed(2)} AED` 
+          : `Payment Method: ${paymentMethod}. Wallet: $${walletPayment.toFixed(2)} AED, Cash: $${cashPayment.toFixed(2)} AED`),
         paymentAmounts: {
-          wallet: paymentMethod === 'wallet' ? finalTotal : (paymentMethod === 'mixed' ? numWalletAmount : 0)
+          wallet: walletPayment,
+          cash: cashPayment
         },
         paymentMethod: paymentMethod,
         paymentStatus: paymentMethod === 'cod' || paymentMethod === 'mixed' ? 'pending' : "paid",
         pointsAwarded: false,
         products: [],
         productsTotal: 0,
-        serviceCategory: firstService?.category || "third categiry",
-        serviceCategoryId: firstService?.serviceCategoryId || "KfUizOHVXwD1rU7qhvKd",
+        serviceCategory: cartItems.map(item => item.category).join(', ') || "third category",
+        serviceCategoryId: cartItems[0]?.serviceCategoryId || "KfUizOHVXwD1rU7qhvKd",
         serviceCharges: 0,
         serviceDuration: getTotalDuration(),
-        serviceId: firstService?.id || "wm4r0IVOcxZWoEfBNw9f",
-        serviceName: firstService?.name || "Fifth Services",
-        servicePrice: cartTotal,
+        serviceId: cartItems[0]?.id || "wm4r0IVOcxZWoEfBNw9f",
+        serviceName: cartItems[0]?.name || "Fifth Services",
+        servicePrice: servicesTotal,
         serviceTip: 0,
         services: cartItems.map(item => item.name),
         source: "customer_app",
@@ -614,7 +686,7 @@ export default function BookingCheckout() {
         staffName: selectedStaff,
         staffRole: staffMember?.role || "makeup",
         status: "pending",
-        subtotal: cartTotal,
+        subtotal: servicesTotal,
         tax: 0,
         taxAmount: 0,
         teamMembers: cartItems.map(item => ({
@@ -627,7 +699,7 @@ export default function BookingCheckout() {
         time: selectedTime + ' PM',
         timeSlot: selectedTime,
         tip: 0,
-        totalAmount: finalTotal,
+        totalAmount: finalAmount,
         totalDuration: getTotalDuration(),
         totalTips: 0,
         trnNumber: "",
@@ -641,8 +713,8 @@ export default function BookingCheckout() {
       const bookingsRef = collection(db, 'bookings');
       const docRef = await addDoc(bookingsRef, bookingData);
       
-      // If payment is by wallet or mixed with wallet portion, update wallet balance
-      if ((paymentMethod === 'wallet' || (paymentMethod === 'mixed' && numWalletAmount > 0)) && customer && customer.id) {
+      // If payment is by wallet or mixed with wallet portion, update wallet balance in Firebase
+      if ((paymentMethod === 'wallet' || (paymentMethod === 'mixed' && walletPayment > 0)) && customer && customer.id) {
         try {
           // Find wallet document
           const walletsQuery = query(
@@ -655,22 +727,44 @@ export default function BookingCheckout() {
           if (!walletSnapshot.empty) {
             const walletDoc = walletSnapshot.docs[0];
             const walletData = walletDoc.data();
-            const amountToDeduct = paymentMethod === 'wallet' ? finalTotal : numWalletAmount;
-            const newBalance = (walletData.balance || 0) - amountToDeduct;
             
-            // Update wallet balance transaction record
+            // Convert AED to points for deduction
+            const pointsToDeduct = convertAEDToPoints(walletPayment);
+            const newLoyaltyPoints = Math.max(0, (walletData.loyaltyPoints || 0) - pointsToDeduct);
+            const newBalance = Math.max(0, (walletData.balance || 0) - walletPayment);
+            
+            // Update wallet document with new balance
+            await updateDoc(walletDoc.ref, {
+              loyaltyPoints: newLoyaltyPoints,
+              balance: newBalance,
+              updatedAt: serverTimestamp()
+            });
+            
+            // Create wallet transaction record
             await addDoc(collection(db, 'walletTransactions'), {
               customerId: customer.id,
               customerName: customer.name,
-              amount: amountToDeduct,
+              amount: walletPayment,
+              amountInPoints: pointsToDeduct,
               type: 'debit',
               description: `Booking payment: ${bookingData.bookingNumber}${paymentMethod === 'mixed' ? ' (Mixed Payment - Wallet Portion)' : ''}`,
               bookingId: docRef.id,
               bookingNumber: bookingData.bookingNumber,
               previousBalance: walletData.balance || 0,
+              previousLoyaltyPoints: walletData.loyaltyPoints || 0,
               newBalance: newBalance,
+              newLoyaltyPoints: newLoyaltyPoints,
+              remainingBalance: newBalance,
+              remainingLoyaltyPoints: newLoyaltyPoints,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
+            });
+            
+            // Update local customer state with new balance
+            setCustomer({
+              ...customer,
+              loyaltyPoints: newLoyaltyPoints,
+              walletBalance: newBalance
             });
           }
         } catch (walletError) {
@@ -1049,40 +1143,47 @@ export default function BookingCheckout() {
                           {/* Wallet Amount */}
                           <div className="space-y-1.5">
                             <Label className="text-sm font-medium text-purple-900">
-                              Amount from Wallet
+                              Amount from Wallet (AED)
                             </Label>
                             <div className="flex items-center gap-2">
-                             
                               <Input
-                               
-                               
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={getWalletBalanceInAED()}
                                 value={walletAmount}
-                               onChange={(e) => handleWalletAmountChange(e.target.value)}
+                                onChange={(e) => handleWalletAmountChange(e.target.value)}
                                 className="rounded-none border-purple-200 h-9"
-                                placeholder="enter "
+                                placeholder="Enter amount"
                               />
-                              <span className="text-sm font-medium text-purple-700 whitespace-nowrap">USD</span>
+                              <span className="text-sm font-medium text-purple-700 whitespace-nowrap">AED</span>
                             </div>
-                            <p className="text-xs text-purple-500">
-                              Available: ${customer.walletBalance?.toFixed(2) || '0.00'}
-                            </p>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-purple-500">
+                                Available: {getWalletBalanceInAED().toFixed(2)} AED ({customer.loyaltyPoints?.toFixed(0) || '0'} points)
+                              </span>
+                              <span className="font-bold text-purple-700">
+                                Remaining: {getRemainingBalanceInAED().toFixed(2)} AED ({getRemainingLoyaltyPoints().toFixed(0)} points)
+                              </span>
+                            </div>
                           </div>
                           
                           {/* Cash Amount */}
                           <div className="space-y-1.5">
                             <Label className="text-sm font-medium text-purple-900">
-                              Amount from Cash (COD)
+                              Amount from Cash (COD) AED
                             </Label>
                             <div className="flex items-center gap-2">
                               <Input
-                                type="text"
-                                inputMode="decimal"
+                                type="number"
+                                step="0.01"
+                                min="0"
                                 value={cashAmount}
                                 onChange={(e) => handleCashAmountChange(e.target.value)}
                                 className="rounded-none border-purple-200 h-9"
-                                placeholder="0"
+                                placeholder="Enter amount"
                               />
-                              <span className="text-sm font-medium text-purple-700 whitespace-nowrap">USD</span>
+                              <span className="text-sm font-medium text-purple-700 whitespace-nowrap">AED</span>
                             </div>
                           </div>
                           
@@ -1090,15 +1191,19 @@ export default function BookingCheckout() {
                           <div className="p-3 bg-white border border-purple-100 rounded-lg mt-2">
                             <div className="flex justify-between text-sm">
                               <span className="text-purple-700">Wallet Payment:</span>
-                              <span className="font-bold text-purple-900">${(parseFloat(walletAmount) || 0).toFixed(2)}</span>
+                              <span className="font-bold text-purple-900">{getNumericWalletAmount().toFixed(2)} AED</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-purple-700">Wallet Remaining:</span>
+                              <span className="font-bold text-green-600">{getRemainingBalanceInAED().toFixed(2)} AED</span>
                             </div>
                             <div className="flex justify-between text-sm mt-1">
                               <span className="text-purple-700">Cash Payment:</span>
-                              <span className="font-bold text-purple-900">${(parseFloat(cashAmount) || 0).toFixed(2)}</span>
+                              <span className="font-bold text-purple-900">{getNumericCashAmount().toFixed(2)} AED</span>
                             </div>
                             <div className="flex justify-between text-sm mt-2 pt-2 border-t border-purple-100">
                               <span className="font-bold text-purple-900">Total Amount:</span>
-                              <span className="font-bold text-purple-900">${((parseFloat(walletAmount) || 0) + (parseFloat(cashAmount) || 0)).toFixed(2)}</span>
+                              <span className="font-bold text-purple-900">{finalTotal.toFixed(2)} AED</span>
                             </div>
                           </div>
                         </div>
@@ -1119,26 +1224,48 @@ export default function BookingCheckout() {
                             <div>
                               <p className="font-semibold text-green-900">Your Wallet Balance</p>
                               <p className="text-2xl font-bold text-green-700">
-                                 {(customer.loyaltyPoints / 100 || 0).toFixed(2)} AED
-                           </p>
+                                 {getWalletBalanceInAED().toFixed(2)} AED
+                              </p>
+                              <p className="text-sm text-green-600">
+                                ({customer.loyaltyPoints?.toFixed(0) || '0'} points)
+                              </p>
                             </div>
                           </div>
                           {paymentMethod === 'wallet' && (
                             <div className="text-right">
                               <p className="text-xs text-green-600 font-semibold">Available for payment</p>
                               <p className="text-sm text-green-800">
-                                 {(customer.loyaltyPoints / 100 || 0).toFixed(2)} AED
+                                 {getWalletBalanceInAED().toFixed(2)} AED
                               </p>
                             </div>
                           )}
                         </div>
                         
+                        {/* Show remaining balance after payment */}
+                        {paymentMethod === 'wallet' && (
+                          <div className="mt-3 p-3 bg-white border border-green-300 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-xs text-green-700 font-semibold">After Payment:</p>
+                                <p className="text-sm text-green-900">
+                                  {(getWalletBalanceInAED() - finalTotal).toFixed(2)} AED will remain
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-green-600">
+                                  {convertAEDToPoints(getWalletBalanceInAED() - finalTotal).toFixed(0)} points
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* Show warning if wallet balance is insufficient for digital wallet payment */}
-                        {paymentMethod === 'wallet' && customer.walletBalance !== undefined && customer.walletBalance < finalTotal && (
+                        {paymentMethod === 'wallet' && getWalletBalanceInAED() < finalTotal && (
                           <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-xs text-red-700">
                               <AlertCircle className="w-3 h-3 inline mr-1" />
-                              Insufficient wallet balance. You need additional ${(finalTotal - customer.walletBalance).toFixed(2)}.
+                              Insufficient wallet balance. You need additional ${(finalTotal - getWalletBalanceInAED()).toFixed(2)} AED.
                             </p>
                           </div>
                         )}
@@ -1156,12 +1283,15 @@ export default function BookingCheckout() {
                               <p className="text-2xl font-bold text-blue-700">
                                 {customer.loyaltyPoints?.toFixed(0) || '0'} points
                               </p>
+                              <p className="text-sm text-blue-600">
+                                = {getWalletBalanceInAED().toFixed(2)} AED
+                              </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-blue-600 font-semibold">Redeemable for discounts</p>
+                            <p className="text-xs text-blue-600 font-semibold">Conversion Rate</p>
                             <p className="text-xs text-blue-800">
-                              100 points = $1.00
+                              100 points = 1.00 AED
                             </p>
                           </div>
                         </div>
@@ -1174,7 +1304,7 @@ export default function BookingCheckout() {
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                       <p className="text-xs text-yellow-700">
                         <Info className="w-4 h-4 inline mr-1" />
-                        <span className="font-bold">Note:</span> "Create an account for Mixed Payment and Digital Wallet options. COD is always available."
+                        <span className="font-bold">Note:</span> Create an account for Mixed Payment and Digital Wallet options. COD is always available.
                       </p>
                     </div>
                   )}
@@ -1282,38 +1412,46 @@ export default function BookingCheckout() {
 
                         {/* Show mixed payment breakdown */}
                         {paymentMethod === 'mixed' && (
-                          <div className="p-2 bg-white/10 rounded-lg">
+                          <div className="p-3 bg-white/10 rounded-lg">
                             <div className="flex justify-between text-xs mb-1">
                               <span className="text-white/80">Wallet Payment:</span>
-                              <span className="font-bold">${(parseFloat(walletAmount) || 0).toFixed(2)}</span>
+                              <span className="font-bold">{getNumericWalletAmount().toFixed(2)} AED</span>
+                            </div>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-white/80">Wallet Remaining:</span>
+                              <span className="font-bold text-green-300">{getRemainingBalanceInAED().toFixed(2)} AED</span>
                             </div>
                             <div className="flex justify-between text-xs mb-1">
                               <span className="text-white/80">Cash Payment:</span>
-                              <span className="font-bold">${(parseFloat(cashAmount) || 0).toFixed(2)}</span>
+                              <span className="font-bold">{getNumericCashAmount().toFixed(2)} AED</span>
                             </div>
                             <div className="flex justify-between text-xs mt-2 pt-2 border-t border-white/20">
                               <span className="font-bold">Total:</span>
-                              <span className="font-bold">${((parseFloat(walletAmount) || 0) + (parseFloat(cashAmount) || 0)).toFixed(2)}</span>
+                              <span className="font-bold">{finalTotal.toFixed(2)} AED</span>
                             </div>
                           </div>
                         )}
 
                         {/* Show wallet info if using digital wallet */}
                         {paymentMethod === 'wallet' && customer && (
-                          <div className="p-2 bg-white/10 rounded-lg">
+                          <div className="p-3 bg-white/10 rounded-lg">
                             <div className="flex justify-between text-xs">
-                              <span className="text-white/80">Wallet Balance:</span>
-                              <span className="font-bold">${customer.walletBalance?.toFixed(2) || '0.00'}</span>
+                              <span className="text-white/80">Current Balance:</span>
+                              <span className="font-bold">{getWalletBalanceInAED().toFixed(2)} AED</span>
+                            </div>
+                            <div className="flex justify-between text-xs mt-1">
+                              <span className="text-white/80">Payment Amount:</span>
+                              <span className="font-bold">{finalTotal.toFixed(2)} AED</span>
                             </div>
                             <div className="flex justify-between text-xs mt-1">
                               <span className="text-white/80">Remaining after payment:</span>
                               <span className={cn(
                                 "font-bold",
-                                customer.walletBalance && customer.walletBalance >= finalTotal 
+                                getWalletBalanceInAED() >= finalTotal 
                                   ? "text-green-300" 
                                   : "text-red-300"
                               )}>
-                                ${(customer.walletBalance ? customer.walletBalance - finalTotal : 0).toFixed(2)}
+                                {(getWalletBalanceInAED() - finalTotal).toFixed(2)} AED
                               </span>
                             </div>
                           </div>
@@ -1334,8 +1472,8 @@ export default function BookingCheckout() {
                       <Button 
                         className="w-full bg-secondary hover:bg-secondary/90 text-primary font-bold py-6 rounded-lg tracking-[0.2em] text-xs shadow-lg shadow-secondary/20 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                         disabled={isSubmitting || !customerName || !customerEmail || !customerPhone || !selectedDate || !selectedTime || cartItems.length === 0 || !paymentMethod || 
-                          (paymentMethod === 'wallet' && customer && customer.walletBalance !== undefined && customer.walletBalance < finalTotal) ||
-                          (paymentMethod === 'mixed' && ((parseFloat(walletAmount) || 0) + (parseFloat(cashAmount) || 0) !== finalTotal || (customer && customer.walletBalance !== undefined && (parseFloat(walletAmount) || 0) > customer.walletBalance)))}
+                          (paymentMethod === 'wallet' && getWalletBalanceInAED() < finalTotal) ||
+                          (paymentMethod === 'mixed' && (Math.abs((getNumericWalletAmount() + getNumericCashAmount()) - finalTotal) > 0.01 || (getNumericWalletAmount() > getWalletBalanceInAED())))}
                         onClick={handleConfirmBooking}
                       >
                         {isSubmitting ? 'PROCESSING...' : 'CONFIRM BOOKING'}
