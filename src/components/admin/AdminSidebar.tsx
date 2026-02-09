@@ -858,12 +858,12 @@ const branchAdminNavItems = [
     icon: Award,
     pageKey: 'membership'
   },
-  {
-    title: 'Messages',
-    href: '/admin/messages',
-    icon: MessageCircle,
-    pageKey: 'messages'
-  },
+  // {
+  //   title: 'Messages',
+  //   href: '/admin/messages',
+  //   icon: MessageCircle,
+  //   pageKey: 'messages'
+  // },
   {
     title: 'Custom Invoice',
     href: '/admin/custominvoice',
@@ -1058,12 +1058,12 @@ const superAdminNavItems = [
   },
     ]
   },
-  {
-    title: 'Messages',
-    href: '/super-admin/messages',
-    icon: MessageCircle,
-    pageKey: 'messages'
-  },
+  // {
+  //   title: 'Messages',
+  //   href: '/super-admin/messages',
+  //   icon: MessageCircle,
+  //   pageKey: 'messages'
+  // },
 ];
 
 interface SidebarContentProps extends Omit<SidebarProps, 'isOpen'> {

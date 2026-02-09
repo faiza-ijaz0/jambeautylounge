@@ -257,23 +257,7 @@ export default function LoginPage() {
           </form>
 
           {/* Demo Credentials Section */}
-          <div className="mt-10 p-6 bg-white/[0.03] border border-white/5 rounded-[2rem]">
-            <p className="text-[9px] font-black text-secondary uppercase tracking-[0.3em] mb-4">How to Test</p>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Step 1</span>
-                <span className="text-[10px] text-white font-mono">Create user in Super Admin Panel</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Step 2</span>
-                <span className="text-[10px] text-white font-mono">Use same credentials here</span>
-              </div>
-              <div className="pt-2 border-t border-white/5 flex justify-between items-center">
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Note</span>
-                <span className="text-[10px] text-white font-mono">Role & branch auto-assigned</span>
-              </div>
-            </div>
-          </div>
+          
         </CardContent>
       </Card>
     </div>
