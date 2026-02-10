@@ -1,5 +1,5 @@
 // lib/firebase-messages.ts
-import { collection, getDocs, query, where, doc, getDoc, addDoc, updateDoc, Timestamp, orderBy, onSnapshot, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, addDoc, updateDoc, Timestamp, orderBy, limit, onSnapshot, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export interface Branch {
@@ -446,19 +446,6 @@ export const createFeedback = async (feedback: Omit<FirebaseFeedback, 'id' | 'cr
     console.error("Error creating feedback:", error);
     throw error;
   }
-};
-
-// Helper function for limit
-const limit = (limit: number) => {
-  return (ref: any) => {
-    return query(ref, orderBy('timestamp', 'desc'), limitToLast(limit));
-  };
-};
-
-const limitToLast = (limit: number) => {
-  // This is a simplified implementation
-  // In real Firebase, you'd use limitToLast
-  return (ref: any) => ref;
 };
 
 // REALTIME LISTENERS
