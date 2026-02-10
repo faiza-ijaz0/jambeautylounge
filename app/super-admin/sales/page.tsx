@@ -217,7 +217,7 @@ export default function BookingReportPage() {
       const staffSet = new Set();
       bookingsData.forEach(booking => {
         if (booking.staffName) staffSet.add(booking.staffName);
-        booking.teamMembers?.forEach(member => {
+        booking.teamMembers?.forEach((member: any) => {
           if (member.name) staffSet.add(member.name);
         });
       });

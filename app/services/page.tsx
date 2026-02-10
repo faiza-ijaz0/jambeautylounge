@@ -1827,10 +1827,6 @@ const handleAddToCart = (service: Service) => {
     image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
     rating: 5,
     reviews: 0,
-    serviceId: service.id,
-    serviceName: service.name,
-    serviceCategory: service.category,
-    serviceCategoryId: service.categoryId || 'KfUizOHVXwD1rU7qhvKd'
   };
 
   // Update local cart store

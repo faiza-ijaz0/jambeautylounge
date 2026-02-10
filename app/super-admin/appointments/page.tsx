@@ -218,8 +218,6 @@ const useBookingsStore = create<BookingsStore>((set, get) => ({
         )
       }));
       
-      return true;
-      
     } catch (error) {
       console.error('Error updating booking status:', error);
       throw error;

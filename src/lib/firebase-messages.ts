@@ -127,7 +127,9 @@ export const fetchConversationsFromFirebase = async (branchId?: string): Promise
       
       // Fetch last message for each conversation
       const messagesRef = collection(db, "conversations", docSnap.id, "messages");
-      const messagesQuery = query(messagesRef, orderBy("timestamp", "desc"), limit(1));
+      const orderConstraint = orderBy("timestamp", "desc");
+      const limitConstraint = limit(1);
+      const messagesQuery = query(messagesRef, orderConstraint, limitConstraint);
       const messagesSnapshot = await getDocs(messagesQuery);
       
       let lastMessage: FirebaseMessage | undefined;

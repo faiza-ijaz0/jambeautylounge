@@ -35,6 +35,7 @@ import {
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useBookingStore } from '@/stores/booking.store';
 
 // ==================== STORE DEFINITION ====================
 interface Service {
@@ -502,6 +503,8 @@ export default function Home() {
     stats,
     fetchHomeData 
   } = useHomeStore();
+
+  const { addToCart } = useBookingStore();
 
   useEffect(() => {
     fetchHomeData();
@@ -1025,15 +1028,13 @@ export default function Home() {
                             <div className="text-3xl font-serif font-black text-secondary">
                               <span className="text-xs mr-1 opacity-70">AED</span>{service.price}
                             </div>
-                            <Button 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                addToCart(service);
-                              }}
-                              className="bg-secondary hover:bg-white text-primary font-black rounded-xl h-12 px-6 shadow-xl transition-all duration-500 hover:scale-105"
-                            >
-                              BOOK NOW
-                            </Button>
+                            <Link href="/booking">
+                              <Button 
+                                className="bg-secondary hover:bg-white text-primary font-black rounded-xl h-12 px-6 shadow-xl transition-all duration-500 hover:scale-105"
+                              >
+                                BOOK NOW
+                              </Button>
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -1110,14 +1111,15 @@ export default function Home() {
                           }}
                         />
                         <div className="absolute top-4 right-4">
-                          <button 
-                            onClick={() => addToCart(product)}
-                            className="bg-secondary/10 hover:bg-secondary text-secondary hover:text-primary w-12 h-12 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-secondary/20 transition-all duration-500 shadow-2xl"
-                          >
-                            <ShoppingBag className="w-5 h-5" />
-                          </button>
+                          <Link href="/products">
+                            <button 
+                              className="bg-secondary/10 hover:bg-secondary text-secondary hover:text-primary w-12 h-12 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-secondary/20 transition-all duration-500 shadow-2xl"
+                            >
+                              <ShoppingBag className="w-5 h-5" />
+                            </button>
+                          </Link>
                         </div>
-                        {product.stock <= 5 && (
+                        {product.totalStock <= 5 && (
                           <div className="absolute top-4 left-4">
                             <span className="bg-red-500/80 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-red-500/50">
                               Limited Edition

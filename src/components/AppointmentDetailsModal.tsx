@@ -59,9 +59,7 @@ interface AppointmentDetails {
   services?: string[];
   servicesDetails?: any[];
   teamMembers?: any[];
-  notes?: string;
   createdBy?: string;
-  source?: string;
   trnNumber?: string;
   cardLast4Digits?: string;
   pointsAwarded?: boolean;
@@ -77,7 +75,6 @@ interface AppointmentDetails {
   };
   branches?: string[];
   branchNames?: string[];
-  date?: string; // Format 2 field
   timeSlot?: string;
   originalTime?: string;
 }

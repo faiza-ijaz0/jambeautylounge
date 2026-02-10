@@ -1155,11 +1155,11 @@ function SidebarContent({
             const isDisabled = item.title === 'No Access';
             
             // Check if item has children
-            if (item.children) {
+            if ((item as any).children) {
               const isExpanded = expandedItems[item.pageKey] && !isCollapsed;
               
               // Check if any child is active for parent highlight
-              const isChildActive = item.children.some(child => pathname === child.href);
+              const isChildActive = (item as any).children?.some((child: any) => pathname === child.href);
               
               return (
                 <div key={`parent-${item.pageKey || item.title}`} className="space-y-1">
@@ -1194,7 +1194,7 @@ function SidebarContent({
                   {/* Children items - Show only when expanded */}
                   {isExpanded && (
                     <div className="ml-6 space-y-1">
-                      {item.children.map((child) => {
+                      {((item as any).children || []).map((child: any) => {
                         const isChildActive = pathname === child.href;
                         return (
                           <Link 
@@ -1231,7 +1231,7 @@ function SidebarContent({
             return (
               <Link 
                 key={item.href || `item-${item.pageKey}`} 
-                href={isDisabled ? '#' : item.href}
+                href={isDisabled ? '#' : (item.href || '/')}
                 className={isDisabled ? 'pointer-events-none cursor-not-allowed' : ''}
               >
                 <Button

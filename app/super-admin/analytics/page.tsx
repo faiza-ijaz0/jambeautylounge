@@ -34,7 +34,7 @@ interface Booking {
   customerName: string;
   serviceName: string;
   servicePrice: number;
-  bookingDate: string;
+  bookingDate: Date;
   createdAt: any;
   paymentStatus: string;
   paymentMethod: string;
@@ -45,7 +45,7 @@ interface Order {
   id: string;
   totalAmount: number;
   paymentStatus: string;
-  orderDate: string;
+  orderDate: Date;
   customerName: string;
   customerEmail: string;
   branchNames: string[];
@@ -213,7 +213,7 @@ export default function SuperAdminAnalytics() {
           id: doc.id,
           ...data,
           bookingDate: bookingDate
-        } as Booking;
+        } as unknown as Booking;
       });
 
       // Fetch orders
@@ -231,7 +231,7 @@ export default function SuperAdminAnalytics() {
           id: doc.id,
           ...data,
           orderDate: orderDate
-        } as Order;
+        } as unknown as Order;
       });
 
       // Store raw data for export
@@ -525,10 +525,10 @@ export default function SuperAdminAnalytics() {
       analytics.branchPerformance.forEach(branch => {
         branchData.push([
           branch.name,
-          branch.revenue,
-          branch.bookings,
-          branch.customers,
-          branch.orders,
+          branch.revenue.toString(),
+          branch.bookings.toString(),
+          branch.customers.toString(),
+          branch.orders.toString(),
           `${branch.growth.toFixed(1)}%`
         ]);
       });
@@ -546,9 +546,9 @@ export default function SuperAdminAnalytics() {
       analytics.monthlyTrends.forEach(month => {
         monthlyData.push([
           month.month,
-          month.revenue,
-          month.bookings,
-          month.orders
+          month.revenue.toString(),
+          month.bookings.toString(),
+          month.orders.toString()
         ]);
       });
       
@@ -564,11 +564,11 @@ export default function SuperAdminAnalytics() {
       
       analytics.topServices.forEach((service, index) => {
         servicesData.push([
-          index + 1,
+          (index + 1).toString(),
           service.name,
-          service.revenue,
-          service.bookings,
-          service.avgPrice
+          service.revenue.toString(),
+          service.bookings.toString(),
+          service.avgPrice.toString()
         ]);
       });
       
@@ -589,7 +589,7 @@ export default function SuperAdminAnalytics() {
             booking.customerName || 'N/A',
             booking.serviceName || 'N/A',
             booking.branch || 'N/A',
-            booking.totalAmount || 0,
+            (booking.totalAmount || 0).toString(),
             booking.status || 'N/A',
             booking.bookingDate instanceof Date ? booking.bookingDate.toLocaleDateString() : 'N/A'
           ]);
@@ -612,7 +612,7 @@ export default function SuperAdminAnalytics() {
             order.id.substring(0, 10) + '...',
             order.customerName || 'N/A',
             order.branchNames?.[0] || 'N/A',
-            order.totalAmount || 0,
+            (order.totalAmount || 0).toString(),
             order.paymentStatus || 'N/A',
             order.orderDate instanceof Date ? order.orderDate.toLocaleDateString() : 'N/A'
           ]);

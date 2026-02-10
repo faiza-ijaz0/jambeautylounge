@@ -837,7 +837,7 @@ export default function SuperAdminInvoices() {
     
     // Colorful header strips
     colors.forEach((color, index) => {
-      doc.setFillColor(...color);
+      doc.setFillColor(...(color as [number, number, number]));
       doc.rect(0, index * 10, 210, 10, 'F');
     });
     
@@ -886,7 +886,7 @@ export default function SuperAdminInvoices() {
       const x = 20 + (index % 2) * 85;
       const y = 120 + Math.floor(index / 2) * 25;
       
-      doc.setFillColor(...box.color);
+      doc.setFillColor(...(box.color as [number, number, number]));
       doc.roundedRect(x, y, 80, 20, 3, 3, 'F');
       
       doc.setTextColor(255, 255, 255);
@@ -936,7 +936,7 @@ export default function SuperAdminInvoices() {
     ];
     
     colorfulTotals.forEach((total, index) => {
-      doc.setTextColor(...total.color);
+      doc.setTextColor(...(total.color as [number, number, number]));
       doc.text(total.label, 130, finalY + (index * 6));
       doc.text(`$${total.value.toFixed(2)}`, 180, finalY + (index * 6), { align: "right" });
     });

@@ -2880,21 +2880,32 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                 {/* Advanced Calendar Tab */}
                 <TabsContent value="advanced-calendar" className="space-y-6">
                   <AdvancedCalendar
-                    appointments={finalAppointments.map(apt => ({
-                      ...apt,
-                      // Pass all fields
-                      teamMembers: apt.teamMembers || [],
-                      products: apt.products || [],
-                      cardLast4Digits: apt.cardLast4Digits || '',
-                      trnNumber: apt.trnNumber || '',
-                      paymentMethods: apt.paymentMethods || [],
-                      paymentAmounts: apt.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0, wallet: 0 },
-                      discount: apt.discount || 0,
-                      discountType: apt.discountType || 'fixed',
-                      serviceTip: apt.serviceTip || 0,
-                      serviceCharges: apt.serviceCharges || 0,
-                      tax: apt.tax || 5
-                    }))}
+                    appointments={finalAppointments.map((apt: any) => {
+                      // Normalize paymentAmounts to ensure all properties exist
+                      const paymentAmounts = {
+                        cash: apt.paymentAmounts?.cash ?? 0,
+                        card: apt.paymentAmounts?.card ?? 0,
+                        check: apt.paymentAmounts?.check ?? 0,
+                        digital: apt.paymentAmounts?.digital ?? 0,
+                        wallet: apt.paymentAmounts?.wallet ?? 0
+                      };
+                      
+                      return {
+                        ...apt,
+                        // Pass all fields
+                        teamMembers: apt.teamMembers || [],
+                        products: apt.products || [],
+                        cardLast4Digits: apt.cardLast4Digits || '',
+                        trnNumber: apt.trnNumber || '',
+                        paymentMethods: apt.paymentMethods || [],
+                        paymentAmounts: paymentAmounts,
+                        discount: apt.discount || 0,
+                        discountType: apt.discountType || 'fixed',
+                        serviceTip: apt.serviceTip || 0,
+                        serviceCharges: apt.serviceCharges || 0,
+                        tax: apt.tax || 5
+                      };
+                    })}
                     onAppointmentClick={(appointment: any) => {
                       const fullAppointment = allAppointments.find(apt => apt.id === appointment.id);
                       if (fullAppointment) {

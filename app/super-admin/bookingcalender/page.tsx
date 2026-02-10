@@ -6111,6 +6111,12 @@ interface Appointment {
   servicePrice: number;
   id: string | number;
   firebaseId?: string;
+  bookingNumber?: string;
+  subtotal?: number;
+  taxAmount?: number;
+  totalAmount?: number;
+  paymentStatus?: string;
+  paymentMethod?: string;
   customer: string;
   service: string;
   services?: string[]; // Array for multiple services
@@ -6313,6 +6319,7 @@ const fetchBookings = async (addNotification: any): Promise<FirebaseBooking[]> =
         
         // Service info
         serviceName: data.serviceName || "",
+        serviceDuration: data.serviceDuration || 60,
         services: Array.isArray(data.services) ? data.services : [data.serviceName || ""],
         
         // Duration
@@ -6771,8 +6778,11 @@ const createBookingInFirebase = async (
       customerPhone: bookingData.phone || "",
       services: bookingData.services,
       serviceDetails: serviceDetails,
+      serviceDuration: totalDuration,
       totalDuration: totalDuration,
+      servicePrice: totalAmount,
       totalPrice: totalAmount,
+      totalAmount: totalAmount,
       status: bookingData.status || 'pending',
       bookingDate: bookingData.date,
       bookingTime: bookingData.time,
@@ -7629,8 +7639,11 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
               customerPhone: data.customerPhone || "",
               services,
               serviceDetails: Array.isArray(data.servicesDetails) ? data.servicesDetails : [],
+              serviceDuration: data.serviceDuration || 60,
               totalDuration: data.serviceDuration || 60,
+              servicePrice: data.servicePrice || data.totalAmount || 0,
               totalPrice: data.servicePrice || data.totalAmount || 0,
+              totalAmount: data.servicePrice || data.totalAmount || 0,
               status: data.status || "pending",
               bookingDate, // Calendar ke liye important
               bookingTime,
@@ -7772,9 +7785,9 @@ const convertedBookings: Appointment[] = bookings.map((booking, index) => {
     customer: booking.customerName || "Unknown Customer",
     service: serviceText,
     services: Array.isArray(booking.services) ? booking.services : [],
-    barber: booking.staff || booking.staffName || "Not Assigned",
-    date: booking.bookingDate || booking.date || "",
-    time: booking.bookingTime || booking.time || booking.timeSlot || "",
+    barber: booking.staff || "Not Assigned",
+    date: booking.bookingDate || "",
+    time: booking.bookingTime || booking.timeSlot || "",
     duration: booking.totalDuration ? `${booking.totalDuration} min` : '60 min',
     
     // 🔥 PRICING FIELDS - DIRECT FROM FIREBASE
@@ -7851,11 +7864,6 @@ const filteredAppointments = allAppointments.filter(appointment => {
         return true;
       }
       
-      // Check date field
-      if (booking.date && booking.date.includes(selectedDateStr)) {
-        return true;
-      }
-      
       return false;
     });
     
@@ -7872,21 +7880,19 @@ const filteredAppointments = allAppointments.filter(appointment => {
         customer: booking.customerName,
         service: serviceText,
         services: Array.isArray(booking.services) ? booking.services : [],
-        barber: booking.staffName || booking.staff || "Not Assigned",
-        date: booking.bookingDate || booking.date?.split(' ')[0] || selectedDateStr,
-        time: booking.bookingTime || booking.time || booking.timeSlot || "10:00 AM",
+        barber: booking.staff || "Not Assigned",
+        date: booking.bookingDate || selectedDateStr,
+        time: booking.bookingTime || booking.timeSlot || "10:00 AM",
         duration: booking.totalDuration ? `${booking.totalDuration} min` : '60 min',
         price: booking.totalAmount || booking.servicePrice || 0,
+        servicePrice: booking.servicePrice || 0,
         status: mappedStatus,
         phone: booking.customerPhone,
         email: booking.customerEmail,
         notes: booking.notes || 'Booked via website',
         source: booking.createdBy === 'admin' ? 'admin_panel' : 
                 booking.createdBy === 'customer_booking' ? 'customer_app' : 'website',
-        branch: booking.branch || 
-                (Array.isArray(booking.branchNames) && booking.branchNames.length > 0 
-                  ? booking.branchNames.join(', ') 
-                  : 'All Branches'),
+        branch: booking.branch || 'All Branches',
         createdAt: booking.createdAt,
         updatedAt: booking.updatedAt,
         staffId: booking.staffId,
@@ -9059,6 +9065,7 @@ const handleAppointmentClick = async (appointment: Appointment) => {
       time: booking.bookingTime,
       duration: booking.totalDuration ? `${booking.totalDuration} min` : '60 min',
       price: booking.totalPrice,
+      servicePrice: booking.servicePrice || 0,
       status: booking.status,
       phone: booking.customerPhone,
       email: booking.customerEmail,
@@ -9073,7 +9080,15 @@ const handleAppointmentClick = async (appointment: Appointment) => {
       teamMembers: booking.teamMembers || [],
       products: booking.products || [],
       paymentMethods: booking.paymentMethods || [],
-      paymentAmounts: booking.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0 },
+      paymentAmounts: booking.paymentAmounts 
+        ? { 
+            cash: booking.paymentAmounts?.cash || 0, 
+            card: booking.paymentAmounts?.card || 0, 
+            check: booking.paymentAmounts?.check || 0, 
+            digital: booking.paymentAmounts?.digital || 0,
+            wallet: 0
+          } 
+        : { cash: 0, card: 0, check: 0, digital: 0, wallet: 0 },
       discount: booking.discount || 0,
       discountType: booking.discountType || 'fixed',
       serviceTip: booking.serviceTip || 0,
@@ -9164,6 +9179,7 @@ const handleAppointmentClick = async (appointment: Appointment) => {
         }, 0) + ' min'
       : '60 min',
     price: booking.totalPrice || 0,
+    servicePrice: booking.totalPrice || 0,
     status: 'scheduled',
     phone: booking.customerPhone || '',
     email: booking.customerEmail || '',
@@ -9171,7 +9187,20 @@ const handleAppointmentClick = async (appointment: Appointment) => {
     source: 'website',
     branch: 'All Branches',
     createdAt: booking.createdAt || new Date(),
-    updatedAt: booking.createdAt || new Date()
+    updatedAt: booking.createdAt || new Date(),
+    // Complete fields
+    cardLast4Digits: '',
+    trnNumber: '',
+    teamMembers: [],
+    products: [],
+    paymentMethods: [],
+    paymentAmounts: { cash: 0, card: 0, check: 0, digital: 0, wallet: 0 },
+    discount: 0,
+    discountType: 'fixed',
+    serviceTip: 0,
+    serviceCharges: 0,
+    tax: 0,
+    pointsAwarded: false
   }));
 
   const finalAppointments = [...mockAppointments, ...convertedBookings, ...additionalConvertedBookings];
@@ -9519,7 +9548,13 @@ const handleAppointmentClick = async (appointment: Appointment) => {
                       cardLast4Digits: apt.cardLast4Digits || '',
                       trnNumber: apt.trnNumber || '',
                       paymentMethods: apt.paymentMethods || [],
-                      paymentAmounts: apt.paymentAmounts || {},
+                      paymentAmounts: {
+                        cash: (apt.paymentAmounts as any)?.cash || 0,
+                        card: (apt.paymentAmounts as any)?.card || 0,
+                        check: (apt.paymentAmounts as any)?.check || 0,
+                        digital: (apt.paymentAmounts as any)?.digital || 0,
+                        wallet: (apt.paymentAmounts as any)?.wallet || 0
+                      },
                       discount: apt.discount || 0,
                       discountType: apt.discountType || 'fixed',
                       serviceTip: apt.serviceTip || 0,
