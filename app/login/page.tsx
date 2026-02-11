@@ -193,7 +193,7 @@ export default function LoginPage() {
           <div className="w-20 h-20 bg-secondary/20 border border-secondary/30 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl">
             <Scissors className="w-10 h-10 text-secondary" />
           </div>
-          <CardTitle className="text-3xl font-serif font-bold text-white mb-2">MAN OF<span className="text-secondary">CAVE</span></CardTitle>
+          <CardTitle className="text-3xl font-serif font-bold text-white mb-2">Jam<span className="text-secondary">Beauty</span></CardTitle>
           <CardDescription className="text-gray-400 font-light tracking-widest uppercase text-[10px]">Administrative Concierge</CardDescription>
         </CardHeader>
 

@@ -165,34 +165,38 @@ export function Header() {
         <div className="flex items-center gap-4 relative z-50">
           {/* Branch Selector (Desktop) */}
           <div className={cn(
-            "hidden lg:flex items-center border rounded-full pl-3 transition-all",
-            isScrolled 
-              ? "bg-white/5 border-primary/10 hover:border-primary/30" 
-              : "bg-white/5 border-white/10 hover:border-white/30"
-          )}>
-            <MapPin className={cn("w-3.5 h-3.5 transition-colors", isScrolled ? "text-primary/40" : "text-white/40")} />
-            <Select 
-              value={selectedBranch?.id || ""} 
-              onValueChange={(branchId) => {
-                const branch = branches.find((b: { id: string; }) => b.id === branchId);
-                if (branch) setSelectedBranch(branch);
-              }}
-            >
-              <SelectTrigger className={cn(
-                "w-[150px] h-9 border-none bg-transparent text-[10px] uppercase tracking-widest font-bold focus:ring-0 transition-colors",
-                isScrolled ? "text-primary" : "text-white"
-              )}>
-                <SelectValue placeholder="SELECT BRANCH" />
-              </SelectTrigger>
-              <SelectContent>
-                {branches.map((branch: { id: Key | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }) => (
-                  <SelectItem key={branch.id} value={branch.id as string} className="text-xs">
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+  "hidden lg:flex items-center border rounded-full pl-3 transition-all",
+  isScrolled 
+    ? "bg-white/5 border-primary/10 hover:border-primary/30" 
+    : "bg-white/5 border-white/10 hover:border-white/30"
+)}>
+  <MapPin className={cn("w-3.5 h-3.5 transition-colors", isScrolled ? "text-white" : "text-white")} />
+  <Select 
+    value={selectedBranch?.id || ""} 
+    onValueChange={(branchId) => {
+      const branch = branches.find((b: { id: string; }) => b.id === branchId);
+      if (branch) setSelectedBranch(branch);
+    }}
+  >
+    <SelectTrigger className={cn(
+      "w-[150px] h-9 border-none text-white bg-transparent text-[10px] uppercase tracking-widest font-bold focus:ring-0 transition-colors hover:text-white",
+      isScrolled ? "text-white" : "text-white"
+    )}>
+      <div className="text-white placeholder:text-white/60" > SELECT BRANCH</div> 
+    </SelectTrigger>
+    <SelectContent className="bg-white border-gray-100 text-black">
+      {branches.map((branch: { id: Key | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }) => (
+        <SelectItem 
+          key={branch.id} 
+          value={branch.id as string} 
+          className="text-xs text-black hover:bg-gray-50 focus:text-white focus:bg-primary"
+        >
+          {branch.name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
 
           {/* Cart Icon */}
           <Link href="/services" className="relative group">

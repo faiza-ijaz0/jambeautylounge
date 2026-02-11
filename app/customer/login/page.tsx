@@ -175,40 +175,40 @@ export default function CustomerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]">
+    <div className="min-h-screen bg-slate-800">
       <Header />
       
       <div className="pt-32 pb-16 px-4">
         <div className="max-w-md mx-auto">
-          {/* Hero Section */}
+          {/* Hero Section - Code1 Style */}
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-secondary/10 px-4 py-2 rounded-full mb-6">
-              <Sparkles className="w-4 h-4 text-secondary" />
-              <span className="text-secondary font-black tracking-[0.2em] uppercase text-[10px]">Customer Portal</span>
+            <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/10">
+              <span className="text-secondary font-black tracking-[0.5em] uppercase text-[10px]">Customer Portal</span>
             </div>
-            <h1 className="text-4xl font-serif font-bold text-primary mb-4">
-              Welcome to <span className="text-secondary">Man of Cave</span>
+            <h1 className="text-5xl md:text-7xl font-serif font-bold text-primary mb-6 leading-[0.85] tracking-tighter">
+              Welcome to <br /><span className="text-secondary italic">Jam Beauty</span>
             </h1>
-            <p className="text-muted-foreground font-light">
-              Sign in to manage your bookings, orders, and profile
+            <p className="text-white/60 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+              "Artistry is not just a service, it's a transformation."
             </p>
+           
           </div>
 
-          <Card className="border-none shadow-2xl rounded-3xl overflow-hidden">
+          <Card className="border border-gray-100 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all duration-500 rounded-3xl overflow-hidden">
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1 rounded-none">
-                <TabsTrigger value="login" className="rounded-xl font-bold text-xs tracking-widest uppercase">Sign In</TabsTrigger>
-                <TabsTrigger value="register" className="rounded-xl font-bold text-xs tracking-widest uppercase">Register</TabsTrigger>
+                <TabsTrigger value="login" className="rounded-xl font-black text-[10px] tracking-[0.2em] uppercase data-[state=active]:bg-primary data-[state=active]:text-white">Sign In</TabsTrigger>
+                <TabsTrigger value="register" className="rounded-xl font-black text-[10px] tracking-[0.2em] uppercase data-[state=active]:bg-primary data-[state=active]:text-white">Register</TabsTrigger>
               </TabsList>
               
               {/* Login Tab */}
               <TabsContent value="login" className="p-0">
                 <CardHeader className="pb-4 pt-8 px-8">
-                  <CardTitle className="text-xl font-serif">Sign In</CardTitle>
-                  <CardDescription>Enter your credentials to access your account</CardDescription>
+                  <CardTitle className="text-2xl font-serif font-bold text-primary">Sign In</CardTitle>
+                  <CardDescription className="text-gray-600">Enter your credentials to access your account</CardDescription>
                 </CardHeader>
                 <CardContent className="px-8 pb-8">
-                  <form onSubmit={handleLogin} className="space-y-5">
+                  <form onSubmit={handleLogin} className="space-y-6">
                     {error && (
                       <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
                         {error}
@@ -222,38 +222,38 @@ export default function CustomerLogin() {
                     )}
                     
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Email Address</Label>
+                      <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="email"
                           type="email"
                           placeholder="you@example.com"
                           value={loginData.email}
                           onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                          className="pl-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Password</Label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Enter your password"
                           value={loginData.password}
                           onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                          className="pl-11 pr-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 pr-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -263,14 +263,14 @@ export default function CustomerLogin() {
                     <div className="flex items-center justify-between text-sm">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" className="rounded border-gray-300" />
-                        <span className="text-muted-foreground">Remember me</span>
+                        <span className="text-gray-600">Remember me</span>
                       </label>
-                      <a href="#" className="text-secondary hover:underline font-medium">Forgot password?</a>
+                      <a href="#" className="text-secondary hover:underline font-bold">Forgot password?</a>
                     </div>
 
                     <Button 
                       type="submit" 
-                      className="w-full h-14 bg-primary hover:bg-secondary hover:text-primary font-black tracking-[0.2em] text-xs rounded-xl transition-all duration-300"
+                      className="w-full h-14 bg-primary hover:bg-secondary hover:text-primary font-black tracking-[0.2em] text-[10px] rounded-2xl transition-all duration-500 shadow-lg hover:shadow-secondary/20 hover:-translate-y-1"
                       disabled={isLoading}
                     >
                       {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
@@ -278,113 +278,120 @@ export default function CustomerLogin() {
                     </Button>
                   </form>
 
-                 
+                  <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+                    <p className="text-gray-600 text-sm">
+                      Don't have an account?{' '}
+                      <Link href="#register" className="text-secondary font-bold hover:underline">
+                        Register here
+                      </Link>
+                    </p>
+                  </div>
                 </CardContent>
               </TabsContent>
               
               {/* Register Tab */}
               <TabsContent value="register" className="p-0">
                 <CardHeader className="pb-4 pt-8 px-8">
-                  <CardTitle className="text-xl font-serif">Create Account</CardTitle>
-                  <CardDescription>Join Man of Cave and start your journey</CardDescription>
+                  <CardTitle className="text-2xl font-serif font-bold text-primary">Create Account</CardTitle>
+                  <CardDescription className="text-gray-600">Join Jam Beauty and start your premium experience</CardDescription>
                 </CardHeader>
                 <CardContent className="px-8 pb-8">
-                  <form onSubmit={handleRegister} className="space-y-4">
+                  <form onSubmit={handleRegister} className="space-y-5">
                     {/* Success Message */}
                     {success && (
-                      <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl text-sm">
+                      <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl text-sm font-medium">
                         {success}
                       </div>
                     )}
                     
                     {/* Error Message */}
                     {error && (
-                      <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                      <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-medium">
                         {error}
                       </div>
                     )}
                     
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-xs font-bold uppercase tracking-widest">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Full Name</Label>
+                      <div className="relative group">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="name"
                           type="text"
                           placeholder="John Doe"
                           value={registerData.name}
                           onChange={(e) => setRegisterData({...registerData, name: e.target.value})}
-                          className="pl-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reg-email" className="text-xs font-bold uppercase tracking-widest">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="reg-email" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Email Address</Label>
+                      <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="reg-email"
                           type="email"
                           placeholder="you@example.com"
                           value={registerData.email}
                           onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
-                          className="pl-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-widest">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="phone" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Phone Number</Label>
+                      <div className="relative group">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="phone"
                           type="tel"
                           placeholder="(555) 123-4567"
                           value={registerData.phone}
                           onChange={(e) => setRegisterData({...registerData, phone: e.target.value})}
-                          className="pl-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="reg-password" className="text-xs font-bold uppercase tracking-widest">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="reg-password" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Password</Label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="reg-password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Create a password (min 6 characters)"
                           value={registerData.password}
                           onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
-                          className="pl-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="confirm-password" className="text-xs font-bold uppercase tracking-widest">Confirm Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="confirm-password" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Confirm Password</Label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-secondary transition-colors" />
                         <Input
                           id="confirm-password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="Confirm your password"
                           value={registerData.confirmPassword}
                           onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
-                          className="pl-11 h-12 rounded-xl border-gray-200"
+                          className="pl-11 h-14 rounded-2xl border-gray-200 bg-white/80 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                           required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -393,7 +400,7 @@ export default function CustomerLogin() {
 
                     <Button 
                       type="submit" 
-                      className="w-full h-14 bg-secondary hover:bg-primary text-primary hover:text-white font-black tracking-[0.2em] text-xs rounded-xl transition-all duration-300"
+                      className="w-full h-14 bg-primary hover:bg-secondary hover:text-primary font-black tracking-[0.2em] text-[10px] rounded-2xl transition-all duration-500 shadow-lg hover:shadow-secondary/20 hover:-translate-y-1"
                       disabled={isLoading}
                     >
                       {isLoading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
@@ -402,10 +409,8 @@ export default function CustomerLogin() {
                   </form>
                   
                   {/* Firebase Info Note */}
-                  <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-xl">
-                    <p className="text-xs text-gray-600">
-                      <strong>Note:</strong> Your account data will be securely stored in Firebase database.
-                    </p>
+                  <div className="mt-6 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl">
+                   
                   </div>
                 </CardContent>
               </TabsContent>
@@ -413,22 +418,19 @@ export default function CustomerLogin() {
           </Card>
 
           {/* Admin Login Link */}
-          <div className="text-center mt-8 flex flex-col gap-4">
-            <div className="flex items-center justify-center gap-2">
-              <div className="h-px bg-gray-300 flex-1"></div>
-              <span className="text-xs text-muted-foreground">OR</span>
-              <div className="h-px bg-gray-300 flex-1"></div>
-            </div>
+          <div className="text-center mt-10 pt-8 border-t border-gray-100">
             <Link 
               href="/login" 
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-colors text-sm font-medium text-primary"
+              className="inline-flex items-center text-white justify-center gap-3 px-6 py-3 rounded-2xl border-2 border-gray-200 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-all duration-300 text-sm font-black uppercase tracking-[0.2em] text-primary"
             >
-              <Lock className="w-4 h-4" />
+              <Lock className="w-4 h-4 " />
               Admin Login
             </Link>
-            <Link href="/" className="text-muted-foreground hover:text-primary text-sm font-medium">
-              ← Back to Home
-            </Link>
+            <div className="mt-6">
+              <Link href="/" className="text-gray-600 hover:text-primary text-sm font-medium flex items-center justify-center gap-2">
+                ← Back to Home
+              </Link>
+            </div>
           </div>
         </div>
       </div>
