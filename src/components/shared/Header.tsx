@@ -186,7 +186,7 @@ export function Header() {
               </SelectTrigger>
               <SelectContent>
                 {branches.map((branch: { id: Key | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }) => (
-                  <SelectItem key={branch.id} value={branch.id} className="text-xs">
+                  <SelectItem key={branch.id} value={branch.id as string} className="text-xs">
                     {branch.name}
                   </SelectItem>
                 ))}
