@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+
+import { Footer } from "@/components/shared/Footer";
 import { 
   CalendarDays, 
   Clock, 
@@ -37,6 +39,7 @@ import {
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+
 
 // Types Definition for Blog
 interface BlogPost {
@@ -173,30 +176,34 @@ export default function BlogPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-400 flex flex-col">
+    <div className="min-h-screen bg-gray-400 flex flex-col ">
       <Header />
-      <main className="flex-1 pt-32">
+      <main className="flex-1 pt-18">
         {/* Premium Hero Section - CODE1 STYLE */}
-        <section className="relative bg-gradient-to-br from-primary/5 via-white/50 to-secondary/5 py-32 px-4 overflow-hidden">
+        <section className="
+        relative bg-gradient-to-br from-primary/5 via-white to-secondary/5 py-32 px-4 overflow-hidden
+        
+        ">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diamond-upholstery.png')] opacity-[0.02]"></div>
           <div className="max-w-7xl mx-auto relative z-10">
             <div className="text-center space-y-8">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-6 py-3 rounded-full text-sm font-medium">
-                <BookOpen className="w-4 h-4" />
-                The ManofCave Journal
-              </div>
-              <h1 className="text-6xl md:text-8xl font-serif font-bold tracking-tighter bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-                The Grooming <span className="italic">Chronicles</span>
-              </h1>
+               <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-6 py-3 rounded-full text-sm font-medium">
+              <Tag className="w-4 h-4" />
+              Beauty Insights & Tips
+            </div>
+              <h1 className="text-6xl md:text-8xl font-serif font-bold tracking-tighter text-gray-400 bg-clip-text text-">
+              Beauty Blog
+            </h1>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light">
-                Expert insights, style guides, and timeless wisdom for the modern gentleman's journey to excellence.
+                Discover expert beauty advice, trending tips, and insider knowledge from JAM Beauty Lounge's
+              professional team. Your journey to radiant beauty starts here.
               </p>
               
               {/* Stats - CODE1 STYLE */}
               <div className="flex flex-wrap items-center justify-center gap-6 pt-8">
                 <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <BookOpen className="w-5 h-5 text-secondary" />
+                    <BookOpen className="w-5 h-5 text-primary" />
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider">Total Articles</p>
                       <p className="text-2xl font-bold text-primary">{blogs.length}</p>
@@ -206,7 +213,7 @@ export default function BlogPage() {
                 
                 <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <MessageSquare className="w-5 h-5 text-secondary" />
+                    <MessageSquare className="w-5 h-5 text-primary" />
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider">Total Comments</p>
                       <p className="text-2xl font-bold text-primary">
@@ -218,7 +225,7 @@ export default function BlogPage() {
                 
                 <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <TrendingUp className="w-5 h-5 text-secondary" />
+                    <TrendingUp className="w-5 h-5 text-primary" />
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider">Total Views</p>
                       <p className="text-2xl font-bold text-primary">
@@ -233,7 +240,7 @@ export default function BlogPage() {
         </section>
 
         {/* Search and Filter Section - CODE1 STYLE */}
-        <section className="py-16 px-4 border-b border-gray-100">
+        <section className="py-16 px-4 border-b border-gray-100 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
               {/* Search */}
@@ -273,7 +280,7 @@ export default function BlogPage() {
               <div className="mt-8 pt-6 border-t border-gray-100">
                 <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
                   <div className="flex items-center gap-2 shrink-0">
-                    <Tag className="w-4 h-4 text-secondary" />
+                    <Tag className="w-4 h-4 text-primary" />
                     <span className="text-xs font-medium text-gray-600">Popular Topics:</span>
                   </div>
                   
@@ -309,8 +316,8 @@ export default function BlogPage() {
                   <h2 className="text-3xl font-serif font-bold text-primary mb-4">
                     Featured Articles
                   </h2>
-                  <div className="w-24 h-1 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
-                  <p className="text-gray-600 mt-4">Curated selection of our most popular and insightful articles</p>
+                  <div className="w-24 h-1 bg-gradient-to-r from-gray-400 to-primary rounded-full"></div>
+                 
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -327,7 +334,7 @@ export default function BlogPage() {
                             }}
                           />
                           <div className="absolute top-4 left-4">
-                            <Badge className="bg-secondary text-white px-4 py-2 rounded-full text-sm font-medium">
+                            <Badge className="bg-gray-400  text-white px-4 py-2 rounded-full text-sm font-medium">
                               FEATURED
                             </Badge>
                           </div>
@@ -356,7 +363,7 @@ export default function BlogPage() {
                             </p>
                             <div className="flex flex-wrap gap-2">
                               {post.tags.slice(0, 2).map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs">
+                                <Badge key={tag} variant="gray-400" className="text-xs">
                                   #{tag}
                                 </Badge>
                               ))}
@@ -381,7 +388,7 @@ export default function BlogPage() {
             <div className="mb-12">
               <h2 className="text-3xl font-serif font-bold text-primary mb-4">
                 All Articles
-                <span className="text-secondary ml-2">({filteredPosts.length})</span>
+                <span className="text-gray-800 ml-2">({filteredPosts.length})</span>
               </h2>
               <div className="w-24 h-1 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
               <p className="text-gray-600 mt-4">
@@ -660,34 +667,33 @@ export default function BlogPage() {
           </div>
         </section>
 
-        {/* Newsletter Section - CODE1 STYLE */}
-        <section className="py-20 px-4 bg-gradient-to-r from-primary to-secondary">
-          <div className="max-w-4xl mx-auto text-center text-white">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
-                <Sparkles className="w-4 h-4 text-white" />
-                <span className="text-white font-black tracking-[0.3em] uppercase text-[10px]">Stay Informed</span>
-              </div>
-              <h2 className="text-4xl font-serif font-bold">Join The Gentleman's Newsletter</h2>
-              <p className="text-xl opacity-90 leading-relaxed">
-                Get weekly grooming tips, style insights, and exclusive content delivered to your inbox.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-                <Input
-                  placeholder="Enter your email address"
-                  className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/60 rounded-2xl px-6 py-4"
-                />
-                <Button className="bg-white text-primary hover:bg-white/90 px-8 py-4 rounded-2xl font-black tracking-[0.2em] text-xs whitespace-nowrap">
-                  SUBSCRIBE NOW
-                </Button>
-              </div>
-              <p className="text-sm opacity-75">
-                Join 15,000+ gentlemen who receive our weekly insights
-              </p>
+         {/* Newsletter Signup */}
+      <section className="py-20 px-4 bg-gradient-to-r from-gray-500 to-gray-600 ">
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <div className="space-y-8">
+            <h2 className="text-4xl font-serif font-bold">Stay Beautiful</h2>
+            <p className="text-xl opacity-90 leading-relaxed">
+              Subscribe to our newsletter for exclusive beauty tips, early access to new treatments,
+              and special offers delivered to your inbox.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+              <Input
+                placeholder="Enter your email address"
+                className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/60 rounded-2xl px-6 py-4"
+              />
+              <Button className="bg-white text-primary hover:bg-white/90 px-8 py-4 rounded-2xl font-medium whitespace-nowrap">
+                Subscribe Now
+              </Button>
             </div>
+            <p className="text-sm opacity-75">
+              By subscribing, you agree to our Privacy Policy and Terms of Service.
+            </p>
           </div>
-        </section>
+        </div>
+      </section>
+      
       </main>
+      <Footer/>
     </div>
   );
 }

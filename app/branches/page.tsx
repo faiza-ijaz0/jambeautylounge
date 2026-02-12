@@ -475,7 +475,7 @@ export default function Branches() {
             {/* City Filter */}
             <div className="flex flex-col gap-2 min-w-[200px]">
               <div className="flex items-center gap-2">
-                <MapPin className="w-3 h-3 text-secondary" />
+                <MapPin className="w-3 h-3 text-gray-400" />
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">City:</span>
               </div>
               <select 
@@ -492,7 +492,7 @@ export default function Branches() {
             {/* Status Filter */}
             <div className="flex flex-col gap-2 min-w-[200px]">
               <div className="flex items-center gap-2">
-                <Filter className="w-3 h-3 text-secondary" />
+                <Filter className="w-3 h-3 text-gray-400" />
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Status:</span>
               </div>
               <select 
@@ -784,12 +784,12 @@ export default function Branches() {
                 {/* Cities Covered */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-                      <Navigation className="w-6 h-6 text-secondary" />
+                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <Navigation className="w-6 h-6 text-gray-400" />
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Cities Covered</p>
-                      <p className="text-2xl font-bold text-secondary">{totalCities}</p>
+                      <p className="text-2xl font-bold text-slate-500">{totalCities}</p>
                     </div>
                   </div>
                 </div>
@@ -820,7 +820,7 @@ export default function Branches() {
                   <div className="flex gap-3">
                     <Button
                       variant="outline"
-                      className="border-secondary text-secondary hover:bg-secondary hover:text-primary"
+                      className="border-slate-500 text-gray-400 hover:bg-secondary hover:text-primary"
                       onClick={() => window.open('mailto:support@largify.com', '_blank')}
                     >
                       <Mail className="w-4 h-4 mr-2" />

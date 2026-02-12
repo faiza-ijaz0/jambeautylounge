@@ -502,19 +502,17 @@ export default function ServicesPage() {
         {/* Content Overlay */}
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="max-w-7xl mx-auto text-center relative z-10 h-full flex flex-col justify-center items-center">
-          <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/10">
-            <span className="text-secondary font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
+          <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-2 mt-8 border border-white/10">
+            <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
-            Signature <br /><span className="text-secondary italic">Rituals</span>
+            Signature <br /><span className="text-gray-400 italic">Rituals</span>
           </h1>
           <p className="text-white/60 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
             "Artistry is not just a service, it's a transformation."
           </p>
           <div className="flex items-center justify-center gap-6 flex-wrap">
-            <Badge className="bg-secondary text-white px-6 py-2 rounded-full font-black tracking-widest text-[10px] uppercase shadow-2xl">
-              REAL-TIME AVAILABILITY
-            </Badge>
+            
             <div className="h-px w-12 bg-white/20 hidden md:block"></div>
             <span className="text-white/50 font-black tracking-[0.3em] text-[10px] uppercase">
               {services.length} MASTER SERVICES

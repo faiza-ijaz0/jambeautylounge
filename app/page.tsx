@@ -35,6 +35,7 @@ import {
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { Footer } from '@/components/shared/Footer';
 
 // ==================== STORE DEFINITION ====================
 interface Service {
@@ -804,87 +805,22 @@ export default function Home() {
 
       </section>
 
-      {/* Stats Section */}
-      <section className="py-10 border-b border-gray-100 bg-white relative z-20 -mt-10 mx-4 md:mx-10 rounded-2xl shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { 
-                icon: Award, 
-                label: "Master Barbers", 
-                value: `${totalActiveStaff}+`, 
-                desc: "Expertly Trained",
-                data: totalActiveStaff
-              },
-              { 
-                icon: Users, 
-                label: "Active Services", 
-                value: `${totalActiveServices}+`, 
-                desc: "Premium Offerings",
-                data: totalActiveServices
-              },
-              { 
-                icon: MapPin, 
-                label: "Luxury Studios", 
-                value: `${totalActiveBranches}+`, 
-                desc: "Prime Locations",
-                data: totalActiveBranches
-              },
-              { 
-                icon: TrendingUp, 
-                label: "Total Revenue", 
-                value: `$${Math.floor(totalRevenue/1000)}k+`, 
-                desc: "Generated Value",
-                data: totalRevenue
-              },
-            ].map((stat, i) => (
-              <div key={i} className="flex flex-col items-center text-center group">
-                <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center mb-3 group-hover:bg-secondary group-hover:text-white transition-all duration-500">
-                  <stat.icon className="w-6 h-6 text-secondary group-hover:text-white transition-colors" />
-                </div>
-                <span className="text-2xl font-serif font-bold text-primary mb-0.5">{stat.value}</span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold mb-1">{stat.label}</span>
-                <span className="text-[9px] text-muted-foreground font-medium">{stat.desc}</span>
-                <div className="w-16 h-1 bg-secondary/20 rounded-full mt-2">
-                  <div 
-                    className="h-full bg-secondary rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.min(100, (stat.data || 0) * 10)}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Featured In Section */}
-      <section className="py-12 bg-white border-b border-gray-50">
-        <div className="max-w-7xl mx-auto px-4">
-          <p className="text-center text-[10px] uppercase tracking-[0.4em] text-muted-foreground mb-8 font-bold">As Featured In</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
-            {['GQ', 'VOGUE', 'ESQUIRE', 'FORBES', 'MEN\'S HEALTH'].map((brand) => (
-              <span key={brand} className="text-2xl md:text-3xl font-serif font-black tracking-tighter text-primary">{brand}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
+     
       {/* Categories Section */}
       <section className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
             <div className="space-y-3">
               <div className="inline-block bg-slate-200 px-3 py-1 rounded-full">
-                <span className="text-slate/60 font-bold tracking-[0.2em] uppercase text-[10px]">Our Collections</span>
+                <span className="text-slate/60 font-bold tracking-[0.2em] uppercase text-[10px]">BROWSE BY</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Featured Categories</h2>
-              <Badge variant="outline" className="text-xs border-secondary/30 text-slate-800">
-                {categories.length} Premium Categories Available
-              </Badge>
+               <h2 className="text-5xl md:text-7xl font-serif font-bold text-primary tracking-tight">Service Categories</h2>
+              <p className="text-gray-400 font-light text-lg">Choose your journey through our specialized beauty realms.</p>
             </div>
-            <p className="text-muted-foreground max-w-md text-sm font-light">
-              Explore our curated collections designed for the modern gentleman's grooming needs.
-            </p>
+            <Button asChild variant="link" className="text-primary font-black uppercase tracking-[0.3em] text-xs p-0 group">
+              <Link href="/services">VIEW THE FULL MENU <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-2 transition-transform" /></Link>
+            </Button>
           </div>
 
           {categories.length === 0 ? (
@@ -920,40 +856,17 @@ export default function Home() {
                   <div className="p-8">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h4 className="text-xl font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300">
+                        <h4 className="text-xl font-serif font-bold text-primary group-hover:text-primary-200 transition-colors duration-300">
                           {category.name}
                         </h4>
-                        <div className="flex items-center gap-2 mt-2">
-                          <MapPin className="w-3 h-3 text-secondary" />
-                          <span className="text-[10px] text-gray-500 uppercase tracking-widest">
-                            {category.branchCity}
-                          </span>
-                        </div>
+                        
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-all duration-500">
-                        <Grid3X3 className="w-5 h-5 text-secondary group-hover:text-white" />
+                      <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-all duration-500">
+                        <Grid3X3 className="w-5 h-5 text-primary group-hover:text-white" />
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-6 font-light leading-relaxed">
-                      {category.description || "Premium collection for the modern gentleman"}
-                    </p>
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                      <div>
-                        <span className="text-[10px] uppercase tracking-widest text-gray-500 block mb-1">
-                          Available At
-                        </span>
-                        <span className="text-xs font-semibold text-primary">
-                          {category.branchName}
-                        </span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="rounded-full bg-secondary/10 text-secondary hover:bg-secondary hover:text-white transition-all duration-500"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
+                  
+                    
                   </div>
                 </div>
               ))}
@@ -967,13 +880,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
             <div className="space-y-3">
-              <div className="inline-block bg-slate-200 px-3 py-1 rounded-full">
-                <span className="text-slate/60 font-bold tracking-[0.2em] uppercase text-[10px]">Our Signature Menu</span>
+                       <div className="inline-block bg-gray-slate-200 px-4 py-1.5 rounded-full">
+                <span className="text-gray-500 font-black tracking-[0.3em] uppercase text-[10px]">The Collection</span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Bespoke Services</h2>
-              <Badge variant="outline" className="text-xs border-secondary/30 text-slate-800">
-                {services.length} Premium Services Available
-              </Badge>
+              <h2 className="text-5xl md:text-7xl font-serif font-bold text-primary tracking-tight">Signature Rituals</h2>
+              <p className="text-gray-400 font-light text-lg">Indulge in our most sought-after treatments, curated for the modern soul.</p>
             </div>
             <Button asChild variant="outline" className="border-primary/10 text-primary hover:bg-primary hover:text-white rounded-full px-8 py-6 font-bold tracking-widest group transition-all duration-500">
               <Link href="/services" className="flex items-center">
@@ -1586,181 +1497,68 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Newsletter Section */}
-      <section className="py-32 px-4 bg-primary relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
-          <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
-        </div>
+       {/* Newsletter Section - Premium */}
+      <section className="py-40 px-4 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10 blur-sm scale-110"></div>
+        <div className="absolute inset-0 bg-primary/90"></div>
         
         <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-block bg-secondary/20 px-4 py-1.5 rounded-full mb-8 border border-secondary/30">
-            <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Inner Circle</span>
+          <div className="inline-block bg-white/5 backdrop-blur-md px-6 py-2 rounded-full mb-10 border border-white/10">
+            <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">Lifestyle Newsletter</span>
           </div>
-          <h2 className="text-5xl md:text-7xl font-serif font-bold text-white mb-10 leading-tight">
-            Join The <span className="text-secondary italic">Elite</span>
+          <h2 className="text-5xl md:text-8xl font-serif font-bold text-white mb-10 leading-[0.9] tracking-tighter">
+            The <span className="text-gray-400 italic">Inner</span> Circle
           </h2>
-          <p className="text-xl text-gray-400 mb-16 font-light max-w-2xl mx-auto leading-relaxed">
-            Subscribe to receive exclusive invitations, grooming insights, and priority access to our most sought-after events.
+          <p className="text-xl text-white/70 mb-20 font-light max-w-2xl mx-auto leading-relaxed italic">
+            "Beauty is an experience, not just a service." Join 5,000+ members receiving curated aesthetics weekly.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-5 max-w-3xl mx-auto bg-white/5 p-3 rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
+          <div className="flex flex-col sm:flex-row gap-6 max-w-3xl mx-auto bg-white/5 p-4 rounded-[3.5rem] border border-white/10 backdrop-blur-2xl shadow-2xl ring-1 ring-white/10">
             <input 
-              placeholder="Your prestigious email address" 
-              className="h-16 bg-transparent text-white rounded-2xl px-8 focus:outline-none transition-all w-full font-light text-lg"
+              placeholder="Your email for the invitation" 
+              className="h-20 bg-transparent text-white rounded-full px-10 focus:outline-none transition-all w-full font-light text-xl placeholder:text-white/40"
             />
-            <Button size="lg" className="h-16 bg-secondary text-white hover:bg-white hover:text-primary hover:scale-105 transition-all font-black px-12 rounded-[1.8rem] shrink-0 tracking-[0.2em] text-xs">
-              SUBSCRIBE NOW
+            <Button size="lg" className="h-20 bg-white/60 text-white hover:bg-white hover:text-black hover:scale-105 transition-all duration-500 font-black px-16 rounded-[2.5rem] shrink-0 tracking-[0.3em] text-[10px]">
+              SUBSCRIBE
             </Button>
           </div>
-          <p className="text-[10px] text-gray-500 mt-10 uppercase tracking-[0.3em] font-bold">
-            Privacy is our priority. Unsubscribe at any time.
-          </p>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="relative py-40 px-4 overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-fixed bg-center scale-110"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1512690196222-7c7d3f993c1b?q=80&w=2070&auto=format&fit=crop')" }}
-        >
-          <div className="absolute inset-0 bg-linear-to-b from-primary/95 via-primary/80 to-primary/95"></div>
+      <section className="relative py-48 px-4 overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=2074&auto=format&fit=crop" 
+            className="w-full h-full object-cover scale-110 opacity-30 blur-[2px]"
+            alt="Background"
+          />
+          <div className="absolute inset-0 bg-linear-to-b from-white via-white/80 to-white"></div>
         </div>
         
-        <div className="relative z-10 max-w-5xl mx-auto text-center text-white space-y-12">
-          <h2 className="text-6xl md:text-8xl font-serif font-bold leading-[1.1] tracking-tight">
-            Your Chair <br />
-            <span className="text-secondary italic">Awaits.</span>
-          </h2>
-          <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto font-light leading-relaxed">
-            Step into a world where time slows down and style takes center stage. Experience the pinnacle of luxury grooming today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-8 justify-center pt-8">
-            <Button size="lg" asChild className="bg-secondary hover:bg-white text-white hover:text-primary font-black px-14 py-10 text-sm rounded-2xl shadow-[0_20px_50px_rgba(197,160,89,0.3)] transition-all duration-500 hover:scale-110 tracking-[0.2em]">
-              <Link href="/services">BOOK APPOINTMENT</Link>
+        <div className="relative z-10 max-w-6xl mx-auto text-center space-y-16">
+          <div className="space-y-6">
+            <h2 className="text-6xl md:text-9xl font-serif font-bold text-primary leading-[0.85] tracking-tighter">
+              Redefine <br />
+              <span className="text-gray-400 italic">Your Style.</span>
+            </h2>
+            <p className="text-xl md:text-3xl text-primary/60 max-w-4xl mx-auto font-light leading-relaxed">
+              Step into the world of JAM. Where every visit is a transformation.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-10 justify-center items-center">
+            <Button size="lg" asChild className="bg-primary hover:bg-secondary text-white font-black px-16 py-12 text-xs rounded-4xl shadow-[0_30px_60px_-15px_rgba(168,21,86,0.5)] transition-all duration-700 hover:scale-110 tracking-[0.4em] ring-offset-2 ring-primary/20 hover:ring-8">
+              <Link href="/services">BOOK NOW</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/30  bg-white text-primary px-14 py-10 text-sm rounded-2xl backdrop-blur-md transition-all duration-500 hover:scale-110 tracking-[0.2em]">
-              <Link href="/login">JOIN THE CLUB</Link>
+            <Button size="lg" variant="outline" asChild className="border-primary/20 text-primary hover:bg-primary hover:text-white px-16 py-12 text-xs rounded-4xl backdrop-blur-md transition-all duration-700 hover:scale-110 tracking-[0.4em] bg-white/50">
+              <Link href="/login">BECOME A MEMBER</Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-[#050505] text-white py-32 px-4 border-t border-white/5 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] pointer-events-none"></div>
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-20">
-            <div className="space-y-10">
-              <Link href="/" className="inline-block">
-                <h3 className="text-3xl font-serif font-bold tracking-tighter">
-                  PREMIUM<span className="text-secondary">CUTS</span>
-                </h3>
-              </Link>
-              <div className="space-y-4">
-                <p className="text-gray-500 text-base leading-relaxed font-light max-w-xs">
-                  The city's premier destination for luxury grooming and traditional barbering since 2015.
-                </p>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-secondary" />
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">
-                      {stats.totalServices} Services
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-secondary" />
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">
-                      {stats.totalStaff} Masters
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-6">
-                {[Instagram, Phone, Mail, Facebook].map((Icon, i) => (
-                  <div key={i} className="w-12 h-12 rounded-2xl border border-white/10 flex items-center justify-center hover:bg-secondary hover:text-white transition-all duration-500 cursor-pointer group shadow-xl">
-                    <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-black mb-10 uppercase tracking-[0.3em] text-[10px] text-secondary">Navigation</h4>
-              <ul className="space-y-5 text-gray-400 text-sm font-medium">
-                {[
-                  { label: 'Our Services', href: '/services' },
-                  { label: 'Shop Products', href: '/products' },
-                  { label: 'Book Appointment', href: '/booking' },
-                  { label: 'Our Staff', href: '/staff' },
-                  { label: 'Our Branches', href: '/branches' }
-                ].map((item) => (
-                  <li key={item.label}>
-                    <Link href={item.href} className="hover:text-secondary transition-colors flex items-center group">
-                      <div className="w-0 group-hover:w-4 h-[1px] bg-secondary transition-all duration-300 mr-0 group-hover:mr-3"></div>
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-black mb-10 uppercase tracking-[0.3em] text-[10px] text-secondary">Business Stats</h4>
-              <ul className="space-y-6 text-gray-400 text-sm font-medium">
-                {[
-                  { label: 'Total Services', value: stats.totalServices },
-                  { label: 'Total Products', value: stats.totalProducts },
-                  { label: 'Active Staff', value: stats.totalStaff },
-                  { label: 'Active Branches', value: stats.totalBranches },
-                  { label: 'Total Revenue', value: `$${Math.floor(totalRevenue/1000)}k` }
-                ].map((item) => (
-                  <li key={item.label} className="flex justify-between items-center border-b border-white/5 pb-3">
-                    <span className="font-light">{item.label}</span>
-                    <span className="text-white font-bold">{item.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-black mb-10 uppercase tracking-[0.3em] text-[10px] text-secondary">Headquarters</h4>
-              <ul className="space-y-8 text-gray-400 text-sm font-medium">
-                <li className="flex items-start gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all duration-500">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <span className="font-light leading-relaxed">
-                    {branches[0]?.address || "123 Luxury Way, Suite 100"}<br />
-                    {branches[0]?.city || "Financial District"}, {branches[0]?.country || "NY 10004"}
-                  </span>
-                </li>
-                <li className="flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all duration-500">
-                    <Phone className="w-5 h-5" />
-                  </div>
-                  <span className="font-light">{branches[0]?.phone || "+1 (555) 000-1234"}</span>
-                </li>
-                <li className="flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all duration-500">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <span className="font-light">{branches[0]?.email || "concierge@premiumcuts.com"}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="mt-32 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-gray-600 text-[9px] tracking-[0.4em] font-black uppercase">
-            <p>&copy; 2026 PREMIUM CUTS LUXURY GROOMING. ALL RIGHTS RESERVED.</p>
-            <div className="flex gap-12">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+    <Footer/>
     </div>
+
   );
 }

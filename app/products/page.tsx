@@ -543,11 +543,11 @@ export default function ProductsPage() {
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
           <div className="max-w-6xl mx-auto text-center px-4">
             <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/10">
-              <Package className="w-4 h-4 text-secondary" />
-              <span className="text-secondary font-black tracking-[0.5em] uppercase text-[10px]">The Boutique</span>
+              <Package className="w-4 h-4 text-gray-600" />
+              <span className="text-gray-500 font-black tracking-[0.5em] uppercase text-[10px]">The Boutique</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
-              Couture <br /><span className="text-secondary italic">Skincare</span>
+              Couture <br /><span className="text-gray-400 italic">Skincare</span>
             </h1>
             <p className="text-white/50 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
               "Beauty is science, curated for your skin."
@@ -620,7 +620,7 @@ export default function ProductsPage() {
           {/* Staff Filter Section - CODE1 STYLE */}
           <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-3 border-t border-gray-100">
             <div className="flex items-center gap-2 shrink-0">
-              <Sparkles className="w-4 h-4 text-secondary" />
+              <Sparkles className="w-4 h-4 text-gray-600" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600">Recommended by:</span>
             </div>
             
@@ -630,7 +630,7 @@ export default function ProductsPage() {
                 className={cn(
                   "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border flex items-center gap-2",
                   selectedStaff === 'all' 
-                    ? "bg-secondary/20 text-secondary border-secondary/40 shadow-sm" 
+                    ? "bg-gray-200 text-black border-gray-500 hover:border-gray-500 hover:shadow-sm" 
                     : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
                 )}
               >
@@ -647,7 +647,7 @@ export default function ProductsPage() {
                   className={cn(
                     "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-3 border min-w-[140px]",
                     selectedStaff === member.id 
-                      ? "bg-secondary/10 text-secondary border-secondary/30 shadow-sm" 
+                      ? "bg-gray-200 text-black border-gray-500 hover:border-gray-500 hover:shadow-sm" 
                       : "bg-white text-black border-gray-200 hover:border-gray-300 hover:shadow-sm"
                   )}
                 >
@@ -680,11 +680,9 @@ export default function ProductsPage() {
             <div>
               <h2 className="text-3xl font-serif font-bold text-primary">
                 Premium Products Collection
-                <span className="text-secondary ml-2">({filteredAndSortedProducts.length})</span>
+                <span className="text-gray-400 ml-2">({filteredAndSortedProducts.length})</span>
               </h2>
-              <p className="text-gray-600 mt-2">
-                Real-time inventory fetched from Firebase database
-              </p>
+             
             </div>
             
             <div className="flex flex-wrap items-center gap-4">
