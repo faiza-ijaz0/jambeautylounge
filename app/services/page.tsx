@@ -787,9 +787,7 @@ const handleAddSelectedServices = () => {
                 Premium Services
                 <span className="text-secondary ml-2">({filteredServices.length})</span>
               </h2>
-              <p className="text-gray-600 mt-2">
-                Real-time services fetched from Firebase database
-              </p>
+             
             </div>
             <div className="flex items-center gap-4">
               {cartItems.length > 0 && (
@@ -818,9 +816,7 @@ const handleAddSelectedServices = () => {
                 <Scissors className="w-12 h-12 text-gray-300" />
               </div>
               <h3 className="text-3xl font-serif font-bold text-primary mb-3">No Services Available</h3>
-              <p className="text-gray-500 font-light mb-8 max-w-md mx-auto">
-                No services found in the database. Please add services through Firebase console or contact administrator.
-              </p>
+              
               <Button 
                 onClick={fetchServices}
                 className="rounded-full px-8 bg-primary hover:bg-primary/90 font-bold tracking-widest text-[10px]"
