@@ -74,23 +74,33 @@ export default function SuperAdminMessages() {
 
   // Fetch branches
   useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        setLoadingBranches(true);
-        const branchesRef = collection(db, 'branches');
-        const q = query(branchesRef, where('status', '==', 'active'));
-        const snapshot = await getDocs(q);
-        let branchesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        branchesData = branchesData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        setBranches(branchesData);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoadingBranches(false);
-      }
-    };
-    fetchBranches();
-  }, []);
+  const fetchBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const branchesRef = collection(db, 'branches');
+      const q = query(branchesRef, where('status', '==', 'active'));
+      const snapshot = await getDocs(q);
+      
+      // ✅ FIX: Type assertion
+      let branchesData = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      })) as { id: string; name: string; [key: string]: any }[];
+      
+      // ✅ AB ERROR NAHI AYEGA!
+      branchesData = branchesData.sort((a, b) => 
+        (a.name || '').localeCompare(b.name || '')
+      );
+      
+      setBranches(branchesData);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+  fetchBranches();
+}, []);
 
   // Fetch messages from BOTH collections
   useEffect(() => {
@@ -165,7 +175,7 @@ export default function SuperAdminMessages() {
     try {
       await addDoc(collection(db, 'adminMessages'), {
         content: newMessage,
-        senderId: user?.uid || 'super-admin',
+       senderId: (user as any)?.uid || 'super-admin',
         senderName: 'Super Admin',
         senderRole: 'super_admin',
         recipientBranchId: selectedBranchId,

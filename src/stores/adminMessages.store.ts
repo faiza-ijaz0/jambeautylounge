@@ -1,4 +1,4 @@
-// stores/adminMessages.store.ts - UPDATED VERSION WITHOUT INDEX
+// stores/adminMessages.store.ts - COMPLETELY FIXED
 
 import { create } from 'zustand';
 import { db } from '@/lib/firebase';
@@ -14,7 +14,7 @@ import {
   updateDoc,
   doc,
   writeBatch
-} from 'firebase/firestore'; // ⚠️ orderBy HATAYA
+} from 'firebase/firestore';
 
 export interface AdminMessage {
   id: string;
@@ -101,7 +101,6 @@ export const useAdminMessagesStore = create<AdminMessagesStore>((set, get) => ({
       const batch = writeBatch(db);
       const messagesRef = collection(db, 'adminMessages');
       
-      // 🔥 FIX: Without orderBy
       const q = query(
         messagesRef,
         where('recipientBranchId', '==', branchId),
@@ -128,30 +127,47 @@ export const useAdminMessagesStore = create<AdminMessagesStore>((set, get) => ({
     set({ selectedBranchId: branchId });
   },
 
+  // ✅ FIXED: Complete data mapping
   fetchMessagesForBranch: async (branchId) => {
     try {
       set({ loading: true, error: null });
       
       const messagesRef = collection(db, 'adminMessages');
       
-      // 🔥 FIX: Sirf where clause, orderBy nahi
       const q = query(
         messagesRef,
         where('recipientBranchId', '==', branchId)
       );
       
       const querySnapshot = await getDocs(q);
-      let messages = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date()
-      }));
       
-      // 🔥 FIX: Client-side sorting
+      // ✅ Complete mapping with ALL fields
+      let messages = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          content: data.content || '',
+          senderId: data.senderId || '',
+          senderName: data.senderName || '',
+          senderEmail: data.senderEmail || '',
+          senderRole: data.senderRole || 'branch_admin',
+          recipientBranchId: data.recipientBranchId || '',
+          recipientBranchName: data.recipientBranchName || '',
+          recipientEmail: data.recipientEmail || '',
+          timestamp: data.timestamp?.toDate() || new Date(),
+          read: data.read || false,
+          readBy: data.readBy || [],
+          readAt: data.readAt?.toDate() || null,
+          status: data.status || 'sent',
+          isSystemMessage: data.isSystemMessage || false
+        } as AdminMessage;
+      });
+      
+      // ✅ Client-side sorting
       messages = messages.sort((a, b) => {
-        const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
-        const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
-        return timeA - timeB;
+        const timeA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+        const timeB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+        return timeA.getTime() - timeB.getTime();
       });
       
       set({ messages });
@@ -163,28 +179,43 @@ export const useAdminMessagesStore = create<AdminMessagesStore>((set, get) => ({
     }
   },
 
+  // ✅ FIXED: Complete data mapping in realtime
   subscribeToBranchMessages: (branchId) => {
     const messagesRef = collection(db, 'adminMessages');
     
-    // 🔥 FIX: Without orderBy
     const q = query(
       messagesRef,
       where('recipientBranchId', '==', branchId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      let messages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date(),
-        readAt: doc.data().readAt?.toDate() || null
-      }));
+      // ✅ Complete mapping with ALL fields
+      let messages = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          content: data.content || '',
+          senderId: data.senderId || '',
+          senderName: data.senderName || '',
+          senderEmail: data.senderEmail || '',
+          senderRole: data.senderRole || 'branch_admin',
+          recipientBranchId: data.recipientBranchId || '',
+          recipientBranchName: data.recipientBranchName || '',
+          recipientEmail: data.recipientEmail || '',
+          timestamp: data.timestamp?.toDate() || new Date(),
+          read: data.read || false,
+          readBy: data.readBy || [],
+          readAt: data.readAt?.toDate() || null,
+          status: data.status || 'sent',
+          isSystemMessage: data.isSystemMessage || false
+        } as AdminMessage;
+      });
       
-      // 🔥 FIX: Client-side sorting
+      // ✅ Client-side sorting
       messages = messages.sort((a, b) => {
-        const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
-        const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
-        return timeA - timeB;
+        const timeA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+        const timeB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+        return timeA.getTime() - timeB.getTime();
       });
       
       set({ messages });

@@ -68,6 +68,7 @@ interface CartItem {
   description: string;
   image: string;
   rating: number;
+    branchNames?: string[];
   reviews: number;
 }
 
@@ -369,39 +370,41 @@ export default function ServicesPage() {
   });
 
   // Handle add to cart WITHOUT Firebase authentication check
-  const handleAddToCart = (service: Service) => {
-    // DIRECTLY add to cart without login check
-    setIsAddingToCart(service.id);
+  // Handle add to cart WITHOUT Firebase authentication check
+const handleAddToCart = (service: Service) => {
+  // DIRECTLY add to cart without login check
+  setIsAddingToCart(service.id);
 
-    // Create cart item with ALL required data
-    const cartItem: CartItem = {
-      id: service.id,
-      name: service.name,
-      category: service.category || 'Service',
-      duration: service.duration.toString() || '0',
-      price: service.price || 0,
-      description: service.description || '',
-      image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
-      rating: 5,
-      reviews: 0
-    };
-
-    // Update local cart store
-    addToCart(cartItem);
-    markServiceAdded(service.id);
-    
-    // ALSO save to localStorage
-    const currentCart = JSON.parse(localStorage.getItem('bookingCart') || '[]');
-    const updatedCart = [...currentCart, cartItem];
-    localStorage.setItem('bookingCart', JSON.stringify(updatedCart));
-    
-    setAddedService(service.id);
-    
-    setTimeout(() => {
-      setAddedService(null);
-      setIsAddingToCart(null);
-    }, 2000);
+  // Create cart item with ALL required data + BRANCHNAMES
+  const cartItem: CartItem = {
+    id: service.id,
+    name: service.name,
+    category: service.category || 'Service',
+    duration: service.duration.toString() || '0',
+    price: service.price || 0,
+    description: service.description || '',
+    image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
+    rating: 5,
+    reviews: 0,
+    branchNames: service.branchNames || []  // ✅ YEH ADD KIYA!
   };
+
+  // Update local cart store
+  addToCart(cartItem);
+  markServiceAdded(service.id);
+  
+  // ALSO save to localStorage with branchNames
+  const currentCart = JSON.parse(localStorage.getItem('bookingCart') || '[]');
+  const updatedCart = [...currentCart, cartItem];
+  localStorage.setItem('bookingCart', JSON.stringify(updatedCart));
+  
+  setAddedService(service.id);
+  
+  setTimeout(() => {
+    setAddedService(null);
+    setIsAddingToCart(null);
+  }, 2000);
+};
 
   // Handle View Cart button click - NO LOGIN CHECK
   const handleViewCart = () => {
@@ -413,34 +416,35 @@ export default function ServicesPage() {
     router.push('/booking');
   };
 
-  // Handle add selected services to cart - NO LOGIN CHECK
-  const handleAddSelectedServices = () => {
-    const addPromises = Array.from(selectedServices).map((serviceId) => {
-      const service = services.find(s => s.id === serviceId);
-      if (!service) return;
+ // Handle add selected services to cart - NO LOGIN CHECK
+const handleAddSelectedServices = () => {
+  const addPromises = Array.from(selectedServices).map((serviceId) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
 
-      // Update local cart store
-      const cartItem: CartItem = {
-        id: service.id,
-        name: service.name,
-        category: service.category || 'Service',
-        duration: service.duration.toString() || '0',
-        price: service.price || 0,
-        description: service.description || '',
-        image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
-        rating: 5,
-        reviews: 0
-      };
-      addToCart(cartItem);
-      markServiceAdded(service.id);
-    });
+    // Update local cart store - WITH BRANCHNAMES
+    const cartItem: CartItem = {
+      id: service.id,
+      name: service.name,
+      category: service.category || 'Service',
+      duration: service.duration.toString() || '0',
+      price: service.price || 0,
+      description: service.description || '',
+      image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
+      rating: 5,
+      reviews: 0,
+      branchNames: service.branchNames || []  // ✅ YEH ADD KIYA!
+    };
+    addToCart(cartItem);
+    markServiceAdded(service.id);
+  });
 
-    setSelectedServices(new Set());
-    setShowMultiSelectSheet(false);
-    setMultiSelectMode(false);
-    
-    alert(`${selectedServices.size} services added to your booking!`);
-  };
+  setSelectedServices(new Set());
+  setShowMultiSelectSheet(false);
+  setMultiSelectMode(false);
+  
+  alert(`${selectedServices.size} services added to your booking!`);
+};
 
   // Toggle service selection for multi-select
   const toggleServiceSelection = (serviceId: string) => {

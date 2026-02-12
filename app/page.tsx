@@ -784,7 +784,7 @@ export default function Home() {
            
            <h1 className="text-7xl md:text-9xl font-serif font-bold mb-8 leading-[0.9] tracking-tighter drop-shadow-2xl">
               Elegance <br />
-              <span className="text-white/70 italic">Redefined.</span>
+              <span className="text-[#FA9DB7] italic">Redefined.</span>
             </h1>
             <p className="text-xl font-bold md:text-2xl mb-12 max-w-2xl mx-auto text-gray-100 leading-relaxed drop-shadow-lg opacity-90">
               Immerse yourself in a sanctuary of luxury where science meets art to reveal your most radiant self.
@@ -811,8 +811,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
             <div className="space-y-4">
-              <div className="inline-block bg-gray-100 px-4 py-1.5 rounded-full">
-                <span className="text-gray-400 font-black tracking-[0.3em] uppercase text-[10px]">Browse By</span>
+              <div className="inline-block bg-gray-200 px-4 py-1.5 rounded-full">
+                <span className="text-[#FA9DB7] font-black tracking-[0.3em] uppercase text-[10px]">Browse By</span>
               </div>
               <h2 className="text-5xl md:text-7xl font-serif font-bold text-primary tracking-tight">Service Categories</h2>
               <p className="text-gray-400 font-light text-lg">Choose your journey through our specialized beauty realms.</p>

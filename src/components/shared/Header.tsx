@@ -280,7 +280,7 @@ export function Header() {
                 >
                   Sign In
                 </Link>
-                <Button asChild className="bg-white/40  text-white font-bold rounded-full px-7 py-5 text-[10px] tracking-[0.2em] font-black shadow-lg shadow-secondary/20 transition-all duration-300 hover:scale-105 active:scale-95 group">
+                <Button asChild className="bg-slate-900  text-white font-bold rounded-full px-7 py-5 text-[10px] tracking-[0.2em] font-black shadow-lg shadow-secondary/20 transition-all duration-300 hover:scale-105 active:scale-95 group">
                   <Link href="/services" className="flex items-center gap-2">
                     BOOK NOW
                     <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
@@ -294,7 +294,7 @@ export function Header() {
           <button 
             className={cn(
               "lg:hidden p-2 rounded-full transition-colors",
-              isScrolled ? "text-primary hover:bg-primary/5" : "text-white hover:bg-white/10"
+              isScrolled ? "text-primary bg-primary/5" : "text-white hover:bg-white/10"
             )}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >

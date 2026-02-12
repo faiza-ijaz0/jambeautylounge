@@ -45,6 +45,7 @@ interface Message {
   id: string;
   content: string;
   senderId: string;
+
   senderName: string;
   senderRole: 'super_admin' | 'branch_admin';
   senderBranchId?: string;
@@ -92,24 +93,34 @@ export default function BranchMessages() {
   }, []);
 
   // Fetch all branches
-  useEffect(() => {
-    const fetchAllBranches = async () => {
-      try {
-        setLoadingBranches(true);
-        const branchesRef = collection(db, 'branches');
-        const q = query(branchesRef, where('status', '==', 'active'));
-        const snapshot = await getDocs(q);
-        let branchesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        branchesData = branchesData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        setBranches(branchesData);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoadingBranches(false);
-      }
-    };
-    fetchAllBranches();
-  }, []);
+useEffect(() => {
+  const fetchAllBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const branchesRef = collection(db, 'branches');
+      const q = query(branchesRef, where('status', '==', 'active'));
+      const snapshot = await getDocs(q);
+      
+      // ✅ FIX 1: Type define karo
+      let branchesData = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      })) as { id: string; name: string; [key: string]: any }[]; // 👈 YEH ADD KIYA!
+      
+      // ✅ FIX 2: Sort with type safety
+      branchesData = branchesData.sort((a, b) => 
+        (a.name || '').localeCompare(b.name || '')
+      );
+      
+      setBranches(branchesData);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+  fetchAllBranches();
+}, []);
 
   // Fetch messages from BOTH collections
   useEffect(() => {
@@ -185,7 +196,7 @@ export default function BranchMessages() {
     try {
       await addDoc(collection(db, 'branchMessages'), {
         content: newMessage,
-        senderId: user?.uid || 'branch-admin',
+        senderId: (user as any)?.uid || 'branch-admin',
         senderName: myBranchName,
         senderRole: 'branch_admin',
         senderBranchId: myBranchId,
