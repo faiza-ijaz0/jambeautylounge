@@ -363,7 +363,7 @@ export default function BlogPage() {
                             </p>
                             <div className="flex flex-wrap gap-2">
                               {post.tags.slice(0, 2).map((tag) => (
-                                <Badge key={tag} variant="gray-400" className="text-xs">
+                                <Badge key={tag} variant="outline" className="text-xs">
                                   #{tag}
                                 </Badge>
                               ))}
