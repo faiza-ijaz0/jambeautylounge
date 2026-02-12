@@ -377,10 +377,10 @@ export default function Branches() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]">
+    <div className="min-h-screen bg-[#fcfcfc] ">
       <Header />
 
-      {/* Error State */}
+      {/* Error State - CODE1 STYLE */}
       {error && (
         <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="text-center space-y-4 max-w-md p-8">
@@ -391,7 +391,7 @@ export default function Branches() {
             <p className="text-gray-600">{error}</p>
             <Button 
               onClick={fetchBranches}
-              className="mt-4 bg-primary hover:bg-primary/90"
+              className="mt-4 bg-primary hover:bg-primary/90 text-white"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Retry
@@ -400,74 +400,57 @@ export default function Branches() {
         </div>
       )}
 
-      {/* Premium Hero */}
-      <section className="relative py-32 px-4 overflow-hidden bg-gradient-to-br from-primary to-primary/90">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-secondary blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary blur-[120px] animate-pulse"></div>
-          <div className="absolute top-[20%] right-[20%] w-[20%] h-[20%] rounded-full bg-white/10 blur-[80px] animate-pulse delay-1000"></div>
-        </div>
-        
-        {/* Floating Elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 animate-bounce delay-500">
-            <Crown className="w-8 h-8 text-secondary/30" />
-          </div>
-          <div className="absolute top-40 right-20 animate-bounce delay-1000">
-            <Award className="w-6 h-6 text-secondary/20" />
-          </div>
-          <div className="absolute bottom-32 left-20 animate-bounce delay-1500">
-            <Shield className="w-7 h-7 text-secondary/25" />
-          </div>
-          <div className="absolute bottom-20 right-10 animate-bounce delay-2000">
-            <Zap className="w-5 h-5 text-secondary/20" />
-          </div>
+      {/* Premium Hero with Single Image - CODE1 STYLE */}
+      <section className="relative h-96 overflow-hidden">
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ 
+            backgroundImage: "url('https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmVhdXR5JTIwc2Fsb29ufGVufDB8fDB8fHww')",
+          }}
+        >
+          <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/30 to-primary/70"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full mb-6 border border-secondary/30 backdrop-blur-sm">
-            <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
-            <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">Our Presence</span>
-            <Sparkles className="w-4 h-4 text-secondary animate-pulse" />
-          </div>
-          <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
-            Premium <span className="text-secondary italic relative">Locations
-              <div className="absolute -bottom-2 left-0 right-0 h-1 bg-secondary/50 rounded-full"></div>
-            </span>
-          </h1>
-          <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-12">
-            Experience luxury grooming at any of our strategically located branches.
-          </p>
-          
-          {/* Real-time Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalBranches}</div>
-              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Premium Locations</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{activeBranches}</div>
-              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Active Branches</div>
-              <div className="text-[10px] text-white/50 mt-1">Currently operational</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalManagers}</div>
-              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Dedicated Managers</div>
-              <div className="text-[10px] text-white/50 mt-1">Professional team</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:bg-white/15 transition-all">
-              <div className="text-3xl font-serif font-bold text-secondary mb-2">{totalCities}</div>
-              <div className="text-white/70 text-xs font-black uppercase tracking-widest">Cities Covered</div>
-              <div className="text-[10px] text-white/50 mt-1">Nationwide presence</div>
+        {/* Content Overlay */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="max-w-6xl mx-auto text-center px-4">
+           
+            <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
+              Premium <span className="text-white/50 italic">Locations</span>
+            </h1>
+            <p className="text-gray-200 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
+              Experience luxury grooming at any of our strategically located branches.
+            </p>
+            
+            {/* Real-time Stats - CODE1 STYLE */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-8 pointer-events-auto">
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="text-2xl font-serif font-bold text-white/50 mb-1">{totalBranches}</div>
+                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Locations</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="text-2xl font-serif font-bold text-white/50 mb-1">{activeBranches}</div>
+                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Active</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="text-2xl font-serif font-bold text-white/50 mb-1">{totalManagers}</div>
+                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Managers</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
+                <div className="text-2xl font-serif font-bold text-white/50 mb-1">{totalCities}</div>
+                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Cities</div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="py-20 px-4 bg-gradient-to-b from-gray-50/50 to-white">
+     
+     <div className="py-20 px-4 bg-linear-to-b  to-white">
         <div className="max-w-7xl mx-auto">
           {/* Filters Section */}
-          <div className="flex flex-col lg:flex-row gap-8 mb-16 p-8 bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-white/20 relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-8 mb-16 p-8 bg-white backdrop-blur-2xl rounded-[2.5rem] shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-white/20 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/5 rounded-full blur-2xl -mr-16 -mt-16"></div>
             
             {/* Search Input */}
@@ -540,7 +523,7 @@ export default function Branches() {
                 </p>
                 <Button 
                   onClick={fetchBranches}
-                  className="rounded-full px-8 bg-primary hover:bg-primary/90 font-bold tracking-widest text-[10px]"
+                  className="rounded-full px-8 bg-primary hover:bg-primary/90 text-white font-bold tracking-widest text-[10px]"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   REFRESH BRANCHES
@@ -615,11 +598,11 @@ export default function Branches() {
                             e.currentTarget.src = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=2070&auto=format&fit=crop';
                           }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="absolute inset-0 bg-linear-to-t from-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         
-                        {/* Rating Overlay */}
+                        {/* Rating Overlay - CODE1 STYLE */}
                         <div className="absolute bottom-6 left-6 z-10">
-                          <div className="bg-white/90 backdrop-blur-md text-primary border-none px-3 py-1.5 rounded-xl font-black text-xs shadow-xl flex items-center gap-1.5">
+                          <div className="bg-white/90 backdrop-blur-md text-black border-none px-3 py-1.5 rounded-xl font-black text-xs shadow-xl flex items-center gap-1.5">
                             <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
                             {branch.rating?.toFixed(1) || '4.8'}
                             <span className="text-muted-foreground text-[10px] font-medium">({branch.reviews || 0})</span>
@@ -632,7 +615,7 @@ export default function Branches() {
                             <Button 
                               size="sm" 
                               variant="secondary" 
-                              className="bg-white/90 backdrop-blur-md text-primary hover:bg-white rounded-xl p-2"
+                              className="bg-white/90 backdrop-blur-md text-black hover:bg-white rounded-xl p-2"
                               onClick={() => window.open(`tel:${branch.phone}`, '_blank')}
                             >
                               <Phone className="w-3.5 h-3.5" />
@@ -640,7 +623,7 @@ export default function Branches() {
                             <Button 
                               size="sm" 
                               variant="secondary" 
-                              className="bg-white/90 backdrop-blur-md text-primary hover:bg-white rounded-xl p-2"
+                              className="bg-white/90 backdrop-blur-md text-black hover:bg-white rounded-xl p-2"
                               onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(branch.address)}`, '_blank')}
                             >
                               <Navigation className="w-3.5 h-3.5" />
@@ -661,7 +644,7 @@ export default function Branches() {
                               {branch.name}
                             </h3>
                             <p className="text-sm text-gray-600 flex items-center gap-2 mt-2">
-                              <MapPin className="w-3.5 h-3.5 text-secondary flex-shrink-0" />
+                              <MapPin className="w-3.5 h-3.5 text-secondary shrink-0" />
                               <span className="line-clamp-2">{branch.address}</span>
                             </p>
                           </div>
@@ -768,7 +751,7 @@ export default function Branches() {
             </div>
           )}
 
-          {/* Stats Summary */}
+          {/* Stats Summary - CODE1 STYLE */}
           {filteredBranches.length > 0 && (
             <div className="mt-12 pt-8 border-t border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -825,8 +808,8 @@ export default function Branches() {
                 </div>
               </div>
               
-              {/* Contact Info */}
-              <div className="mt-6 bg-secondary/10 border border-secondary/20 rounded-2xl p-6">
+              {/* Contact Info - CODE1 STYLE */}
+              <div className="mt-6  bg-white/80 border border-secondary/20 rounded-2xl p-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                   <div>
                     <p className="font-bold text-primary">Need Help Finding a Branch?</p>
@@ -837,14 +820,14 @@ export default function Branches() {
                   <div className="flex gap-3">
                     <Button
                       variant="outline"
-                      className="border-secondary text-secondary"
+                      className="border-secondary text-secondary hover:bg-secondary hover:text-primary"
                       onClick={() => window.open('mailto:support@largify.com', '_blank')}
                     >
                       <Mail className="w-4 h-4 mr-2" />
                       Email Support
                     </Button>
                     <Button
-                      className="bg-primary hover:bg-primary/90"
+                      className="bg-primary hover:bg-primary/90 text-white"
                       onClick={() => window.open('tel:+1234567890', '_blank')}
                     >
                       <Phone className="w-4 h-4 mr-2" />
@@ -858,7 +841,7 @@ export default function Branches() {
         </div>
       </div>
 
-      {/* Branch Details Sidebar */}
+      {/* Branch Details Sidebar - CODE1 STYLE */}
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <SheetContent className="w-full sm:max-w-2xl lg:max-w-3xl overflow-y-auto p-5 rounded-3xl h-[750px] m-auto">
           {selectedBranch ? (
@@ -879,7 +862,7 @@ export default function Branches() {
                     alt={selectedBranch.name}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent"></div>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -901,7 +884,7 @@ export default function Branches() {
 
                 {/* Main Content */}
                 <div className="p-6 space-y-6">
-                  {/* Stats Row */}
+                  {/* Stats Row - CODE1 STYLE */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-gray-50 rounded-xl p-4 text-center">
                       <div className="text-2xl font-bold text-primary">{selectedBranch.rating?.toFixed(1) || '4.8'}</div>
@@ -1039,7 +1022,7 @@ export default function Branches() {
                         <div className="grid grid-cols-2 gap-4">
                           <Button 
                             variant="outline" 
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 border-gray-200 hover:border-secondary hover:text-secondary"
                             onClick={() => window.open(`tel:${selectedBranch.phone}`, '_blank')}
                           >
                             <Phone className="w-4 h-4" />
@@ -1048,7 +1031,7 @@ export default function Branches() {
                           
                           <Button 
                             variant="outline" 
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 border-gray-200 hover:border-secondary hover:text-secondary"
                             onClick={() => openWhatsApp(selectedBranch.phone)}
                           >
                             <MessageCircle className="w-4 h-4" />
@@ -1057,7 +1040,7 @@ export default function Branches() {
                           
                           <Button 
                             variant="outline" 
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 border-gray-200 hover:border-secondary hover:text-secondary"
                             onClick={() => window.open(`mailto:${selectedBranch.email}`, '_blank')}
                           >
                             <Mail className="w-4 h-4" />
@@ -1066,7 +1049,7 @@ export default function Branches() {
                           
                           <Button 
                             variant="outline" 
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 border-gray-200 hover:border-secondary hover:text-secondary"
                             onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(selectedBranch.address)}`, '_blank')}
                           >
                             <Navigation className="w-4 h-4" />
@@ -1082,7 +1065,7 @@ export default function Branches() {
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button 
                         variant="outline"
-                        className="flex-1"
+                        className="flex-1 border-gray-200 hover:border-secondary hover:text-secondary"
                         onClick={() => handleShareBranch(selectedBranch)}
                       >
                         <Share2 className="w-4 h-4 mr-2" />
@@ -1114,7 +1097,7 @@ export default function Branches() {
       <div className="fixed bottom-6 right-6 z-40">
         <Button
           onClick={fetchBranches}
-          className="rounded-full w-12 h-12 bg-primary hover:bg-primary/90 shadow-xl"
+          className="rounded-full w-12 h-12 bg-primary hover:bg-primary/90 text-white shadow-xl"
           title="Refresh data from Firebase"
         >
           <RefreshCw className="w-5 h-5" />

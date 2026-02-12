@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, Box, DollarSign, RefreshCw } from 'lucide-react';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import Autoplay from "embla-carousel-autoplay";
+import { Search, Star, ShoppingCart, Filter, Package, Check, Sparkles, ChevronRight, TrendingUp, Box, DollarSign, RefreshCw, Loader2 } from 'lucide-react';
 import { create } from 'zustand';
 import { 
   collection, 
@@ -199,27 +201,6 @@ interface StockStatus {
   label: string;
   color: string;
   badge: string;
-}
-
-// Missing icon component
-function X(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
 }
 
 // Main Component
@@ -495,65 +476,88 @@ export default function ProductsPage() {
     return { label: 'High Stock', color: 'bg-green-100 text-green-800', badge: 'bg-green-500' };
   };
 
+  // Missing icon component
+  function X(props: React.SVGProps<SVGSVGElement>) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...props}
+      >
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
       <Header />
 
-      {/* Premium Hero Section */}
-      <section className="relative py-32 px-4 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a]">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-secondary blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary blur-[120px] animate-pulse"></div>
-        </div>
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full mb-6 border border-secondary/30">
-            <Package className="w-4 h-4 text-secondary" />
-            <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The Apothecary</span>
+      {/* Premium Hero Section with Image Carousel - CODE1 STYLE */}
+      <section className="relative h-96 overflow-hidden">
+        {/* Background Carousel */}
+        <Carousel 
+          opts={{ 
+            align: "center", 
+            loop: true,
+          }} 
+          plugins={[Autoplay({ delay: 5000, stopOnInteraction: false })]}
+          className="absolute inset-0 w-full h-full"
+        >
+          <CarouselContent className="h-full">
+            {[
+              "https://images.unsplash.com/photo-1556228578-8c89e6adf883?q=80&w=2070&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1526045612212-70caf35b4884?q=80&w=2070&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1504674900152-b8b27e3e46ab?q=80&w=2070&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1559163616-cd4628902d4a?q=80&w=2070&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=2070&auto=format&fit=crop",
+            ].map((image, index) => (
+              <CarouselItem key={index} className="relative w-full h-96 flex items-center justify-center group">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 group-hover:scale-120 transition-transform duration-1000"
+                  style={{ 
+                    backgroundImage: `url('${image}')`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/20 to-primary/60"></div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          {/* Carousel Controls */}
+          <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+            <CarouselPrevious className="static bg-white/20 border-white/40 hover:bg-white/30 text-white" />
+            <CarouselNext className="static bg-white/20 border-white/40 hover:bg-white/30 text-white" />
           </div>
-          <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
-            Grooming <span className="text-secondary italic">Collection</span>
-          </h1>
-          <p className="text-gray-300 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
-            Professional-grade essentials for the modern gentleman. 
-          </p>
-          
-          {/* Stats */}
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3">
-              <div className="flex items-center gap-3">
-                <Box className="w-5 h-5 text-secondary" />
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Products</p>
-                  <p className="text-2xl font-bold text-white">{totalProducts}</p>
-                </div>
-              </div>
+        </Carousel>
+
+        {/* Content Overlay */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="max-w-6xl mx-auto text-center px-4">
+            <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/10">
+              <Package className="w-4 h-4 text-secondary" />
+              <span className="text-secondary font-black tracking-[0.5em] uppercase text-[10px]">The Boutique</span>
             </div>
-            
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3">
-              <div className="flex items-center gap-3">
-                <DollarSign className="w-5 h-5 text-secondary" />
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Inventory Value</p>
-                  <p className="text-2xl font-bold text-white">${totalValue.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="w-5 h-5 text-secondary" />
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Sold</p>
-                  <p className="text-2xl font-bold text-white">{totalSold.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
+            <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
+              Couture <br /><span className="text-secondary italic">Skincare</span>
+            </h1>
+            <p className="text-white/50 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+              "Beauty is science, curated for your skin."
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Filters Section */}
-      <section className=" top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
+      {/* Filters Section - CODE1 STYLE */}
+      <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Search and Filters Row */}
           <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
@@ -594,7 +598,7 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Category Filters */}
+            {/* Category Filters - CODE1 STYLE */}
             <div className="flex items-center gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
               {categories.map((cat) => (
                 <button
@@ -604,7 +608,7 @@ export default function ProductsPage() {
                     "whitespace-nowrap px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] transition-all border rounded-2xl min-w-[120px] text-center",
                     selectedCategory === cat.id 
                       ? "bg-primary text-white border-primary shadow-xl scale-[1.02]" 
-                      : "bg-white text-primary border-gray-200 hover:border-secondary hover:text-secondary hover:shadow-md"
+                      : "bg-white text-black border-gray-200 hover:border-secondary hover:text-secondary hover:shadow-md"
                   )}
                 >
                   {cat.name}
@@ -613,7 +617,7 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Staff Filter Section */}
+          {/* Staff Filter Section - CODE1 STYLE */}
           <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-3 border-t border-gray-100">
             <div className="flex items-center gap-2 shrink-0">
               <Sparkles className="w-4 h-4 text-secondary" />
@@ -630,7 +634,7 @@ export default function ProductsPage() {
                     : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
                 )}
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-6 h-6 rounded-full bg-linear-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-xs font-bold">
                   All
                 </div>
                 All Barbers
@@ -644,10 +648,10 @@ export default function ProductsPage() {
                     "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-3 border min-w-[140px]",
                     selectedStaff === member.id 
                       ? "bg-secondary/10 text-secondary border-secondary/30 shadow-sm" 
-                      : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                      : "bg-white text-black border-gray-200 hover:border-gray-300 hover:shadow-sm"
                   )}
                 >
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 border-2 border-white shadow-sm flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 border-2 border-white shadow-sm shrink-0">
                     <img 
                       src={member.image} 
                       alt={member.name} 
@@ -668,8 +672,8 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      {/* Products Grid Section */}
-      <section className="py-20 px-4 bg-gradient-to-b from-gray-50/50 to-white">
+      {/* Products Grid Section - CODE1 STYLE */}
+      <section className="py-20 px-4 bg-linear-to-b from-gray-50/50 to-white">
         <div className="max-w-7xl mx-auto">
           {/* Products Count and Stats */}
           <div className="mb-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -706,7 +710,7 @@ export default function ProductsPage() {
 
           {/* Products Grid */}
           {products.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-[2.5rem] shadow-sm border border-gray-100">
+            <div className="text-center py-20 bg-white rounded-4xl shadow-sm border border-gray-100">
               <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Package className="w-12 h-12 text-gray-300" />
               </div>
@@ -723,7 +727,7 @@ export default function ProductsPage() {
               </Button>
             </div>
           ) : filteredAndSortedProducts.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-[2.5rem] shadow-sm border border-gray-100">
+            <div className="text-center py-20 bg-white rounded-4xl shadow-sm border border-gray-100">
               <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Search className="w-12 h-12 text-gray-300" />
               </div>
@@ -746,7 +750,7 @@ export default function ProductsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {filteredAndSortedProducts.map((product) => {
                 const stockStatus = getStockStatus(product.totalStock);
                 
@@ -754,23 +758,23 @@ export default function ProductsPage() {
                   <div 
                     key={product.id} 
                     className={cn(
-                      "group bg-white border-2 transition-all duration-500 p-6 rounded-[2.5rem] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.12)] relative",
+                      "group bg-white border border-gray-100 transition-all duration-500 p-5 rounded-3xl flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] relative",
                       product.totalStock <= 0 
-                        ? "border-gray-100 opacity-80" 
-                        : "border-gray-100 hover:border-secondary/20"
+                        ? "opacity-80" 
+                        : "hover:border-secondary/20"
                     )}
                   >
                     {/* Out of Stock Overlay */}
                     {product.totalStock <= 0 && (
-                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 rounded-[2.5rem] flex items-center justify-center">
-                        <Badge className="bg-red-500 text-white border-none px-4 py-2 text-sm font-bold shadow-lg">
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 rounded-3xl flex items-center justify-center">
+                        <Badge className="bg-red-500 text-white border-none px-3 py-1.5 text-[10px] font-black tracking-widest shadow-lg">
                           OUT OF STOCK
                         </Badge>
                       </div>
                     )}
                     
                     {/* Product Image */}
-                    <div className="relative aspect-square overflow-hidden mb-6 bg-gray-50 rounded-[2rem] group-hover:rounded-[1.5rem] transition-all duration-500">
+                    <div className="relative aspect-square overflow-hidden mb-4 bg-gray-50 rounded-2xl transition-all duration-500">
                       <img 
                         src={product.imageUrl} 
                         alt={product.name} 
@@ -781,107 +785,73 @@ export default function ProductsPage() {
                       />
                       
                       {/* Image Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <div className="absolute inset-0 bg-linear-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                       
                       {/* Stock Status Badge */}
-                      <div className="absolute top-4 left-4">
+                      <div className="absolute top-3 left-3">
                         <Badge className={cn(
-                          "border-none px-3 py-1.5 text-[9px] font-black tracking-widest uppercase shadow-lg",
+                          "border-none px-2 py-1 text-[7px] font-black tracking-[0.2em] uppercase shadow-md",
                           stockStatus.badge
                         )}>
                           {stockStatus.label}
                         </Badge>
                       </div>
                       
-                      {/* Price Badge */}
-                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
-                        <div className="bg-white/95 backdrop-blur-sm text-primary px-4 py-2 rounded-xl font-black text-sm shadow-2xl">
+                      {/* Price Badge - CODE1 STYLE */}
+                      <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
+                        <div className="bg-white/95 backdrop-blur-sm text-black px-3 py-1.5 rounded-lg font-black text-xs shadow-xl">
                           ${product.price}
                         </div>
                       </div>
                       
                       {/* Profit Margin Indicator */}
                       {product.cost > 0 && (
-                        <div className="absolute top-4 right-4">
-                          <Badge className="bg-black/70 text-white border-none px-2 py-1 text-[8px] font-bold">
-                            {Math.round(((product.price - product.cost) / product.cost) * 100)}% Margin
+                        <div className="absolute top-3 right-3">
+                          <Badge className="bg-black/70 text-white border-none px-2 py-1 text-[7px] font-bold">
+                            {Math.round(((product.price - product.cost) / product.cost) * 100)}%
                           </Badge>
                         </div>
                       )}
                     </div>
                     
-                    {/* Product Info */}
-                    <div className="flex-1 space-y-3">
+                    {/* Product Info - CODE1 STYLE */}
+                    <div className="flex-1 space-y-2 flex flex-col">
                       {/* Category and Rating */}
                       <div className="flex justify-between items-center">
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] text-secondary border-secondary/30">
+                        <Badge variant="outline" className="text-[8px] uppercase tracking-widest text-secondary border-secondary/20 font-black">
                           {product.category}
                         </Badge>
                         <div className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-bold">{product.rating.toFixed(1)}</span>
-                          <span className="text-xs text-gray-500">({product.reviews})</span>
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-[10px] font-bold">{product.rating.toFixed(1)}</span>
                         </div>
                       </div>
                       
                       {/* Product Name */}
-                      <h4 className="text-xl font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300 line-clamp-2 h-14">
+                      <h4 className="text-base font-serif font-bold text-primary group-hover:text-secondary transition-colors duration-300 line-clamp-2 min-h-11">
                         {product.name}
                       </h4>
                       
                       {/* Description */}
-                      <p className="text-gray-600 text-sm font-light leading-relaxed line-clamp-2 min-h-[40px]">
+                      <p className="text-gray-500 text-[11px] font-light leading-relaxed line-clamp-2 min-h-8">
                         {product.description || 'Premium grooming product for the modern gentleman.'}
                       </p>
                       
                       {/* SKU and Stock Info */}
-                      <div className="space-y-2 pt-2 border-t border-gray-100">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-500 font-medium">SKU:</span>
-                          <span className="font-mono font-bold text-primary">{product.sku}</span>
+                      <div className="space-y-1 pt-2 border-t border-gray-50 mt-auto">
+                        <div className="flex justify-between items-center text-[9px] text-gray-500">
+                          <span className="font-medium uppercase tracking-widest text-[8px]">SKU: {product.sku}</span>
+                          <span className={cn(
+                            "font-bold uppercase tracking-widest text-[8px]",
+                            product.totalStock <= 5 ? "text-yellow-600" : "text-green-600"
+                          )}>
+                            {product.totalStock} UNITS
+                          </span>
                         </div>
-                        
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-500 font-medium">Stock:</span>
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "font-bold",
-                              product.totalStock <= 5 ? "text-yellow-600" : "text-green-600"
-                            )}>
-                              {product.totalStock} units
-                            </span>
-                            {product.totalSold > 0 && (
-                              <span className="text-gray-400">
-                                ({product.totalSold} sold)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Branches */}
-                        {product.branchNames && product.branchNames.length > 0 && (
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500 font-medium">Available at:</span>
-                            <span className="font-medium text-primary truncate max-w-[120px]">
-                              {product.branchNames[0]}
-                              {product.branchNames.length > 1 && ` +${product.branchNames.length - 1}`}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Revenue */}
-                        {product.revenue > 0 && (
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500 font-medium">Revenue:</span>
-                            <span className="font-bold text-green-600">
-                              ${product.revenue.toLocaleString()}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
-                    {/* Action Button - FIXED */}
+                    {/* Action Button - CODE1 STYLE */}
                     <Button 
                       onClick={() => {
                         if (addedProduct === product.id) {
@@ -892,32 +862,31 @@ export default function ProductsPage() {
                       }}
                       disabled={product.totalStock <= 0 || isAddingToCart === product.id}
                       className={cn(
-                        "w-full mt-6 h-14 rounded-2xl font-black tracking-[0.2em] text-[10px] transition-all duration-500 shadow-lg",
-                        addedProduct === product.id || isAddingToCart === product.id
-                          ? "bg-green-600 hover:bg-green-600 text-white scale-95 cursor-pointer" 
+                        "w-full mt-4 h-11 rounded-xl font-black tracking-[0.2em] text-[9px] transition-all duration-500 shadow-md",
+                        addedProduct === product.id 
+                          ? "bg-green-600 hover:bg-green-600 text-white scale-95" 
+                          : isAddingToCart === product.id
+                          ? "bg-gray-400 text-white cursor-not-allowed"
                           : product.totalStock <= 0
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                           : "bg-primary hover:bg-secondary hover:text-primary text-white"
                       )}
                     >
                       {addedProduct === product.id ? (
                         <>
-                          <Check className="w-4 h-4 mr-2" /> 
+                          <Check className="w-3 h-3 mr-2" /> 
                           VIEW CART
                         </>
                       ) : isAddingToCart === product.id ? (
-                        <>
-                          <ShoppingCart className="w-4 h-4 mr-2 animate-spin" /> 
-                          ADDING...
-                        </>
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       ) : product.totalStock <= 0 ? (
                         <>
-                          <Package className="w-4 h-4 mr-2" /> 
+                          <Package className="w-3 h-3 mr-2" /> 
                           OUT OF STOCK
                         </>
                       ) : (
                         <>
-                          <ShoppingCart className="w-4 h-4 mr-2 group-hover:animate-bounce" /> 
+                          <ShoppingCart className="w-3 h-3 mr-2" /> 
                           ADD TO CART
                         </>
                       )}
@@ -928,7 +897,7 @@ export default function ProductsPage() {
             </div>
           )}
 
-          {/* Footer Stats */}
+          {/* Footer Stats - CODE1 STYLE */}
           {filteredAndSortedProducts.length > 0 && (
             <div className="mt-12 pt-8 border-t border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -984,6 +953,30 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
+              
+              {/* Cart Summary */}
+              {cartItems.length > 0 && (
+                <div className="mt-6 bg-secondary/10 border border-secondary/20 rounded-2xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ShoppingCart className="w-5 h-5 text-secondary" />
+                      <div>
+                        <p className="font-bold text-primary">Your Cart</p>
+                        <p className="text-sm text-gray-600">
+                          {cartItems.reduce((sum, item) => sum + item.quantity, 0)} items • 
+                          Total: ${cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => router.push('/checkout')}
+                      className="bg-secondary hover:bg-secondary/90 text-primary font-bold"
+                    >
+                      Proceed to Checkout
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
