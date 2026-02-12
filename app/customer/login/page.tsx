@@ -175,21 +175,20 @@ export default function CustomerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-800">
-      <Header />
-      
-      <div className="pt-32 pb-16 px-4">
+    <div className="min-h-screen bg-gray-200">
+    
+      <div className="pt-5 pb-16 px-4">
         <div className="max-w-md mx-auto">
           {/* Hero Section - Code1 Style */}
           <div className="text-center mb-10">
             <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/10">
-              <span className="text-secondary font-black tracking-[0.5em] uppercase text-[10px]">Customer Portal</span>
+              <span className="text-gray-400 font-black tracking-[0.5em] uppercase text-[10px]">Customer Portal</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-serif font-bold text-primary mb-6 leading-[0.85] tracking-tighter">
-              Welcome to <br /><span className="text-secondary italic">Jam Beauty</span>
+              Welcome to <br /><span className="text-gray-400 italic">Jam Beauty Lounge</span>
             </h1>
-            <p className="text-white/60 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
-              "Artistry is not just a service, it's a transformation."
+            <p className="text-slate-400 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+             Sign in to manage your rituals and profile
             </p>
            
           </div>
@@ -421,7 +420,7 @@ export default function CustomerLogin() {
           <div className="text-center mt-10 pt-8 border-t border-gray-100">
             <Link 
               href="/login" 
-              className="inline-flex items-center text-white justify-center gap-3 px-6 py-3 rounded-2xl border-2 border-gray-200 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-all duration-300 text-sm font-black uppercase tracking-[0.2em] text-primary"
+              className="inline-flex items-center text-gray-500 justify-center gap-3 px-6 py-3 rounded-2xl border-2 border-gray-200 hover:border-secondary hover:bg-secondary/10 hover:text-secondary transition-all duration-300 text-sm font-black uppercase tracking-[0.2em] text-primary"
             >
               <Lock className="w-4 h-4 " />
               Admin Login

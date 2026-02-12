@@ -1134,13 +1134,12 @@ function SidebarContent({
       {/* Logo */}
       <div className="flex h-16 items-center px-4 lg:px-6">
         <div className="flex items-center justify-between w-full">
+         
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 mt-1 bg-secondary flex items-center justify-center rounded-lg transition-all duration-300 group-hover:rotate-12 shadow-lg shadow-secondary/20">
-              <Scissors className="h-4 w-4 text-primary" />
-            </div>
+           
             {!isCollapsed && (
               <span className="text-lg font-serif font-bold text-white tracking-tighter mt-1">
-                MAN OF <span className="text-secondary">CAVE</span>
+                JAM<span className="text-gray-400">Beauty Lounge</span>
               </span>
             )}
           </Link>
@@ -1171,8 +1170,8 @@ function SidebarContent({
                       "w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200",
                       isCollapsed && "justify-center px-0",
                       isChildActive
-                        ? "bg-secondary/20 text-secondary"
-                        : "text-gray-400 hover:text-secondary hover:bg-white/5"
+                        ? "bg-slate-500 text-secondary"
+                        : "text-gray-400 hover:text-gray-300 hover:bg-white/5"
                     )}
                   >
                     <item.icon className={cn(
@@ -1206,13 +1205,13 @@ function SidebarContent({
                               className={cn(
                                 "w-full justify-start gap-3 h-9 rounded-lg transition-all duration-200",
                                 isChildActive 
-                                  ? "bg-secondary text-primary font-semibold shadow-lg shadow-secondary/20" 
-                                  : "text-gray-400 hover:text-secondary hover:bg-white/5"
+                                  ? "bg-slate-500 text-primary font-semibold shadow-lg shadow-secondary/20" 
+                                  : "text-gray-400 hover:text-slate-300 hover:bg-white/5"
                               )}
                             >
                               <child.icon className={cn(
                                 "h-4 w-4", 
-                                isChildActive ? "text-primary" : "text-gray-400 group-hover:text-secondary"
+                                isChildActive ? "text-primary" : "text-gray-400 group-hover:text-slate-300"
                               )} />
                               <span className="text-sm">
                                 {child.title}
@@ -1241,14 +1240,14 @@ function SidebarContent({
                     "w-full justify-start gap-3 h-10 rounded-lg transition-all duration-200",
                     isCollapsed && "justify-center px-0",
                     isActive 
-                      ? "bg-secondary text-primary font-semibold shadow-lg shadow-secondary/20" 
-                      : "text-gray-400 hover:text-secondary hover:bg-white/5",
+                      ? "bg-slate-500  text-primary font-semibold shadow-lg shadow-secondary/20" 
+                      : "text-gray-400 hover:text-slate-300 hover:bg-white/5",
                     isDisabled && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   <item.icon className={cn(
                     "h-5 w-5", 
-                    isActive ? "text-primary" : "text-gray-400 group-hover:text-secondary",
+                    isActive ? "text-primary" : "text-gray-400 group-hover:text-slate-300",
                     isDisabled && "text-gray-500"
                   )} />
                   {!isCollapsed && (

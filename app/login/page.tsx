@@ -178,7 +178,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-200 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Premium Background Elements */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-secondary blur-[150px] animate-pulse"></div>
@@ -187,13 +187,11 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.05] pointer-events-none"></div>
 
       <Card className="w-full max-w-md border-white/5 bg-white/[0.02] backdrop-blur-2xl rounded-[3rem] shadow-2xl relative z-10 overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-secondary to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-black to-transparent"></div>
         
         <CardHeader className="text-center pt-12 pb-8">
-          <div className="w-20 h-20 bg-secondary/20 border border-secondary/30 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl">
-            <Scissors className="w-10 h-10 text-secondary" />
-          </div>
-          <CardTitle className="text-3xl font-serif font-bold text-white mb-2">Jam<span className="text-secondary">Beauty</span></CardTitle>
+         
+          <CardTitle className="text-3xl font-serif font-bold text-gray-400 mb-2">Jam<span className="text-gray-600">Beauty Lounge</span></CardTitle>
           <CardDescription className="text-gray-400 font-light tracking-widest uppercase text-[10px]">Administrative Concierge</CardDescription>
         </CardHeader>
 
@@ -201,26 +199,26 @@ export default function LoginPage() {
         
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-secondary ml-1">Email Address</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">Email Address</label>
               <Input
                 type="email"
                 placeholder="concierge@manofcave.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-14 rounded-2xl border-white/5 bg-white/5 text-white placeholder:text-gray-600 focus:border-secondary focus:ring-secondary transition-all"
+                className="h-14 rounded-2xl border-white/5 bg-white/5 text-black placeholder:text-gray-600 focus:border-secondary focus:ring-secondary transition-all"
                 disabled={isLoading}
               />
             </div>
             
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-secondary ml-1">Security Key</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 ml-1">Security Key</label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-14 rounded-2xl border-white/5 bg-white/5 text-white placeholder:text-gray-600 focus:border-secondary focus:ring-secondary transition-all pr-12"
+                  className="h-14 rounded-2xl border-white/5 bg-white/5 text-black placeholder:text-gray-600 focus:border-secondary focus:ring-secondary transition-all pr-12"
                   disabled={isLoading}
                 />
                 <button
@@ -242,7 +240,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full h-16 bg-secondary hover:bg-white text-primary font-black tracking-[0.2em] text-xs rounded-2xl transition-all duration-500 shadow-xl shadow-secondary/10"
+              className="w-full h-16 bg-gray-400 hover:bg-white text-primary font-black tracking-[0.2em] text-xs rounded-2xl transition-all duration-500 shadow-xl shadow-secondary/10"
               disabled={isLoading}
             >
               {isLoading ? (
