@@ -867,7 +867,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-8">
             <div className="space-y-4">
               <div className="inline-block bg-gray-200 px-4 py-1.5 rounded-full">
-                <span className="text-gray-400 font-black tracking-[0.3em] uppercase text-[10px]">The Collection</span>
+                <span className="text-[#FA9DB7] font-black tracking-[0.3em] uppercase text-[10px]">The Collection</span>
               </div>
               <h2 className="text-5xl md:text-7xl font-serif font-bold text-primary tracking-tight">Signature Rituals</h2>
               <p className="text-gray-400 font-light text-lg">Indulge in our most sought-after treatments, curated for the modern soul.</p>
@@ -950,12 +950,12 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-24 gap-8">
             <div className="space-y-4">
               <div className="inline-block bg-white/10 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
-                <span className="text-secondary font-black tracking-[0.4em] uppercase text-[10px]">The Boutique</span>
+                <span className="text-[#FA9DB7] font-black tracking-[0.4em] uppercase text-[10px]">The Boutique</span>
               </div>
               <h2 className="text-5xl md:text-7xl font-serif font-bold text-white tracking-tight">Couture Skincare</h2>
               <p className="text-white/50 font-light text-lg max-w-xl">Scientifically formulated. Artistically packaged. Experience the JAM collection.</p>
             </div>
-            <Button asChild variant="outline" className="border-white/20 text-white hover:bg-white hover:text-black rounded-full px-10 py-7 font-black tracking-[0.2em] text-[10px] group transition-all duration-700 backdrop-blur-sm">
+            <Button asChild variant="outline" className="border-white/20 text-white hover:bg-white text-black rounded-full px-10 py-7 font-black tracking-[0.2em] text-[10px] group transition-all duration-700 backdrop-blur-sm">
               <Link href="/products" className="flex items-center">
                 VISIT THE BOUTIQUE <ChevronRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
@@ -1061,7 +1061,7 @@ export default function Home() {
             <div className="space-y-10">
               <div className="space-y-4">
                 <div className="inline-block bg-secondary/10 px-4 py-1.5 rounded-full">
-                  <span className="text-secondary font-black tracking-[0.3em] uppercase text-[10px]">The JAM Philosophy</span>
+                  <span className="text-[#FA9DB7] font-black tracking-[0.3em] uppercase text-[10px]">The JAM Philosophy</span>
                 </div>
                 <h2 className="text-5xl md:text-7xl font-serif font-bold text-primary leading-tight">
                   Where Nature <br /> Meets <span className="text-secondary italic">Luxury</span>
@@ -1123,7 +1123,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
             <div className="space-y-2">
               <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
-                <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
+                <span className="text-[#FA9DB7] font-bold tracking-[0.2em] uppercase text-[10px]">Exclusive Privileges</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Member Rewards</h2>
               <Badge variant="outline" className="border-secondary/30 text-secondary mt-2">
@@ -1258,7 +1258,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
             <div className="space-y-2">
               <div className="inline-block bg-secondary/10 px-3 py-1 rounded-full">
-                <span className="text-secondary font-bold tracking-[0.2em] uppercase text-[10px]">Elite Access</span>
+                <span className="text-[#FA9DB7] font-bold tracking-[0.2em] uppercase text-[10px]">Elite Access</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-serif font-bold text-primary">Exclusive Memberships</h2>
               <Badge variant="outline" className="border-secondary/30 text-secondary mt-2">
