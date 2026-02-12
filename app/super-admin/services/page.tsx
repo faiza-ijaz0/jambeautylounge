@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Auth } from 'firebase/auth';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,9 @@ import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSideba
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import {  auth } from "@/lib/firebase";
+
 
 // Firebase imports
 import { 
@@ -537,19 +541,19 @@ export default function SuperAdminServices() {
   // Render loading state
   if (loading && services.length === 0) {
     return (
-      <ProtectedRoute requiredRole="super_admin">
+      <div role="super_admin">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-secondary" />
             <p className="text-muted-foreground">Loading services...</p>
           </div>
         </div>
-      </ProtectedRoute>
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute requiredRole="super_admin">
+    <div role="super_admin">
       <div className="flex h-screen bg-gray-50">
         <AdminSidebar role="super_admin" onLogout={handleLogout} />
         <AdminMobileSidebar
@@ -1186,6 +1190,6 @@ export default function SuperAdminServices() {
           </SheetContent>
         </Sheet>
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }

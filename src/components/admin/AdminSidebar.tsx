@@ -859,12 +859,12 @@ const branchAdminNavItems = [
     pageKey: 'membership'
   },
  
-  // {
-  //   title: 'Messages',
-  //   href: '/admin/messages',
-  //   icon: MessageCircle,
-  //   pageKey: 'messages'
-  // },
+  {
+    title: 'Messages',
+    href: '/admin/messages',
+    icon: MessageCircle,
+    pageKey: 'messages'
+  },
   {
     title: 'Custom Invoice',
     href: '/admin/custominvoice',
@@ -1031,7 +1031,12 @@ const superAdminNavItems = [
     pageKey: 'branches'
   },
   
-  
+  {
+    title: 'Users',
+    href: '/super-admin/users',
+    icon: Users,
+    pageKey: 'users'
+  },
 
   {
     title: 'Admin Tools',
@@ -1056,20 +1061,15 @@ const superAdminNavItems = [
         icon: SettingsIcon,
         pageKey: 'settings'
       },
-      {
-    title: 'Users',
-    href: '/super-admin/users',
-    icon: Users,
-    pageKey: 'users'
-  },
+      
     ]
   },
-  // {
-  //   title: 'Messages',
-  //   href: '/super-admin/messages',
-  //   icon: MessageCircle,
-  //   pageKey: 'messages'
-  // },
+  {
+    title: 'Messages',
+    href: '/super-admin/messages',
+    icon: MessageCircle,
+    pageKey: 'messages'
+  },
 ];
 
 interface SidebarContentProps extends Omit<SidebarProps, 'isOpen'> {

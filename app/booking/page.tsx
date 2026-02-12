@@ -685,7 +685,7 @@
 //         staffId: staffMember?.id || "",
 //         staffName: selectedStaff,
 //         staffRole: staffMember?.role || "makeup",
-//         status: "pending",
+//         status: "upcoming",  // ⬅️ CHANGED FROM "pending" TO "upcoming"
 //         subtotal: servicesTotal,
 //         tax: 0,
 //         taxAmount: 0,
@@ -1494,7 +1494,7 @@
 //   );
 // }
 
-// new code
+// new codee
 
 'use client';
 
@@ -1521,7 +1521,8 @@ import {
   getDocs,
   query,
   where,
-  updateDoc
+  updateDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -1604,6 +1605,7 @@ interface CartItem {
   serviceName?: string;
   serviceCategory?: string;
   serviceCategoryId?: string;
+  branchNames?: string[]; // ✅ IMPORTANT: Service ki branches
 }
 
 interface StaffMember {
@@ -1642,6 +1644,23 @@ interface CustomerData {
   loyaltyPoints?: number;
 }
 
+interface BranchData {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  managerName?: string;
+  managerEmail?: string;
+  managerPhone?: string;
+  openingTime?: string;
+  closingTime?: string;
+  status?: string;
+  weeklyTimings?: any;
+}
+
 const useBookingStore = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
@@ -1656,7 +1675,17 @@ const useBookingStore = () => {
     // Load cart items from localStorage
     const savedCart = localStorage.getItem('bookingCart');
     if (savedCart) {
-      setCartItems(JSON.parse(savedCart));
+      try {
+        const parsedCart = JSON.parse(savedCart);
+        // ✅ HAR ITEM KO UNIQUE ID ENSURE KARO
+        const cartWithUniqueIds = parsedCart.map((item: any, index: number) => ({
+          ...item,
+          cartItemId: `cart-${item.id}-${Date.now()}-${index}-${Math.random()}`
+        }));
+        setCartItems(cartWithUniqueIds);
+      } catch (error) {
+        console.error('Error parsing cart:', error);
+      }
     }
     
     // Load customer info if available
@@ -1745,8 +1774,11 @@ export default function BookingCheckout() {
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // New state variables for your exact structure
-  const [branch, setBranch] = useState('first branch');
+  // Branch states - REAL TIME FIREBASE
+  const [branch, setBranch] = useState('');
+  const [branchesList, setBranchesList] = useState<BranchData[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  
   const [paymentMethod, setPaymentMethod] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -1780,17 +1812,85 @@ export default function BookingCheckout() {
     clearCart,
   } = useBookingStore();
 
+  // ✅🔥 REAL-TIME BRANCHES FETCH - SIRF SELECTED SERVICES KI BRANCHES
+  useEffect(() => {
+    setBranchesLoading(true);
+    
+    // 🎯 CART ITEMS SE SARI BRANCH NAMES COLLECT KARO
+    let allBranchNames: string[] = [];
+    
+    if (cartItems.length > 0) {
+      cartItems.forEach(item => {
+        if (item.branchNames && Array.isArray(item.branchNames)) {
+          allBranchNames = [...allBranchNames, ...item.branchNames];
+        }
+      });
+      
+      // 🔥 DUPLICATE REMOVE KARO
+      allBranchNames = [...new Set(allBranchNames)];
+    }
+    
+    console.log("🎯 Filtering branches for:", allBranchNames);
+    
+    // 🎯 AGAR KOI BRANCH NAMES HAIN TOH UNHI KO FILTER KARO
+    if (allBranchNames.length > 0) {
+      // SIRF WOHI BRANCHES JO SERVICES KE BRANCHNAMES MEIN HAIN
+      const branchesQuery = query(
+        collection(db, 'branches'),
+        where('name', 'in', allBranchNames)
+      );
+      
+      // 🔥 REAL-TIME LISTENER
+      const unsubscribe = onSnapshot(branchesQuery, (snapshot) => {
+        const branchesData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })) as BranchData[];
+        
+        console.log("✅ Available branches:", branchesData.map(b => b.name));
+        setBranchesList(branchesData);
+        setBranchesLoading(false);
+        
+        // ✅ AGAR SELECTED BRANCH AVAILABLE NAHI TOH RESET
+        if (branch) {
+          const stillAvailable = branchesData.some(b => b.id === branch || b.name === branch);
+          if (!stillAvailable) {
+            setBranch('');
+          }
+        }
+        
+        // ✅ AGAR SIRF EK BRANCH HAI TOH AUTO-SELECT
+        if (branchesData.length === 1 && !branch) {
+          setBranch(branchesData[0].id);
+        }
+      }, (error) => {
+        console.error("❌ Error fetching branches:", error);
+        setBranchesList([]);
+        setBranchesLoading(false);
+      });
+      
+      return () => unsubscribe();
+    } else {
+      // 🚫 AGAR KOI SERVICE NAHI YA KISI SERVICE ME BRANCH NAMES NAHI
+      console.log("⚠️ No branch names found in cart items");
+      setBranchesList([]);
+      setBranchesLoading(false);
+      setBranch(''); // RESET BRANCH SELECTION
+    }
+    
+  }, [cartItems]); // ✅ JAB BHI CART CHANGE HO, BRANCHES UPDATE HO
+
   // Function to convert loyalty points to AED
   const convertPointsToAED = (points: number): number => {
-    return points / 100; // 100 points = 1 AED
+    return points / 100;
   };
 
   // Function to convert AED to loyalty points
   const convertAEDToPoints = (aed: number): number => {
-    return aed * 100; // 1 AED = 100 points
+    return aed * 100;
   };
 
-  // Check for logged in customer and fetch wallet balance from wallets collection
+  // Check for logged in customer and fetch wallet balance
   useEffect(() => {
     const fetchCustomerData = async () => {
       const authData = localStorage.getItem('customerAuth');
@@ -1800,10 +1900,8 @@ export default function BookingCheckout() {
           if (isAuthenticated && customerData) {
             setIsLoggedIn(true);
             
-            // Check if we have customer ID to fetch wallet balance from wallets collection
             if (customerData.id) {
               try {
-                // Fetch wallet document from 'wallets' collection using customer ID
                 const walletsQuery = query(
                   collection(db, 'wallets'),
                   where('customerId', '==', customerData.id)
@@ -1812,18 +1910,15 @@ export default function BookingCheckout() {
                 const walletSnapshot = await getDocs(walletsQuery);
                 
                 if (!walletSnapshot.empty) {
-                  // Get the first wallet document (should be only one per customer)
                   const walletDoc = walletSnapshot.docs[0];
                   const walletData = walletDoc.data();
                   
-                  // Set customer with wallet balance and loyalty points
                   setCustomer({
                     ...customerData,
                     walletBalance: walletData.balance || 0,
                     loyaltyPoints: walletData.loyaltyPoints || 0
                   });
                 } else {
-                  // If no wallet document exists, create a default one
                   setCustomer({
                     ...customerData,
                     walletBalance: 0,
@@ -1890,7 +1985,6 @@ export default function BookingCheckout() {
         });
         
         setStaffMembers(staffList);
-        // Auto-select first staff if available
         if (staffList.length > 0 && !selectedStaff) {
           setSelectedStaff(staffList[0].name);
         }
@@ -1911,9 +2005,9 @@ export default function BookingCheckout() {
 
   // Calculate total
   const cartTotal = getCartTotal();
-  const finalTotal = cartTotal; // No discount now
+  const finalTotal = cartTotal;
 
-  // Calculate wallet balance in AED from loyalty points
+  // Get wallet balance in AED
   const getWalletBalanceInAED = () => {
     if (!customer || customer.loyaltyPoints === undefined) return 0;
     return convertPointsToAED(customer.loyaltyPoints);
@@ -1934,7 +2028,7 @@ export default function BookingCheckout() {
     return customer.loyaltyPoints - pointsToDeduct;
   };
 
-  // Auto-calculate mixed payment amounts when payment method changes
+  // Auto-calculate mixed payment amounts
   useEffect(() => {
     if (paymentMethod === 'mixed' && customer) {
       const walletBalanceAED = getWalletBalanceInAED();
@@ -1953,11 +2047,9 @@ export default function BookingCheckout() {
   const handleWalletAmountChange = (value: string) => {
     setWalletAmount(value);
     
-    // Auto-calculate cash amount
     const numWallet = parseFloat(value) || 0;
     const walletBalanceAED = getWalletBalanceInAED();
     
-    // Don't allow more than wallet balance
     if (numWallet > walletBalanceAED) {
       setWalletAmount(walletBalanceAED.toFixed(2));
       const remaining = finalTotal - walletBalanceAED;
@@ -1975,7 +2067,6 @@ export default function BookingCheckout() {
   const handleCashAmountChange = (value: string) => {
     setCashAmount(value);
     
-    // Auto-calculate wallet amount
     const numCash = parseFloat(value) || 0;
     const walletBalanceAED = getWalletBalanceInAED();
     
@@ -1984,11 +2075,9 @@ export default function BookingCheckout() {
       setWalletAmount('0.00');
     } else {
       const remaining = finalTotal - numCash;
-      // Don't allow more than wallet balance
       const walletPay = Math.min(remaining, walletBalanceAED);
       setWalletAmount(walletPay.toFixed(2));
       
-      // Adjust cash if wallet can't cover the remaining
       if (walletPay < remaining) {
         const adjustedCash = finalTotal - walletPay;
         setCashAmount(adjustedCash.toFixed(2));
@@ -2050,48 +2139,45 @@ export default function BookingCheckout() {
       return;
     }
 
-    // Payment method validation
+    // ✅ BRANCH VALIDATION
+    if (!branch) {
+      setValidationError('Please select a branch.');
+      return;
+    }
+
     if (!paymentMethod) {
       setValidationError('Please select a payment method.');
       return;
     }
     
-    // If wallet or mixed payment selected but not logged in
     if ((paymentMethod === 'wallet' || paymentMethod === 'mixed') && !isLoggedIn) {
       setValidationError('Wallet and Mixed Payment require account. Please sign in or use COD.');
       return;
     }
 
-    // Calculate total amount from all services
     const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-    const finalAmount = servicesTotal; // No discount
-
-    // Get wallet balance in AED
+    const finalAmount = servicesTotal;
     const walletBalanceAED = getWalletBalanceInAED();
 
-    // Check if wallet has sufficient balance for digital wallet payment
     if (paymentMethod === 'wallet' && customer) {
       if (walletBalanceAED < finalAmount) {
-        setValidationError(`Insufficient wallet balance. Your balance is $${walletBalanceAED.toFixed(2)} but total is $${finalAmount.toFixed(2)}. Please choose another payment method.`);
+        setValidationError(`Insufficient wallet balance. Your balance is AED ${walletBalanceAED.toFixed(2)} but total is AED ${finalAmount.toFixed(2)}. Please choose another payment method.`);
         return;
       }
     }
 
-    // Validate mixed payment amounts
     if (paymentMethod === 'mixed') {
       const numWalletAmount = getNumericWalletAmount();
       const numCashAmount = getNumericCashAmount();
-      
-      // Check if amounts equal total
       const totalPaid = numWalletAmount + numCashAmount;
-      if (Math.abs(totalPaid - finalAmount) > 0.01) { // Allow small floating point difference
-        setValidationError(`Mixed payment amounts must equal the total of $${finalAmount.toFixed(2)}. Current: Wallet $${numWalletAmount.toFixed(2)} + Cash $${numCashAmount.toFixed(2)} = $${totalPaid.toFixed(2)}`);
+      
+      if (Math.abs(totalPaid - finalAmount) > 0.01) {
+        setValidationError(`Mixed payment amounts must equal the total of AED ${finalAmount.toFixed(2)}. Current: Wallet AED ${numWalletAmount.toFixed(2)} + Cash AED ${numCashAmount.toFixed(2)} = AED ${totalPaid.toFixed(2)}`);
         return;
       }
       
-      // Check if wallet amount exceeds balance
       if (numWalletAmount > walletBalanceAED) {
-        setValidationError(`Wallet amount ($${numWalletAmount.toFixed(2)}) exceeds your balance ($${walletBalanceAED.toFixed(2)})`);
+        setValidationError(`Wallet amount (AED ${numWalletAmount.toFixed(2)}) exceeds your balance (AED ${walletBalanceAED.toFixed(2)})`);
         return;
       }
     }
@@ -2100,7 +2186,6 @@ export default function BookingCheckout() {
     setIsSubmitting(true);
 
     try {
-      // Get customer data
       const authData = localStorage.getItem('customerAuth');
       let customerId = 'guest';
       let customerData = null;
@@ -2115,18 +2200,19 @@ export default function BookingCheckout() {
         }
       }
 
-      // Find selected staff details
       const staffMember = staffMembers.find(s => s.name === selectedStaff);
       
-      // Calculate totals
-      const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-      const finalAmount = servicesTotal; // No discount
+      // ✅ FIND SELECTED BRANCH DETAILS
+      const selectedBranchData = branchesList.find(b => b.id === branch || b.name === branch);
+      const branchName = selectedBranchData?.name || branch;
+      const branchId = selectedBranchData?.id || branch;
       
-      // Get numeric amounts for booking
+      const servicesTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+      const finalAmount = servicesTotal;
+      
       const numWalletAmount = getNumericWalletAmount();
       const numCashAmount = getNumericCashAmount();
       
-      // Calculate wallet payment vs cash payment
       let walletPayment = 0;
       let cashPayment = 0;
       
@@ -2141,15 +2227,14 @@ export default function BookingCheckout() {
         cashPayment = finalAmount;
       }
       
-      // Prepare booking data according to your EXACT structure
       const bookingData: BookingData = {
         bookingDate: selectedDate,
         bookingNumber: generateBookingNumber(),
         bookingTime: selectedTime + ' AM',
-        branch: branch,
-        branchId: branch,
-        branchNames: [branch],
-        branches: [branch],
+        branch: branchName,
+        branchId: branchId,
+        branchNames: [branchName],
+        branches: [branchId],
         cardLast4Digits: "",
         createdAt: serverTimestamp(),
         createdBy: "customer_booking",
@@ -2159,8 +2244,8 @@ export default function BookingCheckout() {
         customerPhone: customerPhone,
         date: formatFirebaseDate(),
         notes: notes || specialRequests || (paymentMethod === 'mixed' 
-          ? `Payment Method: Mixed Payment. Wallet: $${walletPayment.toFixed(2)} AED, Cash: $${cashPayment.toFixed(2)} AED` 
-          : `Payment Method: ${paymentMethod}. Wallet: $${walletPayment.toFixed(2)} AED, Cash: $${cashPayment.toFixed(2)} AED`),
+          ? `Payment Method: Mixed Payment. Wallet: AED ${walletPayment.toFixed(2)}, Cash: AED ${cashPayment.toFixed(2)}` 
+          : `Payment Method: ${paymentMethod}. Wallet: AED ${walletPayment.toFixed(2)}, Cash: AED ${cashPayment.toFixed(2)}`),
         paymentAmounts: {
           wallet: walletPayment,
           cash: cashPayment
@@ -2183,7 +2268,7 @@ export default function BookingCheckout() {
         staffId: staffMember?.id || "",
         staffName: selectedStaff,
         staffRole: staffMember?.role || "makeup",
-        status: "upcoming",  // ⬅️ CHANGED FROM "pending" TO "upcoming"
+        status: "upcoming",
         subtotal: servicesTotal,
         tax: 0,
         taxAmount: 0,
@@ -2202,19 +2287,16 @@ export default function BookingCheckout() {
         totalTips: 0,
         trnNumber: "",
         updatedAt: serverTimestamp(),
-        userBranchId: branch,
-        userBranchName: branch,
+        userBranchId: branchId,
+        userBranchName: branchName,
         userRole: "admin"
       };
 
-      // Save to Firebase bookings collection
       const bookingsRef = collection(db, 'bookings');
       const docRef = await addDoc(bookingsRef, bookingData);
       
-      // If payment is by wallet or mixed with wallet portion, update wallet balance in Firebase
       if ((paymentMethod === 'wallet' || (paymentMethod === 'mixed' && walletPayment > 0)) && customer && customer.id) {
         try {
-          // Find wallet document
           const walletsQuery = query(
             collection(db, 'wallets'),
             where('customerId', '==', customer.id)
@@ -2226,19 +2308,16 @@ export default function BookingCheckout() {
             const walletDoc = walletSnapshot.docs[0];
             const walletData = walletDoc.data();
             
-            // Convert AED to points for deduction
             const pointsToDeduct = convertAEDToPoints(walletPayment);
             const newLoyaltyPoints = Math.max(0, (walletData.loyaltyPoints || 0) - pointsToDeduct);
             const newBalance = Math.max(0, (walletData.balance || 0) - walletPayment);
             
-            // Update wallet document with new balance
             await updateDoc(walletDoc.ref, {
               loyaltyPoints: newLoyaltyPoints,
               balance: newBalance,
               updatedAt: serverTimestamp()
             });
             
-            // Create wallet transaction record
             await addDoc(collection(db, 'walletTransactions'), {
               customerId: customer.id,
               customerName: customer.name,
@@ -2258,7 +2337,6 @@ export default function BookingCheckout() {
               updatedAt: serverTimestamp()
             });
             
-            // Update local customer state with new balance
             setCustomer({
               ...customer,
               loyaltyPoints: newLoyaltyPoints,
@@ -2267,16 +2345,11 @@ export default function BookingCheckout() {
           }
         } catch (walletError) {
           console.error('Error updating wallet balance:', walletError);
-          // Don't fail the booking if wallet update fails
         }
       }
       
       setConfirmedBookingId(bookingData.bookingNumber);
-      
-      // Clear cart
       clearCart();
-      
-      // Show success
       setBookingConfirmed(true);
       
     } catch (error) {
@@ -2420,18 +2493,50 @@ export default function BookingCheckout() {
                         required
                       />
                     </div>
+                    
+                    {/* ✅🔥 FIXED BRANCH DROPDOWN - REAL-TIME FIREBASE, FILTERED BY SELECTED SERVICES */}
                     <div className="space-y-1.5">
                       <Label htmlFor="branch" className="text-[10px] uppercase tracking-widest font-bold">Branch *</Label>
-                      <Select value={branch} onValueChange={setBranch}>
+                      <Select 
+                        value={branch} 
+                        onValueChange={setBranch}
+                        disabled={branchesLoading || branchesList.length === 0}
+                      >
                         <SelectTrigger className="rounded-none border-gray-200 h-10 text-sm">
-                          <SelectValue placeholder="Select branch" />
+                          <SelectValue placeholder={
+                            cartItems.length === 0 
+                              ? "Select a service first" 
+                              : branchesLoading 
+                                ? "Loading branches..." 
+                                : branchesList.length === 0 
+                                  ? "No branches available" 
+                                  : "Select branch"
+                          } />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="first branch">First Branch</SelectItem>
-                          <SelectItem value="second branch">Second Branch</SelectItem>
-                          <SelectItem value="third branch">Third Branch</SelectItem>
+                          {/* 🚫 NO DUMMY BRANCHES - SIRF FILTERED BRANCHES FROM FIREBASE */}
+                          {branchesList.map((branchItem) => (
+                            <SelectItem key={branchItem.id} value={branchItem.id}>
+                              {branchItem.name} 
+                              {branchItem.city && ` - ${branchItem.city}`}
+                              {branchItem.country && `, ${branchItem.country}`}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
+                      
+                      {/* HELPER TEXT */}
+                      {cartItems.length > 0 && !branchesLoading && branchesList.length === 0 && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          ⚠️ Selected services are not available at any branch
+                        </p>
+                      )}
+                      
+                      {!branchesLoading && branchesList.length > 0 && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✓ {branchesList.length} branch{branchesList.length > 1 ? 'es' : ''} available
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-1.5">
@@ -2484,7 +2589,7 @@ export default function BookingCheckout() {
                 </CardContent>
               </Card>
 
-              {/* Staff Selection - NOW AS A DROPDOWN */}
+              {/* Staff Selection */}
               <Card className="border-none shadow-sm rounded-none">
                 <CardHeader className="border-b border-gray-50 py-4">
                   <CardTitle className="text-xl font-serif font-bold flex items-center gap-2">
@@ -2500,7 +2605,7 @@ export default function BookingCheckout() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase tracking-widest font-bold">Select Staff Member *</Label>
-                        <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+                        <Select value="select" onValueChange={setSelectedStaff}>
                           <SelectTrigger className="rounded-none border-gray-200 h-10 text-sm">
                             <SelectValue placeholder="Select a staff member" />
                           </SelectTrigger>
@@ -2557,7 +2662,7 @@ export default function BookingCheckout() {
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
                   <div className="grid grid-cols-3 gap-3">
-                    {/* Mixed Payment - Only show if user is logged in */}
+                    {/* Mixed Payment */}
                     <button
                       onClick={() => isLoggedIn && setPaymentMethod('mixed')}
                       disabled={!isLoggedIn}
@@ -2582,7 +2687,7 @@ export default function BookingCheckout() {
                       <span className="text-xs text-gray-500">Wallet + Cash</span>
                     </button>
                     
-                    {/* Digital Wallet - Only show if user is logged in */}
+                    {/* Digital Wallet */}
                     <button
                       onClick={() => isLoggedIn && setPaymentMethod('wallet')}
                       disabled={!isLoggedIn}
@@ -2607,7 +2712,7 @@ export default function BookingCheckout() {
                       <span className="text-xs text-gray-500">Online Payment</span>
                     </button>
                     
-                    {/* COD Option - Always show and enabled */}
+                    {/* COD Option */}
                     <button
                       onClick={() => setPaymentMethod('cod')}
                       className={cn(
@@ -2758,12 +2863,12 @@ export default function BookingCheckout() {
                           </div>
                         )}
                         
-                        {/* Show warning if wallet balance is insufficient for digital wallet payment */}
+                        {/* Show warning if wallet balance is insufficient */}
                         {paymentMethod === 'wallet' && getWalletBalanceInAED() < finalTotal && (
                           <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-xs text-red-700">
                               <AlertCircle className="w-3 h-3 inline mr-1" />
-                              Insufficient wallet balance. You need additional ${(finalTotal - getWalletBalanceInAED()).toFixed(2)} AED.
+                              Insufficient wallet balance. You need additional AED {(finalTotal - getWalletBalanceInAED()).toFixed(2)}.
                             </p>
                           </div>
                         )}
@@ -2852,8 +2957,12 @@ export default function BookingCheckout() {
                         </Button>
                       </div>
                     ) : (
-                      cartItems.map((item) => (
-                        <div key={item.id} className="space-y-3 pb-4 border-b border-white/10 last:border-0">
+                      // ✅ FIXED: UNIQUE KEY FOR EACH CART ITEM
+                      cartItems.map((item, index) => (
+                        <div 
+                          key={`cart-${item.id}-${index}-${Date.now()}`} 
+                          className="space-y-3 pb-4 border-b border-white/10 last:border-0"
+                        >
                           <div className="flex justify-between items-start group">
                             <div className="space-y-0.5">
                               <p className="font-serif font-bold text-sm">{item.name}</p>
@@ -2874,7 +2983,6 @@ export default function BookingCheckout() {
                               </button>
                             </div>
                           </div>
-                          
                         </div>
                       ))
                     )}
@@ -2969,7 +3077,7 @@ export default function BookingCheckout() {
 
                       <Button 
                         className="w-full bg-secondary hover:bg-secondary/90 text-primary font-bold py-6 rounded-lg tracking-[0.2em] text-xs shadow-lg shadow-secondary/20 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                        disabled={isSubmitting || !customerName || !customerEmail || !customerPhone || !selectedDate || !selectedTime || cartItems.length === 0 || !paymentMethod || 
+                        disabled={isSubmitting || !customerName || !customerEmail || !customerPhone || !selectedDate || !selectedTime ||  cartItems.length === 0 || !paymentMethod || 
                           (paymentMethod === 'wallet' && getWalletBalanceInAED() < finalTotal) ||
                           (paymentMethod === 'mixed' && (Math.abs((getNumericWalletAmount() + getNumericCashAmount()) - finalTotal) > 0.01 || (getNumericWalletAmount() > getWalletBalanceInAED())))}
                         onClick={handleConfirmBooking}
@@ -2983,7 +3091,6 @@ export default function BookingCheckout() {
                   )}
                 </CardContent>
               </Card>
-
             </div>
           </div>
         </div>
