@@ -20,7 +20,17 @@
 //   Loader2,
 //   Search,
 //   Users,
-//   Sparkles
+//   Sparkles,
+//   Image as ImageIcon,
+//   X,
+//   MoreVertical,
+//   Trash2,
+//   Edit,
+//   EyeOff,
+//   CheckCircle,
+//   Reply,
+//   Copy,
+//   ReplyAll
 // } from "lucide-react";
 // import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
 // import { cn } from "@/lib/utils";
@@ -35,6 +45,9 @@
 //   onSnapshot,
 //   addDoc,
 //   serverTimestamp,
+//   doc,
+//   updateDoc,
+//   deleteDoc
 // } from 'firebase/firestore';
 // import {
 //   Select,
@@ -43,6 +56,14 @@
 //   SelectTrigger,
 //   SelectValue,
 // } from "@/components/ui/select";
+// import {
+//   DropdownMenu,
+//   DropdownMenuContent,
+//   DropdownMenuItem,
+//   DropdownMenuLabel,
+//   DropdownMenuSeparator,
+//   DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
 
 // interface Message {
 //   id: string;
@@ -58,6 +79,17 @@
 //   read: boolean;
 //   status: 'sent' | 'delivered' | 'seen';
 //   collection: 'adminMessages' | 'branchMessages';
+//   imageBase64?: string;
+//   imageName?: string;
+//   deletedFor?: string[];
+//   deletedForEveryone?: boolean;
+//   edited?: boolean;
+//   editedAt?: any;
+//   // ✅ Reply Fields - Sab optional
+//   replyToId?: string;
+//   replyToContent?: string;
+//   replyToSender?: string;
+//   replyToImage?: string;
 // }
 
 // export default function SuperAdminMessages() {
@@ -72,17 +104,33 @@
 //   const [selectedBranchDetails, setSelectedBranchDetails] = useState<any>(null);
 //   const [branchSearchQuery, setBranchSearchQuery] = useState('');
   
+//   // ✅ Reply State
+//   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  
+//   // ✅ Edit Message States
+//   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+//   const [editContent, setEditContent] = useState('');
+//   const editInputRef = useRef<HTMLInputElement>(null);
+  
+//   // ✅ Image States
+//   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+//   const [imagePreview, setImagePreview] = useState<string | null>(null);
+//   const [uploadingImage, setUploadingImage] = useState(false);
+//   const fileInputRef = useRef<HTMLInputElement>(null);
+  
 //   const messagesScrollRef = useRef<HTMLDivElement>(null);
 //   const branchDetailsRef = useRef<any>(null);
+//   const replyInputRef = useRef<HTMLInputElement>(null);
 
-//   // ✅ FIXED: Branch change - SIRF messages container scroll hoga
+//   // Get current user ID
+//   const currentUserId = (user as any)?.uid || 'super-admin';
+
 //   useEffect(() => {
 //     if (selectedBranchId && messagesScrollRef.current) {
 //       messagesScrollRef.current.scrollTop = 0;
 //     }
 //   }, [selectedBranchId]);
 
-//   // ✅ FIXED: Auto scroll - SIRF messages container scroll hoga, page nahi
 //   useEffect(() => {
 //     if (messagesScrollRef.current) {
 //       const { scrollTop, scrollHeight, clientHeight } = messagesScrollRef.current;
@@ -124,7 +172,7 @@
 //     fetchBranches();
 //   }, []);
 
-//   // Branch details - KABHI RESET NAHI HOGA
+//   // Branch details
 //   useEffect(() => {
 //     if (selectedBranchId) {
 //       const branch = branches.find(b => b.id === selectedBranchId);
@@ -202,31 +250,185 @@
 //     };
 //   }, [selectedBranchId]);
 
+//   // ✅ Image Selection Handler
+//   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+//     const file = e.target.files?.[0];
+//     if (file) {
+//       if (file.size > 1024 * 1024) {
+//         alert('Image size should be less than 1MB');
+//         return;
+//       }
+      
+//       setSelectedImage(file);
+//       const reader = new FileReader();
+//       reader.onloadend = () => {
+//         setImagePreview(reader.result as string);
+//       };
+//       reader.readAsDataURL(file);
+//     }
+//   };
+
+//   // ✅ Clear Selected Image
+//   const clearSelectedImage = () => {
+//     setSelectedImage(null);
+//     setImagePreview(null);
+//     if (fileInputRef.current) {
+//       fileInputRef.current.value = '';
+//     }
+//   };
+
+//   // ✅ Clear Reply
+//   const clearReply = () => {
+//     setReplyingTo(null);
+//   };
+
+//   // ✅ Convert Image to Base64
+//   const convertImageToBase64 = (file: File): Promise<string> => {
+//     return new Promise((resolve, reject) => {
+//       const reader = new FileReader();
+//       reader.readAsDataURL(file);
+//       reader.onload = () => resolve(reader.result as string);
+//       reader.onerror = error => reject(error);
+//     });
+//   };
+
+//   // ✅ FIXED: Send Message with Reply - NO UNDEFINED FIELDS!
 //   const handleSendMessage = async () => {
-//     if (!newMessage.trim() || !selectedBranchId) return;
+//     if ((!newMessage.trim() && !selectedImage) || !selectedBranchId) return;
 
 //     const selectedBranch = branches.find(b => b.id === selectedBranchId);
 //     if (!selectedBranch) return;
 
+//     setUploadingImage(true);
 //     const messageContent = newMessage;
 //     setNewMessage('');
 
 //     try {
-//       await addDoc(collection(db, 'adminMessages'), {
+//       let imageBase64 = null;
+//       let imageName = null;
+
+//       if (selectedImage) {
+//         imageBase64 = await convertImageToBase64(selectedImage);
+//         imageName = selectedImage.name;
+//         clearSelectedImage();
+//       }
+
+//       // ✅ Base message data - Sirf required fields
+//       const messageData: any = {
 //         content: messageContent,
-//         senderId: (user as any)?.uid || 'super-admin',
+//         senderId: currentUserId,
 //         senderName: 'Super Admin',
 //         senderRole: 'super_admin',
 //         recipientBranchId: selectedBranchId,
 //         recipientBranchName: selectedBranch.name,
 //         timestamp: serverTimestamp(),
 //         read: false,
-//         status: 'sent'
-//       });
+//         status: 'sent',
+//         deletedFor: [],
+//         deletedForEveryone: false,
+//         edited: false
+//       };
+
+//       // ✅ Add image only if exists
+//       if (imageBase64) {
+//         messageData.imageBase64 = imageBase64;
+//         messageData.imageName = imageName;
+//       }
+
+//       // ✅ FIXED: Add reply info ONLY if replying to a message and check for undefined
+//       if (replyingTo) {
+//         messageData.replyToId = replyingTo.id;
+//         messageData.replyToContent = replyingTo.content || '';
+//         messageData.replyToSender = replyingTo.senderName || 'Someone';
+//         // ✅ IMPORTANT: Only add replyToImage if it exists
+//         if (replyingTo.imageBase64) {
+//           messageData.replyToImage = replyingTo.imageBase64;
+//         }
+//       }
+
+//       await addDoc(collection(db, 'adminMessages'), messageData);
+      
+//       // ✅ Clear reply after sending
+//       clearReply();
 //     } catch (error) {
 //       console.error('Send error:', error);
 //       setNewMessage(messageContent);
+//     } finally {
+//       setUploadingImage(false);
 //     }
+//   };
+
+//   // ✅ COPY MESSAGE
+//   const handleCopyMessage = async (content: string) => {
+//     try {
+//       await navigator.clipboard.writeText(content);
+//       alert('Message copied to clipboard!');
+//     } catch (error) {
+//       console.error('Copy error:', error);
+//     }
+//   };
+
+//   // ✅ DELETE FOR ME
+//   const handleDeleteForMe = async (message: Message) => {
+//     try {
+//       const messageRef = doc(db, message.collection, message.id);
+//       const deletedFor = message.deletedFor || [];
+      
+//       if (!deletedFor.includes(currentUserId)) {
+//         deletedFor.push(currentUserId);
+//         await updateDoc(messageRef, { deletedFor });
+//       }
+//     } catch (error) {
+//       console.error('Delete for me error:', error);
+//     }
+//   };
+
+//   // ✅ DELETE FOR EVERYONE
+//   const handleDeleteForEveryone = async (message: Message) => {
+//     if (!confirm('Are you sure you want to delete this message for everyone? This action cannot be undone.')) {
+//       return;
+//     }
+    
+//     try {
+//       const messageRef = doc(db, message.collection, message.id);
+//       await deleteDoc(messageRef);
+//     } catch (error) {
+//       console.error('Delete for everyone error:', error);
+//     }
+//   };
+
+//   // ✅ EDIT MESSAGE
+//   const handleEditMessage = async () => {
+//     if (!editingMessage || !editContent.trim()) return;
+
+//     try {
+//       const messageRef = doc(db, editingMessage.collection, editingMessage.id);
+//       await updateDoc(messageRef, {
+//         content: editContent,
+//         edited: true,
+//         editedAt: serverTimestamp()
+//       });
+      
+//       setEditingMessage(null);
+//       setEditContent('');
+//     } catch (error) {
+//       console.error('Edit message error:', error);
+//     }
+//   };
+
+//   // ✅ Start editing
+//   const startEditing = (message: Message) => {
+//     setEditingMessage(message);
+//     setEditContent(message.content || '');
+//     setTimeout(() => {
+//       editInputRef.current?.focus();
+//     }, 100);
+//   };
+
+//   // ✅ Cancel editing
+//   const cancelEditing = () => {
+//     setEditingMessage(null);
+//     setEditContent('');
 //   };
 
 //   const formatMessageTime = (timestamp: any) => {
@@ -241,7 +443,13 @@
 //     }
 //   };
 
-//   const groupedMessages = messages.reduce((groups: any, msg) => {
+//   // ✅ Filter out messages that are deleted for current user
+//   const visibleMessages = messages.filter(msg => {
+//     const deletedFor = msg.deletedFor || [];
+//     return !deletedFor.includes(currentUserId) && !msg.deletedForEveryone;
+//   });
+
+//   const groupedMessages = visibleMessages.reduce((groups: any, msg) => {
 //     try {
 //       const date = msg.timestamp?.toDate 
 //         ? format(msg.timestamp.toDate(), 'yyyy-MM-dd')
@@ -350,7 +558,7 @@
 //                       <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-gray-200/80 hover:border-[#FA9DB7]/50 focus:ring-2 focus:ring-[#FA9DB7]/30 rounded-2xl bg-white/80">
 //                         <SelectValue placeholder={
 //                           <div className="flex items-center gap-3 text-gray-500">
-//                             <Building className="w-5 h-5 text-[#FA9DB7]" />
+//                             <Building className="w-3 h-3 text-[#FA9DB7]" />
 //                             <span>{loadingBranches ? "Loading branches..." : "Choose a branch to start conversation"}</span>
 //                           </div>
 //                         } />
@@ -375,14 +583,13 @@
 //                               className="rounded-xl py-3 px-3 cursor-pointer hover:bg-[#FA9DB7]/5"
 //                             >
 //                               <div className="flex items-start gap-3">
-//                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 flex items-center justify-center">
+//                                 <div className="w-8 h-8 mt-1 rounded-xl bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 flex items-center justify-center">
 //                                   <Building className="w-5 h-5 text-[#B84A68]" />
 //                                 </div>
 //                                 <div className="flex-1">
 //                                   <div className="font-semibold text-gray-900">{branch.name}</div>
 //                                   <div className="flex items-center gap-2 mt-1">
-//                                     <MapPin className="w-3 h-3 text-gray-400" />
-//                                     <span className="text-xs text-gray-500">{branch.city}, {branch.country}</span>
+//                                     <span className="text-xs text-gray-500">{branch.country}</span>
 //                                   </div>
 //                                 </div>
 //                               </div>
@@ -416,7 +623,7 @@
 //                   <div className="bg-white border-b border-gray-200/80 px-6 py-5 shrink-0">
 //                     <div className="flex items-start gap-5">
 //                       <div className="relative">
-//                         <Avatar className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl">
+//                         <Avatar className="w-14 h-14 rounded-2xl border-4 border-white shadow-xl">
 //                           <AvatarImage src={displayBranchDetails.image} />
 //                           <AvatarFallback className="bg-gradient-to-br from-[#FA9DB7] to-[#B84A68] text-white text-2xl font-serif">
 //                             {displayBranchDetails.name?.charAt(0)}
@@ -433,45 +640,16 @@
 //                           <Badge className="bg-[#FA9DB7]/10 text-[#B84A68] border-0 rounded-full px-4 py-1">
 //                             Branch Admin
 //                           </Badge>
+//                           <span className="text-gray-600">
+//                             {displayBranchDetails.address || ''}, {displayBranchDetails.city || ''}, {displayBranchDetails.country || ''}
+//                           </span>
+//                           <Phone className="w-4 h-4 text-[#FA9DB7] shrink-0" />
+//                           <span className="text-gray-600">{displayBranchDetails.phone || 'N/A'}</span>
+//                           <Mail className="w-4 h-4 text-[#FA9DB7] shrink-0" />
+//                           <span className="text-gray-600">{displayBranchDetails.email || 'N/A'}</span>
+//                           <Users className="w-4 h-4 text-[#FA9DB7] shrink-0" />
+//                           <span className="text-gray-600">Manager: {displayBranchDetails.managerName || 'N/A'}</span>
 //                         </div>
-                        
-//                         <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-//                           <div className="flex items-center gap-2 text-sm col-span-2">
-//                             <MapPin className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-//                             <span className="text-gray-600">
-//                               {displayBranchDetails.address || ''}, {displayBranchDetails.city || ''}, {displayBranchDetails.country || ''}
-//                             </span>
-//                           </div>
-                          
-//                           <div className="flex items-center gap-2 text-sm">
-//                             <Phone className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-//                             <span className="text-gray-600">{displayBranchDetails.phone || 'N/A'}</span>
-//                           </div>
-                          
-//                           <div className="flex items-center gap-2 text-sm">
-//                             <Mail className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-//                             <span className="text-gray-600">{displayBranchDetails.email || 'N/A'}</span>
-//                           </div>
-                          
-//                           <div className="flex items-center gap-2 text-sm">
-//                             <Users className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-//                             <span className="text-gray-600">Manager: {displayBranchDetails.managerName || 'N/A'}</span>
-//                           </div>
-                          
-//                           <div className="flex items-center gap-2 text-sm">
-//                             <Clock className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-//                             <span className="text-gray-600">{displayBranchDetails.openingTime || '09:00'} - {displayBranchDetails.closingTime || '18:00'}</span>
-//                           </div>
-//                         </div>
-//                       </div>
-                      
-//                       <div className="flex items-center gap-2 shrink-0">
-//                         <Button variant="outline" size="icon" className="rounded-full w-10 h-10 border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5">
-//                           <Phone className="w-4 h-4 text-gray-600" />
-//                         </Button>
-//                         <Button variant="outline" size="icon" className="rounded-full w-10 h-10 border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5">
-//                           <Mail className="w-4 h-4 text-gray-600" />
-//                         </Button>
 //                       </div>
 //                     </div>
 //                   </div>
@@ -490,7 +668,7 @@
 //                               <span className="text-sm text-gray-600">Loading conversation...</span>
 //                             </div>
 //                           </div>
-//                         ) : messages.length === 0 ? (
+//                         ) : visibleMessages.length === 0 ? (
 //                           <div className="flex flex-col items-center justify-center h-[300px]">
 //                             <div className="w-24 h-24 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mb-4">
 //                               <MessageCircle className="w-12 h-12 text-[#B84A68]" />
@@ -513,6 +691,7 @@
 //                                 <div className="space-y-3">
 //                                   {(dateMessages as Message[]).map((msg) => {
 //                                     const isMe = msg.senderRole === 'super_admin';
+//                                     const replyMessage = msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null;
                                     
 //                                     return (
 //                                       <div key={msg.id} className={cn("flex items-end gap-2", isMe ? "justify-end" : "justify-start")}>
@@ -529,7 +708,7 @@
                                         
 //                                         <div className={cn("max-w-xs lg:max-w-md", isMe ? "order-2" : "order-1")}>
 //                                           <div className={cn(
-//                                             "px-4 py-2.5 rounded-2xl text-sm shadow-sm",
+//                                             "px-4 py-2.5 rounded-2xl text-sm shadow-sm relative group/message",
 //                                             isMe 
 //                                               ? "bg-gradient-to-br from-[#dcf8c6] to-[#c8e6b5] text-gray-800 rounded-br-none" 
 //                                               : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
@@ -540,10 +719,78 @@
 //                                               </p>
 //                                             )}
                                             
-//                                             <p className="whitespace-pre-wrap break-words leading-relaxed">
-//                                               {msg.content}
-//                                             </p>
+//                                             {/* ✅ Reply Indicator */}
+//                                             {msg.replyToId && (
+//                                               <div className="mb-2 pl-2 border-l-3 border-[#FA9DB7] bg-gray-50 p-2 rounded-lg text-xs">
+//                                                 <p className="text-[#B84A68] font-semibold flex items-center gap-1">
+//                                                   <ReplyAll className="w-3 h-3" />
+//                                                   Replying to {msg.replyToSender || 'someone'}
+//                                                 </p>
+//                                                 <p className="text-gray-600 line-clamp-2">
+//                                                   {msg.replyToContent || '📷 Image'}
+//                                                 </p>
+//                                                 {msg.replyToImage && (
+//                                                   <span className="text-gray-500 text-[10px]">🖼️ Image</span>
+//                                                 )}
+//                                               </div>
+//                                             )}
                                             
+//                                             {/* Edit Mode */}
+//                                             {editingMessage?.id === msg.id ? (
+//                                               <div className="flex items-center gap-2">
+//                                                 <Input
+//                                                   ref={editInputRef}
+//                                                   value={editContent}
+//                                                   onChange={(e) => setEditContent(e.target.value)}
+//                                                   className="flex-1 bg-white border-gray-200 focus:border-[#FA9DB7] rounded-lg"
+//                                                   onKeyPress={(e) => e.key === 'Enter' && handleEditMessage()}
+//                                                 />
+//                                                 <Button
+//                                                   size="sm"
+//                                                   variant="ghost"
+//                                                   className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+//                                                   onClick={handleEditMessage}
+//                                                 >
+//                                                   <CheckCircle className="w-4 h-4" />
+//                                                 </Button>
+//                                                 <Button
+//                                                   size="sm"
+//                                                   variant="ghost"
+//                                                   className="h-8 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+//                                                   onClick={cancelEditing}
+//                                                 >
+//                                                   <X className="w-4 h-4" />
+//                                                 </Button>
+//                                               </div>
+//                                             ) : (
+//                                               <>
+//                                                 {/* Message Content */}
+//                                                 {msg.content && (
+//                                                   <p className="whitespace-pre-wrap break-words leading-relaxed mb-2">
+//                                                     {msg.content}
+//                                                     {msg.edited && (
+//                                                       <span className="text-[10px] text-gray-500 ml-1 italic">
+//                                                         (edited)
+//                                                       </span>
+//                                                     )}
+//                                                   </p>
+//                                                 )}
+                                                
+//                                                 {/* Image Display */}
+//                                                 {msg.imageBase64 && (
+//                                                   <div className="mb-2 rounded-lg overflow-hidden border border-gray-200">
+//                                                     <img 
+//                                                       src={msg.imageBase64} 
+//                                                       alt={msg.imageName || 'Shared image'}
+//                                                       className="max-w-full h-auto max-h-64 object-contain"
+//                                                       loading="lazy"
+//                                                     />
+//                                                   </div>
+//                                                 )}
+//                                               </>
+//                                             )}
+                                            
+//                                             {/* Time & Status */}
 //                                             <div className={cn(
 //                                               "flex items-center justify-end gap-1 mt-1 text-[10px]",
 //                                               isMe ? "text-gray-600" : "text-gray-400"
@@ -553,6 +800,70 @@
 //                                               {isMe && msg.status === 'delivered' && <CheckCheck className="w-3 h-3" />}
 //                                               {isMe && msg.status === 'seen' && <CheckCheck className="w-3 h-3 text-blue-600" />}
 //                                             </div>
+
+//                                             {/* Actions Menu */}
+//                                             {editingMessage?.id !== msg.id && (
+//                                               <div className="absolute -top-2 -right-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
+//                                                 <DropdownMenu>
+//                                                   <DropdownMenuTrigger asChild>
+//                                                     <Button
+//                                                       variant="ghost"
+//                                                       size="icon"
+//                                                       className="h-8 w-8 rounded-full bg-white shadow-md hover:bg-gray-100"
+//                                                     >
+//                                                       <MoreVertical className="w-4 h-4" />
+//                                                     </Button>
+//                                                   </DropdownMenuTrigger>
+//                                                   <DropdownMenuContent align="end" className="w-56">
+//                                                     <DropdownMenuLabel>Message Actions</DropdownMenuLabel>
+//                                                     <DropdownMenuSeparator />
+                                                    
+//                                                     {/* Reply - Sab ke liye */}
+//                                                     <DropdownMenuItem onClick={() => setReplyingTo(msg)}>
+//                                                       <Reply className="w-4 h-4 mr-2" />
+//                                                       Reply
+//                                                     </DropdownMenuItem>
+                                                    
+//                                                     {/* Copy - Sirf text messages ke liye */}
+//                                                     {msg.content && (
+//                                                       <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
+//                                                         <Copy className="w-4 h-4 mr-2" />
+//                                                         Copy Text
+//                                                       </DropdownMenuItem>
+//                                                     )}
+                                                    
+//                                                     <DropdownMenuSeparator />
+                                                    
+//                                                     {/* Edit - Sirf apne messages ke liye */}
+//                                                     {isMe && (
+//                                                       <DropdownMenuItem onClick={() => startEditing(msg)}>
+//                                                         <Edit className="w-4 h-4 mr-2" />
+//                                                         Edit Message
+//                                                       </DropdownMenuItem>
+//                                                     )}
+                                                    
+//                                                     {/* Delete for me - Sirf apne messages ke liye */}
+//                                                     {isMe && (
+//                                                       <DropdownMenuItem onClick={() => handleDeleteForMe(msg)}>
+//                                                         <EyeOff className="w-4 h-4 mr-2" />
+//                                                         Delete for me
+//                                                       </DropdownMenuItem>
+//                                                     )}
+                                                    
+//                                                     {/* Delete for everyone - Sirf apne messages ke liye */}
+//                                                     {isMe && (
+//                                                       <DropdownMenuItem 
+//                                                         onClick={() => handleDeleteForEveryone(msg)}
+//                                                         className="text-red-600 focus:text-red-600 focus:bg-red-50"
+//                                                       >
+//                                                         <Trash2 className="w-4 h-4 mr-2" />
+//                                                         Delete for everyone
+//                                                       </DropdownMenuItem>
+//                                                     )}
+//                                                   </DropdownMenuContent>
+//                                                 </DropdownMenu>
+//                                               </div>
+//                                             )}
 //                                           </div>
 //                                         </div>
                                         
@@ -577,28 +888,123 @@
 //                     </ScrollArea>
 //                   </div>
 
-//                   {/* MESSAGE INPUT - FIXED BOTTOM */}
-//                   <div className="bg-white/80 backdrop-blur-xl border-t border-gray-200/80 px-6 py-4 shrink-0">
+//                   {/* MESSAGE INPUT WITH REPLY & IMAGE UPLOAD - FIXED */}
+//                   <div className="bg-white/80 backdrop-blur-xl border-t border-gray-200/80 px-6 py-1 shrink-0">
+                    
+//                     {/* Reply Preview */}
+//                     {replyingTo && (
+//                       <div className="mb-3 p-3 bg-blue-50 rounded-lg flex items-center gap-3 border-l-4 border-blue-500">
+//                         <ReplyAll className="w-4 h-4 text-blue-600 shrink-0" />
+//                         <div className="flex-1">
+//                           <p className="text-xs font-semibold text-blue-700">
+//                             Replying to {replyingTo.senderName}
+//                           </p>
+//                           <p className="text-xs text-gray-600 line-clamp-1">
+//                             {replyingTo.content || (replyingTo.imageBase64 ? '📷 Image' : '')}
+//                           </p>
+//                         </div>
+//                         <Button
+//                           variant="ghost"
+//                           size="icon"
+//                           className="h-6 w-6 rounded-full hover:bg-blue-100"
+//                           onClick={clearReply}
+//                         >
+//                           <X className="w-3 h-3" />
+//                         </Button>
+//                       </div>
+//                     )}
+                    
+//                     {/* Image Preview */}
+//                     {imagePreview && (
+//                       <div className="mb-3 p-2 bg-gray-50 rounded-lg flex items-center gap-3">
+//                         <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+//                           <img 
+//                             src={imagePreview} 
+//                             alt="Preview" 
+//                             className="w-full h-full object-cover"
+//                           />
+//                         </div>
+//                         <div className="flex-1 text-sm text-gray-600 truncate">
+//                           {selectedImage?.name}
+//                         </div>
+//                         <Button
+//                           variant="ghost"
+//                           size="icon"
+//                           className="h-8 w-8 rounded-full hover:bg-red-50 hover:text-red-600"
+//                           onClick={clearSelectedImage}
+//                         >
+//                           <X className="h-4 w-4" />
+//                         </Button>
+//                       </div>
+//                     )}
+                    
 //                     <div className="flex items-center gap-3">
+//                       {/* Hidden File Input */}
+//                       <input
+//                         type="file"
+//                         ref={fileInputRef}
+//                         onChange={handleImageSelect}
+//                         accept="image/*"
+//                         className="hidden"
+//                       />
+                      
+//                       {/* Image Upload Button */}
+//                       <Button
+//                         type="button"
+//                         variant="outline"
+//                         size="icon"
+//                         className="h-12 w-12 rounded-full border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5 shrink-0"
+//                         onClick={() => fileInputRef.current?.click()}
+//                         disabled={uploadingImage}
+//                       >
+//                         <ImageIcon className="w-5 h-5 text-gray-600" />
+//                       </Button>
+                      
+//                       {/* Text Input */}
 //                       <div className="flex-1 bg-gray-100/80 rounded-2xl border border-gray-200/50 hover:border-[#FA9DB7]/30 focus-within:border-[#FA9DB7]/50 focus-within:ring-2 focus-within:ring-[#FA9DB7]/20">
 //                         <div className="flex items-center px-4">
+//                           {replyingTo && (
+//                             <ReplyAll className="w-4 h-4 text-blue-500 mr-2" />
+//                           )}
 //                           <MessageCircle className="w-5 h-5 text-gray-400" />
 //                           <Input
+//                             ref={replyInputRef}
 //                             value={newMessage}
 //                             onChange={(e) => setNewMessage(e.target.value)}
-//                             placeholder={`Reply to ${displayBranchDetails?.name || 'branch'}...`}
+//                             placeholder={
+//                               replyingTo 
+//                                 ? `Reply to ${replyingTo.senderName}...` 
+//                                 : `Message ${displayBranchDetails?.name || 'branch'}...`
+//                             }
 //                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
 //                             className="border-0 bg-transparent px-3 py-5 focus-visible:ring-0 text-sm"
+//                             disabled={uploadingImage}
 //                           />
 //                         </div>
 //                       </div>
+                      
+//                       {/* Send Button */}
 //                       <Button 
 //                         onClick={handleSendMessage} 
-//                         disabled={!newMessage.trim()}
-//                         className="h-12 px-6 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852] text-white rounded-2xl shadow-lg disabled:opacity-50 shrink-0"
+//                         disabled={(!newMessage.trim() && !selectedImage) || uploadingImage}
+//                         className={cn(
+//                           "h-12 px-6 bg-gradient-to-r rounded-2xl shadow-lg disabled:opacity-50 shrink-0",
+//                           replyingTo 
+//                             ? "from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800" 
+//                             : "from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852]"
+//                         )}
 //                       >
-//                         <Send className="w-4 h-4 mr-2" />
-//                         Send
+//                         {uploadingImage ? (
+//                           <>
+//                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+//                             Processing...
+//                           </>
+//                         ) : (
+//                           <>
+//                             <Send className="w-4 h-4 mr-2" />
+//                             {replyingTo ? 'Reply' : 'Send'}
+//                           </>
+//                         )}
 //                       </Button>
 //                     </div>
 //                   </div>
@@ -630,6 +1036,7 @@
 // }
 
 // new code
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -654,7 +1061,18 @@ import {
   Users,
   Sparkles,
   Image as ImageIcon,
-  X
+  X,
+  MoreVertical,
+  Trash2,
+  Edit,
+  EyeOff,
+  CheckCircle,
+  Reply,
+  Copy,
+  ReplyAll,
+  ChevronLeft,
+  ChevronRight,
+  Menu
 } from "lucide-react";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
 import { cn } from "@/lib/utils";
@@ -669,6 +1087,14 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
+  doc,
+  updateDoc,
+  deleteDoc,
+  orderBy,
+  limit,
+  getDoc,
+  writeBatch,
+  increment
 } from 'firebase/firestore';
 import {
   Select,
@@ -677,6 +1103,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Message {
   id: string;
@@ -690,32 +1124,60 @@ interface Message {
   recipientBranchName: string;
   timestamp: any;
   read: boolean;
+  readBy?: string[];        // ✅ Users who have read this message
+  deliveredTo?: string[];   // ✅ Users who have received this message
   status: 'sent' | 'delivered' | 'seen';
   collection: 'adminMessages' | 'branchMessages';
-  imageBase64?: string;  // ✅ Base64 image data
-  imageName?: string;    // ✅ Image name
+  imageBase64?: string;
+  imageName?: string;
+  deletedFor?: string[];
+  deletedForEveryone?: boolean;
+  edited?: boolean;
+  editedAt?: any;
+  replyToId?: string;
+  replyToContent?: string;
+  replyToSender?: string;
+  replyToImage?: string;
+}
+
+interface ChatBranch {
+  id: string;
+  name: string;
+  lastMessage?: Message;
+  unreadCount: number;
+  lastMessageTime?: any;
+  branchDetails: any;
 }
 
 export default function SuperAdminMessages() {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [chatsSidebarOpen, setChatsSidebarOpen] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [branches, setBranches] = useState<any[]>([]);
-  const [loadingBranches, setLoadingBranches] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
   const [selectedBranchDetails, setSelectedBranchDetails] = useState<any>(null);
   const [branchSearchQuery, setBranchSearchQuery] = useState('');
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
   
-  // ✅ Image States - WITHOUT STORAGE
+  const [chats, setChats] = useState<ChatBranch[]>([]);
+  
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+  
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const branchDetailsRef = useRef<any>(null);
+  const replyInputRef = useRef<HTMLInputElement>(null);
+
+  const currentUserId = (user as any)?.uid || 'super-admin';
 
   useEffect(() => {
     if (selectedBranchId && messagesScrollRef.current) {
@@ -736,13 +1198,12 @@ export default function SuperAdminMessages() {
     }
   }, [messages]);
 
-  // Fetch branches
+  // ✅ Fetch ALL branches
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        setLoadingBranches(true);
         const branchesRef = collection(db, 'branches');
-        const q = query(branchesRef, where('status', '==', 'active'));
+        const q = query(branchesRef);
         const snapshot = await getDocs(q);
         
         let branchesData = snapshot.docs.map(doc => ({ 
@@ -757,12 +1218,103 @@ export default function SuperAdminMessages() {
         setBranches(branchesData);
       } catch (error) {
         console.error('Error:', error);
-      } finally {
-        setLoadingBranches(false);
       }
     };
     fetchBranches();
   }, []);
+
+  // ✅ Fetch ALL chats for ALL branches
+  useEffect(() => {
+    if (branches.length === 0) return;
+    
+    const fetchAllChats = async () => {
+      try {
+        const chatsData: ChatBranch[] = [];
+        
+        for (const branch of branches) {
+          const adminMessagesQuery = query(
+            collection(db, 'adminMessages'),
+            where('recipientBranchId', '==', branch.id)
+          );
+          
+          const branchMessagesQuery = query(
+            collection(db, 'branchMessages'),
+            where('recipientBranchId', '==', branch.id)
+          );
+          
+          const [adminSnapshot, branchMsgsSnapshot] = await Promise.all([
+            getDocs(adminMessagesQuery),
+            getDocs(branchMessagesQuery)
+          ]);
+          
+          const allMessages: Message[] = [];
+          
+          adminSnapshot.forEach(doc => {
+            allMessages.push({
+              id: doc.id,
+              ...doc.data(),
+              timestamp: doc.data().timestamp?.toDate() || new Date(),
+              collection: 'adminMessages'
+            } as Message);
+          });
+          
+          branchMsgsSnapshot.forEach(doc => {
+            allMessages.push({
+              id: doc.id,
+              ...doc.data(),
+              timestamp: doc.data().timestamp?.toDate() || new Date(),
+              collection: 'branchMessages'
+            } as Message);
+          });
+          
+          allMessages.sort((a, b) => {
+            const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
+            const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
+            return timeB.getTime() - timeA.getTime();
+          });
+          
+          const lastMessage = allMessages[0];
+          
+          // ✅ Calculate unread count for this branch
+          let unreadCount = 0;
+          if (selectedBranchId !== branch.id) {
+            allMessages.forEach(msg => {
+              if (msg.senderRole === 'branch_admin' && 
+                  (!msg.readBy || !msg.readBy.includes(currentUserId))) {
+                unreadCount++;
+              }
+            });
+          }
+          
+          chatsData.push({
+            id: branch.id,
+            name: branch.name,
+            lastMessage,
+            unreadCount,
+            lastMessageTime: lastMessage?.timestamp,
+            branchDetails: branch
+          });
+        }
+        
+        chatsData.sort((a, b) => {
+          if (!a.lastMessageTime && !b.lastMessageTime) {
+            return a.name.localeCompare(b.name);
+          }
+          if (!a.lastMessageTime) return 1;
+          if (!b.lastMessageTime) return -1;
+          const timeA = a.lastMessageTime?.toDate?.() || new Date(a.lastMessageTime);
+          const timeB = b.lastMessageTime?.toDate?.() || new Date(b.lastMessageTime);
+          return timeB.getTime() - timeA.getTime();
+        });
+        
+        setChats(chatsData);
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
+    };
+    
+    fetchAllChats();
+  }, [branches, messages, selectedBranchId, currentUserId]);
 
   // Branch details
   useEffect(() => {
@@ -771,6 +1323,9 @@ export default function SuperAdminMessages() {
       if (branch) {
         branchDetailsRef.current = branch;
         setSelectedBranchDetails(branch);
+        
+        // ✅ Mark all messages as read when opening chat
+        markMessagesAsRead(selectedBranchId);
       }
     } else {
       branchDetailsRef.current = null;
@@ -778,75 +1333,65 @@ export default function SuperAdminMessages() {
     }
   }, [selectedBranchId, branches]);
 
-  // Fetch messages
-  useEffect(() => {
-    if (!selectedBranchId) {
-      setMessages([]);
-      return;
+  // ✅ Mark messages as read
+  const markMessagesAsRead = async (branchId: string) => {
+    try {
+      const branchMessagesQuery = query(
+        collection(db, 'branchMessages'),
+        where('recipientBranchId', '==', branchId),
+        where('senderRole', '==', 'branch_admin'),
+        where('read', '==', false)
+      );
+      
+      const snapshot = await getDocs(branchMessagesQuery);
+      
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(doc => {
+        const messageRef = doc.ref;
+        batch.update(messageRef, {
+          read: true,
+          status: 'seen',
+          readBy: [currentUserId],
+          deliveredTo: [currentUserId]
+        });
+      });
+      
+      await batch.commit();
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
     }
+  };
 
-    setLoadingMessages(true);
-
-    const adminSentQuery = query(
-      collection(db, 'adminMessages'),
-      where('recipientBranchId', '==', selectedBranchId),
-      where('senderRole', '==', 'super_admin')
-    );
-
-    const branchReceivedQuery = query(
-      collection(db, 'branchMessages'),
-      where('recipientBranchId', '==', selectedBranchId),
-      where('senderRole', '==', 'branch_admin')
-    );
-
-    const unsubscribeAdmin = onSnapshot(adminSentQuery, (snapshot) => {
-      const adminMsgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date(),
-        collection: 'adminMessages' as const
-      })) as Message[];
-      
-      setMessages(prev => {
-        const branchMsgs = prev.filter(m => m.collection === 'branchMessages');
-        const allMsgs = [...adminMsgs, ...branchMsgs].sort((a, b) => 
-          (a.timestamp?.toDate?.() || new Date(a.timestamp)).getTime() - 
-          (b.timestamp?.toDate?.() || new Date(b.timestamp)).getTime()
-        );
-        return allMsgs;
+  // ✅ Update message status when delivered
+  const markMessageAsDelivered = async (messageId: string, collection: string) => {
+    try {
+      const messageRef = doc(db, collection, messageId);
+      await updateDoc(messageRef, {
+        status: 'delivered',
+        deliveredTo: [currentUserId]
       });
-      setLoadingMessages(false);
-    });
+    } catch (error) {
+      console.error('Error marking message as delivered:', error);
+    }
+  };
 
-    const unsubscribeBranch = onSnapshot(branchReceivedQuery, (snapshot) => {
-      const branchMsgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date(),
-        collection: 'branchMessages' as const
-      })) as Message[];
-      
-      setMessages(prev => {
-        const adminMsgs = prev.filter(m => m.collection === 'adminMessages');
-        const allMsgs = [...adminMsgs, ...branchMsgs].sort((a, b) => 
-          (a.timestamp?.toDate?.() || new Date(a.timestamp)).getTime() - 
-          (b.timestamp?.toDate?.() || new Date(b.timestamp)).getTime()
-        );
-        return allMsgs;
+  // ✅ Update message status when seen
+  const markMessageAsSeen = async (messageId: string, collection: string) => {
+    try {
+      const messageRef = doc(db, collection, messageId);
+      await updateDoc(messageRef, {
+        read: true,
+        status: 'seen',
+        readBy: [currentUserId]
       });
-    });
+    } catch (error) {
+      console.error('Error marking message as seen:', error);
+    }
+  };
 
-    return () => {
-      unsubscribeAdmin();
-      unsubscribeBranch();
-    };
-  }, [selectedBranchId]);
-
-  // ✅ Image Selection Handler
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (max 1MB for Firestore)
       if (file.size > 1024 * 1024) {
         alert('Image size should be less than 1MB');
         return;
@@ -861,7 +1406,6 @@ export default function SuperAdminMessages() {
     }
   };
 
-  // ✅ Clear Selected Image
   const clearSelectedImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
@@ -870,7 +1414,10 @@ export default function SuperAdminMessages() {
     }
   };
 
-  // ✅ Convert Image to Base64 (NO STORAGE NEEDED)
+  const clearReply = () => {
+    setReplyingTo(null);
+  };
+
   const convertImageToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -880,14 +1427,13 @@ export default function SuperAdminMessages() {
     });
   };
 
-  // ✅ Send Message with Base64 Image (NO STORAGE)
+  // ✅ Send Message with 1-tick initially
   const handleSendMessage = async () => {
     if ((!newMessage.trim() && !selectedImage) || !selectedBranchId) return;
 
     const selectedBranch = branches.find(b => b.id === selectedBranchId);
     if (!selectedBranch) return;
 
-    setUploadingImage(true);
     const messageContent = newMessage;
     setNewMessage('');
 
@@ -895,32 +1441,122 @@ export default function SuperAdminMessages() {
       let imageBase64 = null;
       let imageName = null;
 
-      // Convert image to Base64 if selected (NO STORAGE)
       if (selectedImage) {
         imageBase64 = await convertImageToBase64(selectedImage);
         imageName = selectedImage.name;
         clearSelectedImage();
       }
 
-      // Send message to Firestore (Base64 image stored directly in Firestore)
-      await addDoc(collection(db, 'adminMessages'), {
+      const messageData: any = {
         content: messageContent,
-        senderId: (user as any)?.uid || 'super-admin',
+        senderId: currentUserId,
         senderName: 'Super Admin',
         senderRole: 'super_admin',
         recipientBranchId: selectedBranchId,
         recipientBranchName: selectedBranch.name,
         timestamp: serverTimestamp(),
         read: false,
-        status: 'sent',
-        ...(imageBase64 && { imageBase64, imageName })
-      });
+        status: 'sent', // ✅ 1 tick initially
+        deliveredTo: [],
+        readBy: [],
+        deletedFor: [],
+        deletedForEveryone: false,
+        edited: false
+      };
+
+      if (imageBase64) {
+        messageData.imageBase64 = imageBase64;
+        messageData.imageName = imageName;
+      }
+
+      if (replyingTo) {
+        messageData.replyToId = replyingTo.id;
+        messageData.replyToContent = replyingTo.content || '';
+        messageData.replyToSender = replyingTo.senderName || 'Someone';
+        if (replyingTo.imageBase64) {
+          messageData.replyToImage = replyingTo.imageBase64;
+        }
+      }
+
+      await addDoc(collection(db, 'adminMessages'), messageData);
+      clearReply();
+      
+      // ✅ Simulate delivery after 1 second (in real app, this would be from Firebase Functions)
+      setTimeout(() => {
+        // This would be handled by a Firebase Function in production
+      }, 1000);
+      
     } catch (error) {
       console.error('Send error:', error);
       setNewMessage(messageContent);
-    } finally {
-      setUploadingImage(false);
     }
+  };
+
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      alert('Message copied to clipboard!');
+    } catch (error) {
+      console.error('Copy error:', error);
+    }
+  };
+
+  const handleDeleteForMe = async (message: Message) => {
+    try {
+      const messageRef = doc(db, message.collection, message.id);
+      const deletedFor = message.deletedFor || [];
+      
+      if (!deletedFor.includes(currentUserId)) {
+        deletedFor.push(currentUserId);
+        await updateDoc(messageRef, { deletedFor });
+      }
+    } catch (error) {
+      console.error('Delete for me error:', error);
+    }
+  };
+
+  const handleDeleteForEveryone = async (message: Message) => {
+    if (!confirm('Are you sure you want to delete this message for everyone? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const messageRef = doc(db, message.collection, message.id);
+      await deleteDoc(messageRef);
+    } catch (error) {
+      console.error('Delete for everyone error:', error);
+    }
+  };
+
+  const handleEditMessage = async () => {
+    if (!editingMessage || !editContent.trim()) return;
+
+    try {
+      const messageRef = doc(db, editingMessage.collection, editingMessage.id);
+      await updateDoc(messageRef, {
+        content: editContent,
+        edited: true,
+        editedAt: serverTimestamp()
+      });
+      
+      setEditingMessage(null);
+      setEditContent('');
+    } catch (error) {
+      console.error('Edit message error:', error);
+    }
+  };
+
+  const startEditing = (message: Message) => {
+    setEditingMessage(message);
+    setEditContent(message.content || '');
+    setTimeout(() => {
+      editInputRef.current?.focus();
+    }, 100);
+  };
+
+  const cancelEditing = () => {
+    setEditingMessage(null);
+    setEditContent('');
   };
 
   const formatMessageTime = (timestamp: any) => {
@@ -935,7 +1571,25 @@ export default function SuperAdminMessages() {
     }
   };
 
-  const groupedMessages = messages.reduce((groups: any, msg) => {
+  const formatChatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      if (isToday(date)) return format(date, 'hh:mm a');
+      if (isYesterday(date)) return 'Yesterday';
+      return format(date, 'dd/MM/yy');
+    } catch {
+      return '';
+    }
+  };
+
+  // ✅ Filter out messages that are deleted for current user
+  const visibleMessages = messages.filter(msg => {
+    const deletedFor = msg.deletedFor || [];
+    return !deletedFor.includes(currentUserId) && !msg.deletedForEveryone;
+  });
+
+  const groupedMessages = visibleMessages.reduce((groups: any, msg) => {
     try {
       const date = msg.timestamp?.toDate 
         ? format(msg.timestamp.toDate(), 'yyyy-MM-dd')
@@ -961,13 +1615,104 @@ export default function SuperAdminMessages() {
     }
   };
 
+  // ✅ Fetch messages for selected branch with status updates
+  useEffect(() => {
+    if (!selectedBranchId) {
+      setMessages([]);
+      return;
+    }
+
+    const adminSentQuery = query(
+      collection(db, 'adminMessages'),
+      where('recipientBranchId', '==', selectedBranchId),
+      where('senderRole', '==', 'super_admin')
+    );
+
+    const branchReceivedQuery = query(
+      collection(db, 'branchMessages'),
+      where('recipientBranchId', '==', selectedBranchId),
+      where('senderRole', '==', 'branch_admin')
+    );
+
+    const unsubscribeAdmin = onSnapshot(adminSentQuery, (snapshot) => {
+      const adminMsgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // ✅ Mark own messages as delivered when they appear
+        if (data.senderId === currentUserId && data.status === 'sent') {
+          setTimeout(() => {
+            markMessageAsDelivered(doc.id, 'adminMessages');
+          }, 500);
+        }
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          collection: 'adminMessages' as const
+        };
+      }) as Message[];
+      
+      setMessages(prev => {
+        const branchMsgs = prev.filter(m => m.collection === 'branchMessages');
+        const allMsgs = [...adminMsgs, ...branchMsgs].sort((a, b) => 
+          (a.timestamp?.toDate?.() || new Date(a.timestamp)).getTime() - 
+          (b.timestamp?.toDate?.() || new Date(b.timestamp)).getTime()
+        );
+        return allMsgs;
+      });
+    });
+
+    const unsubscribeBranch = onSnapshot(branchReceivedQuery, (snapshot) => {
+      const branchMsgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // ✅ Mark branch messages as seen when viewed
+        if (data.senderRole === 'branch_admin' && !data.read) {
+          setTimeout(() => {
+            markMessageAsSeen(doc.id, 'branchMessages');
+          }, 1000);
+        }
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          collection: 'branchMessages' as const
+        };
+      }) as Message[];
+      
+      setMessages(prev => {
+        const adminMsgs = prev.filter(m => m.collection === 'adminMessages');
+        const allMsgs = [...adminMsgs, ...branchMsgs].sort((a, b) => 
+          (a.timestamp?.toDate?.() || new Date(a.timestamp)).getTime() - 
+          (b.timestamp?.toDate?.() || new Date(b.timestamp)).getTime()
+        );
+        return allMsgs;
+      });
+    });
+
+    return () => {
+      unsubscribeAdmin();
+      unsubscribeBranch();
+    };
+  }, [selectedBranchId, currentUserId]);
+
   const filteredBranches = branches.filter(branch => 
     branch.name?.toLowerCase().includes(branchSearchQuery.toLowerCase()) ||
     branch.city?.toLowerCase().includes(branchSearchQuery.toLowerCase()) ||
     branch.managerName?.toLowerCase().includes(branchSearchQuery.toLowerCase())
   );
 
+  const filteredChats = chats.filter(chat => 
+    chat.name?.toLowerCase().includes(chatSearchQuery.toLowerCase()) ||
+    chat.branchDetails?.city?.toLowerCase().includes(chatSearchQuery.toLowerCase())
+  );
+
   const displayBranchDetails = selectedBranchDetails || branchDetailsRef.current;
+
+  const handleChatSelect = (branchId: string) => {
+    setSelectedBranchId(branchId);
+    if (window.innerWidth < 768) {
+      setChatsSidebarOpen(false);
+    }
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
@@ -978,18 +1723,154 @@ export default function SuperAdminMessages() {
         onToggle={() => setSidebarOpen(!sidebarOpen)} 
       />
       
+      {/* Chats Sidebar */}
+      <div className={cn(
+        "flex flex-col bg-white border-r border-gray-200 transition-all duration-300 overflow-hidden",
+        chatsSidebarOpen ? "w-80" : "w-0"
+      )}>
+        {chatsSidebarOpen && (
+          <>
+            <div className="shrink-0 bg-white border-b border-gray-200 px-4 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-serif font-bold text-gray-900">
+                  Branches ({chats.length})
+                </h2>
+                
+              </div>
+              
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search branches..."
+                  value={chatSearchQuery}
+                  onChange={(e) => setChatSearchQuery(e.target.value)}
+                  className="pl-9 h-10 rounded-xl bg-gray-100 border-0 focus:ring-2 focus:ring-[#FA9DB7]/30"
+                />
+              </div>
+            </div>
+            
+            <ScrollArea className="flex-1">
+              <div className="p-2">
+                {filteredChats.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <Building className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No branches found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredChats.map((chat) => (
+                      <button
+                        key={chat.id}
+                        onClick={() => handleChatSelect(chat.id)}
+                        className={cn(
+                          "w-full flex items-start gap-3 p-3 rounded-xl transition-all",
+                          selectedBranchId === chat.id
+                            ? "bg-[#FA9DB7]/10 border border-[#FA9DB7]/30"
+                            : "hover:bg-gray-50"
+                        )}
+                      >
+                        <Avatar className="w-12 h-12 rounded-xl border-2 border-white shadow-sm">
+                          <AvatarFallback className={cn(
+                            "text-white text-lg font-serif",
+                            selectedBranchId === chat.id
+                              ? "bg-gradient-to-br from-[#FA9DB7] to-[#B84A68]"
+                              : "bg-gradient-to-br from-gray-400 to-gray-600"
+                          )}>
+                            {chat.name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className={cn(
+                              "font-medium truncate",
+                              selectedBranchId === chat.id ? "text-[#B84A68]" : "text-gray-900"
+                            )}>
+                              {chat.name}
+                            </h3>
+                            {chat.lastMessageTime && (
+                              <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
+                                {formatChatTime(chat.lastMessageTime)}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-500 truncate max-w-[140px]">
+                                {chat.branchDetails?.city || 'No location'}
+                              </p>
+                              {chat.lastMessage ? (
+                                <p className="text-xs text-gray-400 truncate mt-0.5">
+                                  {chat.lastMessage.senderRole === 'super_admin' ? 'You: ' : ''}
+                                  {chat.lastMessage.content || (chat.lastMessage.imageBase64 ? '📷 Image' : '')}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-gray-400 italic mt-0.5">
+                                  No messages yet
+                                </p>
+                              )}
+                            </div>
+                            
+                            {chat.unreadCount > 0 && (
+                              <Badge className="bg-[#FA9DB7] text-white border-0 rounded-full ml-2">
+                                {chat.unreadCount}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </>
+        )}
+      </div>
+
+      {!chatsSidebarOpen && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute left-[72px] top-20 z-40 h-8 w-8 rounded-full bg-white shadow-md hover:bg-gray-100"
+          onClick={() => setChatsSidebarOpen(true)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+      
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        {/* SUPER ADMIN HEADER - FIXED */}
         <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/80 px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <AdminMobileSidebar 
-                role="super_admin" 
-                onLogout={logout} 
-                isOpen={sidebarOpen} 
-                onToggle={() => setSidebarOpen(!sidebarOpen)} 
-              />
+              <div className="flex items-center gap-2 md:hidden">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-gray-100"
+                  onClick={() => setChatsSidebarOpen(!chatsSidebarOpen)}
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+                <AdminMobileSidebar 
+                  role="super_admin" 
+                  onLogout={logout} 
+                  isOpen={sidebarOpen} 
+                  onToggle={() => setSidebarOpen(!sidebarOpen)} 
+                />
+              </div>
+              
+              <div className="hidden md:flex items-center gap-4">
+                <AdminMobileSidebar 
+                  role="super_admin" 
+                  onLogout={logout} 
+                  isOpen={sidebarOpen} 
+                  onToggle={() => setSidebarOpen(!sidebarOpen)} 
+                />
+              </div>
+              
               <div>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FA9DB7] to-[#B84A68] flex items-center justify-center shadow-lg">
@@ -997,7 +1878,7 @@ export default function SuperAdminMessages() {
                   </div>
                   <div>
                     <h1 className="text-2xl font-serif font-bold text-gray-900">Executive Communications</h1>
-                    <p className="text-xs text-gray-500 mt-0.5">Super Admin • Branch Management</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Super Admin Portal</p>
                   </div>
                 </div>
               </div>
@@ -1006,7 +1887,7 @@ export default function SuperAdminMessages() {
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="px-4 py-2 border-[#FA9DB7]/30 text-[#B84A68] bg-white rounded-full">
                 <Sparkles className="w-3.5 h-3.5 mr-2" />
-                {branches.length} Active Branches
+                {branches.length} Branches
               </Badge>
               <Button 
                 variant="ghost" 
@@ -1022,14 +1903,11 @@ export default function SuperAdminMessages() {
           </div>
         </header>
 
-        {/* CARD CONTAINER - FIXED */}
         <div className="flex-1 overflow-hidden p-6 pt-0">
           <Card className="h-full border-0 shadow-2xl bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden flex flex-col ">
             
-            {/* CARD CONTENT - FIXED */}
             <div className="flex-1 flex flex-col min-h-0">
               
-              {/* SELECT BRANCH - ALWAYS VISIBLE */}
               <div className="bg-gradient-to-r from-white to-gray-50/80 px-6 py-5 border-b border-gray-200/80 shrink-0">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex-1">
@@ -1038,14 +1916,13 @@ export default function SuperAdminMessages() {
                     </label>
                     <Select 
                       value={selectedBranchId} 
-                      onValueChange={setSelectedBranchId} 
-                      disabled={loadingBranches}
+                      onValueChange={setSelectedBranchId}
                     >
                       <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-gray-200/80 hover:border-[#FA9DB7]/50 focus:ring-2 focus:ring-[#FA9DB7]/30 rounded-2xl bg-white/80">
                         <SelectValue placeholder={
                           <div className="flex items-center gap-3 text-gray-500">
                             <Building className="w-3 h-3 text-[#FA9DB7]" />
-                            <span>{loadingBranches ? "Loading branches..." : "Choose a branch to start conversation"}</span>
+                            <span>Choose a branch to start conversation</span>
                           </div>
                         } />
                       </SelectTrigger>
@@ -1075,8 +1952,7 @@ export default function SuperAdminMessages() {
                                 <div className="flex-1">
                                   <div className="font-semibold text-gray-900">{branch.name}</div>
                                   <div className="flex items-center gap-2 mt-1">
-                                  
-                                    <span className="text-xs text-gray-500">{branch.country}</span>
+                                    <span className="text-xs text-gray-500">{branch.city || branch.country || 'No location'}</span>
                                   </div>
                                 </div>
                               </div>
@@ -1096,7 +1972,7 @@ export default function SuperAdminMessages() {
                       <div className="h-4 w-px bg-gray-200"></div>
                       <div className="flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="text-xs text-gray-600">{displayBranchDetails.openingTime} - {displayBranchDetails.closingTime}</span>
+                        <span className="text-xs text-gray-600">{displayBranchDetails.openingTime || '09:00'} - {displayBranchDetails.closingTime || '18:00'}</span>
                       </div>
                     </div>
                   )}
@@ -1106,7 +1982,6 @@ export default function SuperAdminMessages() {
               {selectedBranchId && displayBranchDetails ? (
                 <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-gray-50 to-white">
                   
-                  {/* BRANCH PROFILE HEADER - FIXED */}
                   <div className="bg-white border-b border-gray-200/80 px-6 py-5 shrink-0">
                     <div className="flex items-start gap-5">
                       <div className="relative">
@@ -1127,39 +2002,44 @@ export default function SuperAdminMessages() {
                           <Badge className="bg-[#FA9DB7]/10 text-[#B84A68] border-0 rounded-full px-4 py-1">
                             Branch Admin
                           </Badge>
-                           <span className="text-gray-600">
-                              {displayBranchDetails.address || ''}, {displayBranchDetails.city || ''}, {displayBranchDetails.country || ''}
-                            </span>
-                             <Phone className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-                             <span className="text-gray-600">{displayBranchDetails.phone || 'N/A'}</span>
-                              <Mail className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-                            <span className="text-gray-600">{displayBranchDetails.email || 'N/A'}</span>
-                             <Users className="w-4 h-4 text-[#FA9DB7] shrink-0" />
-                            <span className="text-gray-600">Manager: {displayBranchDetails.managerName || 'N/A'}</span>
                         </div>
-                        
-                        
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                          {displayBranchDetails.address && (
+                            <>
+                              <MapPin className="w-4 h-4 text-[#FA9DB7]" />
+                              <span>{displayBranchDetails.address}, {displayBranchDetails.city}</span>
+                            </>
+                          )}
+                          {displayBranchDetails.phone && (
+                            <>
+                              <Phone className="w-4 h-4 text-[#FA9DB7]" />
+                              <span>{displayBranchDetails.phone}</span>
+                            </>
+                          )}
+                          {displayBranchDetails.email && (
+                            <>
+                              <Mail className="w-4 h-4 text-[#FA9DB7]" />
+                              <span>{displayBranchDetails.email}</span>
+                            </>
+                          )}
+                          {displayBranchDetails.managerName && (
+                            <>
+                              <Users className="w-4 h-4 text-[#FA9DB7]" />
+                              <span>Manager: {displayBranchDetails.managerName}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      
-                     
                     </div>
                   </div>
 
-                  {/* MESSAGES AREA - SIRF YAHI SCROLL HOGA */}
                   <div className="flex-1 bg-[#f3f2f1] relative min-h-0">
                     <ScrollArea 
                       ref={messagesScrollRef}
                       className="absolute inset-0 w-full h-full"
                     >
                       <div className="px-6 py-6">
-                        {loadingMessages ? (
-                          <div className="flex justify-center items-center h-40">
-                            <div className="bg-white/80 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-lg flex items-center gap-3">
-                              <Loader2 className="w-5 h-5 animate-spin text-[#FA9DB7]" />
-                              <span className="text-sm text-gray-600">Loading conversation...</span>
-                            </div>
-                          </div>
-                        ) : messages.length === 0 ? (
+                        {visibleMessages.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-[300px]">
                             <div className="w-24 h-24 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mb-4">
                               <MessageCircle className="w-12 h-12 text-[#B84A68]" />
@@ -1198,7 +2078,7 @@ export default function SuperAdminMessages() {
                                         
                                         <div className={cn("max-w-xs lg:max-w-md", isMe ? "order-2" : "order-1")}>
                                           <div className={cn(
-                                            "px-4 py-2.5 rounded-2xl text-sm shadow-sm",
+                                            "px-4 py-2.5 rounded-2xl text-sm shadow-sm relative group/message",
                                             isMe 
                                               ? "bg-gradient-to-br from-[#dcf8c6] to-[#c8e6b5] text-gray-800 rounded-br-none" 
                                               : "bg-white text-gray-800 rounded-bl-none border border-gray-100"
@@ -1209,26 +2089,71 @@ export default function SuperAdminMessages() {
                                               </p>
                                             )}
                                             
-                                            {/* Message Content */}
-                                            {msg.content && (
-                                              <p className="whitespace-pre-wrap break-words leading-relaxed mb-2">
-                                                {msg.content}
-                                              </p>
-                                            )}
-                                            
-                                            {/* ✅ Image Display - Base64 se directly show */}
-                                            {msg.imageBase64 && (
-                                              <div className="mb-2 rounded-lg overflow-hidden border border-gray-200">
-                                                <img 
-                                                  src={msg.imageBase64} 
-                                                  alt={msg.imageName || 'Shared image'}
-                                                  className="max-w-full h-auto max-h-64 object-contain"
-                                                  loading="lazy"
-                                                />
+                                            {msg.replyToId && (
+                                              <div className="mb-2 pl-2 border-l-3 border-[#FA9DB7] bg-gray-50 p-2 rounded-lg text-xs">
+                                                <p className="text-[#B84A68] font-semibold flex items-center gap-1">
+                                                  <ReplyAll className="w-3 h-3" />
+                                                  Replying to {msg.replyToSender || 'someone'}
+                                                </p>
+                                                <p className="text-gray-600 line-clamp-2">
+                                                  {msg.replyToContent || '📷 Image'}
+                                                </p>
                                               </div>
                                             )}
                                             
-                                            {/* Time & Status */}
+                                            {editingMessage?.id === msg.id ? (
+                                              <div className="flex items-center gap-2">
+                                                <Input
+                                                  ref={editInputRef}
+                                                  value={editContent}
+                                                  onChange={(e) => setEditContent(e.target.value)}
+                                                  className="flex-1 bg-white border-gray-200 focus:border-[#FA9DB7] rounded-lg"
+                                                  onKeyPress={(e) => e.key === 'Enter' && handleEditMessage()}
+                                                />
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                  onClick={handleEditMessage}
+                                                >
+                                                  <CheckCircle className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-8 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+                                                  onClick={cancelEditing}
+                                                >
+                                                  <X className="w-4 h-4" />
+                                                </Button>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                {msg.content && (
+                                                  <p className="whitespace-pre-wrap break-words leading-relaxed mb-2">
+                                                    {msg.content}
+                                                    {msg.edited && (
+                                                      <span className="text-[10px] text-gray-500 ml-1 italic">
+                                                        (edited)
+                                                      </span>
+                                                    )}
+                                                  </p>
+                                                )}
+                                                
+                                                {msg.imageBase64 && (
+                                                  <div className="mb-2 rounded-lg overflow-hidden border border-gray-200">
+                                                    <img 
+                                                      src={msg.imageBase64} 
+                                                      alt={msg.imageName || 'Shared image'}
+                                                      className="max-w-full h-auto max-h-64 object-contain"
+                                                      loading="lazy"
+                                                    />
+                                                  </div>
+                                                )}
+                                              </>
+                                            )}
+                                            
+                                            {/* ✅ Time & Status - 1 Tick, 2 Ticks, Blue Ticks */}
                                             <div className={cn(
                                               "flex items-center justify-end gap-1 mt-1 text-[10px]",
                                               isMe ? "text-gray-600" : "text-gray-400"
@@ -1238,6 +2163,64 @@ export default function SuperAdminMessages() {
                                               {isMe && msg.status === 'delivered' && <CheckCheck className="w-3 h-3" />}
                                               {isMe && msg.status === 'seen' && <CheckCheck className="w-3 h-3 text-blue-600" />}
                                             </div>
+
+                                            {editingMessage?.id !== msg.id && (
+                                              <div className="absolute -top-2 -right-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                                                <DropdownMenu>
+                                                  <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      className="h-8 w-8 rounded-full bg-white shadow-md hover:bg-gray-100"
+                                                    >
+                                                      <MoreVertical className="w-4 h-4" />
+                                                    </Button>
+                                                  </DropdownMenuTrigger>
+                                                  <DropdownMenuContent align="end" className="w-56">
+                                                    <DropdownMenuLabel>Message Actions</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    
+                                                    <DropdownMenuItem onClick={() => setReplyingTo(msg)}>
+                                                      <Reply className="w-4 h-4 mr-2" />
+                                                      Reply
+                                                    </DropdownMenuItem>
+                                                    
+                                                    {msg.content && (
+                                                      <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
+                                                        <Copy className="w-4 h-4 mr-2" />
+                                                        Copy Text
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    
+                                                    <DropdownMenuSeparator />
+                                                    
+                                                    {isMe && (
+                                                      <DropdownMenuItem onClick={() => startEditing(msg)}>
+                                                        <Edit className="w-4 h-4 mr-2" />
+                                                        Edit Message
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    
+                                                    {isMe && (
+                                                      <DropdownMenuItem onClick={() => handleDeleteForMe(msg)}>
+                                                        <EyeOff className="w-4 h-4 mr-2" />
+                                                        Delete for me
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                    
+                                                    {isMe && (
+                                                      <DropdownMenuItem 
+                                                        onClick={() => handleDeleteForEveryone(msg)}
+                                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                      >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Delete for everyone
+                                                      </DropdownMenuItem>
+                                                    )}
+                                                  </DropdownMenuContent>
+                                                </DropdownMenu>
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                         
@@ -1262,9 +2245,30 @@ export default function SuperAdminMessages() {
                     </ScrollArea>
                   </div>
 
-                  {/* ✅ MESSAGE INPUT WITH IMAGE UPLOAD - NO STORAGE NEEDED */}
                   <div className="bg-white/80 backdrop-blur-xl border-t border-gray-200/80 px-6 py-1 shrink-0">
-                    {/* Image Preview */}
+                    
+                    {replyingTo && (
+                      <div className="mb-3 p-3 bg-blue-50 rounded-lg flex items-center gap-3 border-l-4 border-blue-500">
+                        <ReplyAll className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-blue-700">
+                            Replying to {replyingTo.senderName}
+                          </p>
+                          <p className="text-xs text-gray-600 line-clamp-1">
+                            {replyingTo.content || (replyingTo.imageBase64 ? '📷 Image' : '')}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 rounded-full hover:bg-blue-100"
+                          onClick={clearReply}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                    
                     {imagePreview && (
                       <div className="mb-3 p-2 bg-gray-50 rounded-lg flex items-center gap-3">
                         <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
@@ -1289,7 +2293,6 @@ export default function SuperAdminMessages() {
                     )}
                     
                     <div className="flex items-center gap-3">
-                      {/* Hidden File Input */}
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -1298,56 +2301,54 @@ export default function SuperAdminMessages() {
                         className="hidden"
                       />
                       
-                      {/* Image Upload Button - NO STORAGE NEEDED */}
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         className="h-12 w-12 rounded-full border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5 shrink-0"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
                       >
                         <ImageIcon className="w-5 h-5 text-gray-600" />
                       </Button>
                       
-                      {/* Text Input */}
                       <div className="flex-1 bg-gray-100/80 rounded-2xl border border-gray-200/50 hover:border-[#FA9DB7]/30 focus-within:border-[#FA9DB7]/50 focus-within:ring-2 focus-within:ring-[#FA9DB7]/20">
                         <div className="flex items-center px-4">
+                          {replyingTo && (
+                            <ReplyAll className="w-4 h-4 text-blue-500 mr-2" />
+                          )}
                           <MessageCircle className="w-5 h-5 text-gray-400" />
                           <Input
+                            ref={replyInputRef}
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder={`Reply to ${displayBranchDetails?.name || 'branch'}...`}
+                            placeholder={
+                              replyingTo 
+                                ? `Reply to ${replyingTo.senderName}...` 
+                                : `Message ${displayBranchDetails?.name || 'branch'}...`
+                            }
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                             className="border-0 bg-transparent px-3 py-5 focus-visible:ring-0 text-sm"
-                            disabled={uploadingImage}
                           />
                         </div>
                       </div>
                       
-                      {/* Send Button */}
                       <Button 
                         onClick={handleSendMessage} 
-                        disabled={(!newMessage.trim() && !selectedImage) || uploadingImage}
-                        className="h-12 px-6 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852] text-white rounded-2xl shadow-lg disabled:opacity-50 shrink-0"
-                      >
-                        {uploadingImage ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4 mr-2" />
-                            Send
-                          </>
+                        disabled={!newMessage.trim() && !selectedImage}
+                        className={cn(
+                          "h-12 px-6 bg-gradient-to-r rounded-2xl shadow-lg disabled:opacity-50 shrink-0",
+                          replyingTo 
+                            ? "from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800" 
+                            : "from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852]"
                         )}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {replyingTo ? 'Reply' : 'Send'}
                       </Button>
                     </div>
                   </div>
                 </div>
               ) : (
-                // WELCOME SCREEN - NO BRANCH SELECTED
                 <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
                   <div className="text-center max-w-md px-6">
                     <div className="w-28 h-28 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -1355,11 +2356,11 @@ export default function SuperAdminMessages() {
                     </div>
                     <h3 className="text-2xl font-serif font-bold text-gray-900 mb-3">Welcome to Executive Communications</h3>
                     <p className="text-gray-500 mb-8">
-                      Select a branch from the dropdown above to start managing your communications.
+                      Select a branch from the dropdown above or choose a branch from the sidebar to start messaging.
                     </p>
                     <div className="flex items-center justify-center gap-2 text-sm text-[#B84A68] bg-[#FA9DB7]/10 px-6 py-3 rounded-2xl">
                       <Sparkles className="w-4 h-4" />
-                      <span>{branches.length} active branches available</span>
+                      <span>{branches.length} branches available</span>
                     </div>
                   </div>
                 </div>
