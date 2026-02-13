@@ -1007,7 +1007,7 @@ function SidebarContent({
   };
 
   return (
-    <div className="flex  flex-col bg-white border-r border-gray-200 shadow-lg">
+    <div className="flex  flex-col bg-white border-r border-gray-200 ">
       {/* Pink Top Border */}
       <div className=" w-full bg-[#FA9DB7]">
         
