@@ -3277,7 +3277,7 @@ export default function CustomerPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]">
+    <div className="min-h-screen bg-gradient-to-r from-gray-300 to-gray-400">
       <Header />
 
       <div className="pt-24 pb-16 px-4">
@@ -3300,17 +3300,12 @@ export default function CustomerPortal() {
                       }}
                     />
                   ) : null}
-                  <AvatarFallback className="bg-secondary text-primary text-2xl font-bold">
+                  <AvatarFallback className="bg-primary text-pink-600 text-2xl font-bold">
                     {customer.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="w-4 h-4 text-yellow-300" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-white/70">
-                      Premium Member
-                    </span>
-                  </div>
+                 
                   <h1 className="text-3xl font-serif font-bold">
                     {customer.name}
                   </h1>
@@ -3381,7 +3376,7 @@ export default function CustomerPortal() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-6 w-full bg-gray-100 p-1 rounded-2xl">
+              <TabsList className="grid grid-cols-6 w-full bg-gradient-to-r from-pink-200 to-gray-300 to primary-100 p-1 rounded-2xl">
                 <TabsTrigger
                   value="dashboard"
                   className="rounded-xl data-[state=active]:bg-white"
@@ -3448,7 +3443,7 @@ export default function CustomerPortal() {
                       </div>
                       <Button
                         variant="ghost"
-                        className="w-full mt-4 text-secondary hover:text-secondary/80"
+                        className="w-full mt-4 text-primary"
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Add Funds
@@ -3463,7 +3458,7 @@ export default function CustomerPortal() {
                           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
                             Loyalty Points
                           </p>
-                          <p className="text-3xl font-bold text-secondary">
+                          <p className="text-3xl font-bold text-primary">
                             {wallet?.loyaltyPoints?.toLocaleString() || "0"}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
@@ -3477,7 +3472,7 @@ export default function CustomerPortal() {
                       </div>
                       <Button
                         variant="ghost"
-                        className="w-full mt-4 text-secondary hover:text-secondary/80"
+                        className="w-full mt-4 text-primary"
                       >
                         <Gift className="w-4 h-4 mr-2" />
                         Redeem Points
@@ -3506,7 +3501,7 @@ export default function CustomerPortal() {
                       <Link href="/products">
                         <Button
                           variant="ghost"
-                          className="w-full mt-4 text-secondary hover:text-secondary/80"
+                          className="w-full mt-4 text-primary"
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Add More Items
@@ -3536,7 +3531,7 @@ export default function CustomerPortal() {
                       <Link href="/services">
                         <Button
                           variant="ghost"
-                          className="w-full mt-4 text-secondary hover:text-secondary/80"
+                          className="w-full mt-4 text-primary"
                         >
                           <Calendar className="w-4 h-4 mr-2" />
                           Book Service
