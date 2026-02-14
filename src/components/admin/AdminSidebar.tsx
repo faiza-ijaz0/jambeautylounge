@@ -1008,8 +1008,9 @@ export function AdminSidebar({
                 </div>
                 {isOpen && (
                   <span className="text-lg font-serif font-bold tracking-tighter">
-                    <span className="text-[#FA9DB7]">Jam</span>
-                    <span className="text-gray-800">Beauty</span>
+                    <span className="text-[#f48aa8]">Jam</span>
+                    <span className="text-gray-500">Beauty</span>
+                      <span className="text-gray-800">Lounge</span>
                   </span>
                 )}
               </Link>

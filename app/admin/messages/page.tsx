@@ -48,7 +48,8 @@
 //   addDoc,
 //   serverTimestamp,
 //   updateDoc,
-//   deleteDoc
+//   deleteDoc,
+//   writeBatch
 // } from 'firebase/firestore';
 // import {
 //   Select,
@@ -65,6 +66,7 @@
 //   DropdownMenuSeparator,
 //   DropdownMenuTrigger,
 // } from "@/components/ui/dropdown-menu";
+// import ProtectedRoute from '@/components/ProtectedRoute';
 
 // interface Message {
 //   id: string;
@@ -78,16 +80,16 @@
 //   recipientBranchName: string;
 //   timestamp: any;
 //   read: boolean;
+//   readBy?: string[];
+//   deliveredTo?: string[];
 //   status: 'sent' | 'delivered' | 'seen';
 //   collection: 'adminMessages' | 'branchMessages';
 //   imageBase64?: string;
 //   imageName?: string;
-//   // ✅ Message Actions Fields
 //   deletedFor?: string[];
 //   deletedForEveryone?: boolean;
 //   edited?: boolean;
 //   editedAt?: any;
-//   // ✅ Reply Fields - Sab optional
 //   replyToId?: string;
 //   replyToContent?: string;
 //   replyToSender?: string;
@@ -100,11 +102,9 @@
 //   const [newMessage, setNewMessage] = useState('');
 //   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 //   const [branches, setBranches] = useState<any[]>([]);
-//   const [loadingBranches, setLoadingBranches] = useState(true);
 //   const [myBranchId, setMyBranchId] = useState<string | null>(null);
 //   const [myBranchDetails, setMyBranchDetails] = useState<any>(null);
 //   const [messages, setMessages] = useState<Message[]>([]);
-//   const [loadingMessages, setLoadingMessages] = useState(false);
 //   const messagesEndRef = useRef<HTMLDivElement>(null);
 //   const [selectedBranchDetails, setSelectedBranchDetails] = useState<any>(null);
 //   const [branchSearchQuery, setBranchSearchQuery] = useState('');
@@ -117,10 +117,9 @@
 //   const [editContent, setEditContent] = useState('');
 //   const editInputRef = useRef<HTMLInputElement>(null);
   
-//   // ✅ Image States
+//   // ✅ Image States - NO LOADING
 //   const [selectedImage, setSelectedImage] = useState<File | null>(null);
 //   const [imagePreview, setImagePreview] = useState<string | null>(null);
-//   const [uploadingImage, setUploadingImage] = useState(false);
 //   const fileInputRef = useRef<HTMLInputElement>(null);
   
 //   // ✅ SCROLL FIX - Refs
@@ -154,11 +153,10 @@
 //     fetchMyBranch();
 //   }, []);
 
-//   // ✅ Fetch ALL branches
+//   // ✅ Fetch ALL branches - NO LOADING STATE
 //   useEffect(() => {
 //     const fetchAllBranches = async () => {
 //       try {
-//         setLoadingBranches(true);
 //         const branchesRef = collection(db, 'branches');
 //         const q = query(branchesRef);
 //         const snapshot = await getDocs(q);
@@ -175,8 +173,6 @@
 //         setBranches(branchesData);
 //       } catch (error) {
 //         console.error('Error:', error);
-//       } finally {
-//         setLoadingBranches(false);
 //       }
 //     };
 //     fetchAllBranches();
@@ -187,10 +183,71 @@
 //     if (selectedBranchId) {
 //       const branch = branches.find(b => b.id === selectedBranchId);
 //       setSelectedBranchDetails(branch || null);
+      
+//       // ✅ Mark messages as read when opening chat
+//       if (branch && myBranchId) {
+//         markMessagesAsRead(selectedBranchId);
+//       }
 //     } else {
 //       setSelectedBranchDetails(null);
 //     }
-//   }, [selectedBranchId, branches]);
+//   }, [selectedBranchId, branches, myBranchId]);
+
+//   // ✅ Mark messages as read
+//   const markMessagesAsRead = async (branchId: string) => {
+//     try {
+//       const adminMessagesQuery = query(
+//         collection(db, 'adminMessages'),
+//         where('recipientBranchId', '==', branchId),
+//         where('senderRole', '==', 'super_admin'),
+//         where('read', '==', false)
+//       );
+      
+//       const snapshot = await getDocs(adminMessagesQuery);
+      
+//       const batch = writeBatch(db);
+//       snapshot.docs.forEach(doc => {
+//         const messageRef = doc.ref;
+//         batch.update(messageRef, {
+//           read: true,
+//           status: 'seen',
+//           readBy: [currentUserId],
+//           deliveredTo: [currentUserId]
+//         });
+//       });
+      
+//       await batch.commit();
+//     } catch (error) {
+//       console.error('Error marking messages as read:', error);
+//     }
+//   };
+
+//   // ✅ Update message status when delivered
+//   const markMessageAsDelivered = async (messageId: string, collection: string) => {
+//     try {
+//       const messageRef = doc(db, collection, messageId);
+//       await updateDoc(messageRef, {
+//         status: 'delivered',
+//         deliveredTo: [currentUserId]
+//       });
+//     } catch (error) {
+//       console.error('Error marking message as delivered:', error);
+//     }
+//   };
+
+//   // ✅ Update message status when seen
+//   const markMessageAsSeen = async (messageId: string, collection: string) => {
+//     try {
+//       const messageRef = doc(db, collection, messageId);
+//       await updateDoc(messageRef, {
+//         read: true,
+//         status: 'seen',
+//         readBy: [currentUserId]
+//       });
+//     } catch (error) {
+//       console.error('Error marking message as seen:', error);
+//     }
+//   };
 
 //   // Scroll to top when branch changes
 //   useEffect(() => {
@@ -214,11 +271,9 @@
 //     }
 //   }, [messages]);
 
-//   // Fetch messages
+//   // ✅ Fetch messages - WITH STATUS UPDATES
 //   useEffect(() => {
 //     if (!selectedBranchId || !myBranchId) return;
-
-//     setLoadingMessages(true);
 
 //     const adminSentQuery = query(
 //       collection(db, 'adminMessages'),
@@ -234,12 +289,27 @@
 //     );
 
 //     const unsubscribeAdmin = onSnapshot(adminSentQuery, (snapshot) => {
-//       const adminMsgs = snapshot.docs.map(doc => ({
-//         id: doc.id,
-//         ...doc.data(),
-//         timestamp: doc.data().timestamp?.toDate() || new Date(),
-//         collection: 'adminMessages' as const
-//       })) as Message[];
+//       const adminMsgs = snapshot.docs.map(doc => {
+//         const data = doc.data();
+//         // ✅ Mark super admin messages as delivered when we see them
+//         if (data.senderRole === 'super_admin' && !data.deliveredTo?.includes(currentUserId)) {
+//           setTimeout(() => {
+//             markMessageAsDelivered(doc.id, 'adminMessages');
+//           }, 500);
+//         }
+//         // ✅ Mark super admin messages as seen when we read them
+//         if (data.senderRole === 'super_admin' && !data.read) {
+//           setTimeout(() => {
+//             markMessageAsSeen(doc.id, 'adminMessages');
+//           }, 1000);
+//         }
+//         return {
+//           id: doc.id,
+//           ...data,
+//           timestamp: data.timestamp?.toDate() || new Date(),
+//           collection: 'adminMessages' as const
+//         };
+//       }) as Message[];
       
 //       setMessages(prev => {
 //         const myMsgs = prev.filter(m => m.collection === 'branchMessages');
@@ -249,16 +319,24 @@
 //         );
 //         return allMsgs;
 //       });
-//       setLoadingMessages(false);
 //     });
 
 //     const unsubscribeMyBranch = onSnapshot(myBranchSentQuery, (snapshot) => {
-//       const myMsgs = snapshot.docs.map(doc => ({
-//         id: doc.id,
-//         ...doc.data(),
-//         timestamp: doc.data().timestamp?.toDate() || new Date(),
-//         collection: 'branchMessages' as const
-//       })) as Message[];
+//       const myMsgs = snapshot.docs.map(doc => {
+//         const data = doc.data();
+//         // ✅ Mark our own messages as delivered after sending
+//         if (data.senderId === currentUserId && data.status === 'sent') {
+//           setTimeout(() => {
+//             markMessageAsDelivered(doc.id, 'branchMessages');
+//           }, 500);
+//         }
+//         return {
+//           id: doc.id,
+//           ...data,
+//           timestamp: data.timestamp?.toDate() || new Date(),
+//           collection: 'branchMessages' as const
+//         };
+//       }) as Message[];
       
 //       setMessages(prev => {
 //         const adminMsgs = prev.filter(m => m.collection === 'adminMessages');
@@ -274,7 +352,7 @@
 //       unsubscribeAdmin();
 //       unsubscribeMyBranch();
 //     };
-//   }, [selectedBranchId, myBranchId]);
+//   }, [selectedBranchId, myBranchId, currentUserId]);
 
 //   // ✅ Image Selection Handler
 //   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,14 +396,13 @@
 //     });
 //   };
 
-//   // ✅ FIXED: Send message with reply - NO UNDEFINED FIELDS!
+//   // ✅ Send message with 1-tick initially
 //   const handleSendReply = async () => {
 //     if ((!newMessage.trim() && !selectedImage) || !selectedBranchId || !myBranchId || !myBranchDetails) return;
 
 //     const selectedBranch = branches.find(b => b.id === selectedBranchId);
 //     if (!selectedBranch) return;
 
-//     setUploadingImage(true);
 //     const messageContent = newMessage;
 //     setNewMessage('');
 
@@ -339,7 +416,6 @@
 //         clearSelectedImage();
 //       }
 
-//       // ✅ Base message data
 //       const messageData: any = {
 //         content: messageContent,
 //         senderId: currentUserId,
@@ -351,38 +427,34 @@
 //         recipientBranchName: selectedBranch.name,
 //         timestamp: serverTimestamp(),
 //         read: false,
-//         status: 'sent',
+//         status: 'sent', // ✅ 1 tick initially
+//         deliveredTo: [],
+//         readBy: [],
 //         deletedFor: [],
 //         deletedForEveryone: false,
 //         edited: false
 //       };
 
-//       // ✅ Add image only if exists
 //       if (imageBase64) {
 //         messageData.imageBase64 = imageBase64;
 //         messageData.imageName = imageName;
 //       }
 
-//       // ✅ FIXED: Add reply info ONLY if replying and check for undefined
 //       if (replyingTo) {
 //         messageData.replyToId = replyingTo.id;
 //         messageData.replyToContent = replyingTo.content || '';
 //         messageData.replyToSender = replyingTo.senderName || 'Someone';
-//         // ✅ Only add replyToImage if it exists
 //         if (replyingTo.imageBase64) {
 //           messageData.replyToImage = replyingTo.imageBase64;
 //         }
 //       }
 
 //       await addDoc(collection(db, 'branchMessages'), messageData);
-      
-//       // ✅ Clear reply after sending
 //       clearReply();
+      
 //     } catch (error) {
 //       console.error('Send error:', error);
 //       setNewMessage(messageContent);
-//     } finally {
-//       setUploadingImage(false);
 //     }
 //   };
 
@@ -512,6 +584,7 @@
 //   );
 
 //   return (
+//     <ProtectedRoute>
 //     <div className="h-screen flex overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
 //       <AdminSidebar 
 //         role="branch_admin" 
@@ -539,7 +612,7 @@
 //                   </div>
 //                   <div>
 //                     <h1 className="text-2xl font-serif font-bold text-gray-900">Branch Communications</h1>
-//                     <p className="text-xs text-gray-500 mt-0.5">{myBranchDetails?.name || 'Branch'} • All Branches</p>
+//                     <p className="text-xs text-gray-500 mt-0.5">Branch Admin</p>
 //                   </div>
 //                 </div>
 //               </div>
@@ -548,19 +621,16 @@
 //             <div className="flex items-center gap-3">
 //               <Badge variant="outline" className="px-4 py-2 border-[#FA9DB7]/30 text-[#B84A68] bg-white rounded-full">
 //                 <Sparkles className="w-3.5 h-3.5 mr-2" />
-//                 {myBranchDetails?.name || 'Branch'}
+//                 {'Branch Chat'}
 //               </Badge>
 //               <Button 
 //                 variant="ghost" 
 //                 size="icon" 
 //                 className="rounded-full hover:bg-red-50 hover:text-red-600"
 //                 onClick={logout}
+
 //               >
-//                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-//                   <span className="text-xs font-bold text-gray-700">
-//                     {myBranchDetails?.name?.charAt(0) || 'B'}
-//                   </span>
-//                 </div>
+                
 //               </Button>
 //             </div>
 //           </div>
@@ -582,14 +652,13 @@
 //                     </label>
 //                     <Select 
 //                       value={selectedBranchId} 
-//                       onValueChange={setSelectedBranchId} 
-//                       disabled={loadingBranches}
+//                       onValueChange={setSelectedBranchId}
 //                     >
 //                       <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-gray-200/80 hover:border-[#FA9DB7]/50 focus:ring-2 focus:ring-[#FA9DB7]/30 rounded-2xl bg-white/80">
 //                         <SelectValue placeholder={
 //                           <div className="flex items-center gap-3 text-gray-500">
 //                             <Building className="w-5 h-5 text-[#FA9DB7]" />
-//                             <span>{loadingBranches ? "Loading branches..." : `All Branches (${branches.length})`}</span>
+//                             <span>All Branches ({branches.length})</span>
 //                           </div>
 //                         } />
 //                       </SelectTrigger>
@@ -622,7 +691,7 @@
 //                                     <div className="flex items-center gap-2 mt-1">
 //                                       <span className="text-xs text-gray-500">{branch.country}</span>
 //                                     </div>
-                                  
+                                    
 //                                   </div>
 //                                 </div>
 //                               </SelectItem>
@@ -642,14 +711,14 @@
 //                       <div className="flex items-center gap-2">
 //                         <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
 //                         <span className="text-xs font-medium text-blue-700">
-//                           {selectedBranchDetails.id === myBranchId ? 'Your Branch' : 'Super Admin'}
+//                           {selectedBranchDetails.id === myBranchId ? 'Super Admin' : 'Super Admin'}
 //                         </span>
 //                       </div>
 //                       <div className="h-4 w-px bg-blue-200"></div>
 //                       <div className="flex items-center gap-2">
 //                         <Sparkles className="w-3.5 h-3.5 text-blue-500" />
 //                         <span className="text-xs text-blue-700">
-//                           {selectedBranchDetails.id === myBranchId ? 'Self Chat' : 'Head Office'}
+//                           {selectedBranchDetails.id === myBranchId ? 'Head office' : 'Head Office'}
 //                         </span>
 //                       </div>
 //                     </div>
@@ -695,7 +764,7 @@
 //                               ? "bg-[#FA9DB7]/10 text-[#B84A68]" 
 //                               : "bg-blue-50 text-blue-700"
 //                           )}>
-//                             {selectedBranchDetails.id === myBranchId ? 'Your Branch' : 'Head Office'}
+//                             {selectedBranchDetails.id === myBranchId ? 'Head Ofiice' : 'Head Office'}
 //                           </Badge>
 //                         </div>
 //                         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -735,27 +804,16 @@
 //                       className="absolute inset-0 w-full h-full"
 //                     >
 //                       <div className="px-6 py-6">
-//                         {loadingMessages ? (
-//                           <div className="flex justify-center items-center h-40">
-//                             <div className="bg-white/80 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-lg flex items-center gap-3">
-//                               <Loader2 className="w-5 h-5 animate-spin text-[#FA9DB7]" />
-//                               <span className="text-sm text-gray-600">Loading conversation...</span>
-//                             </div>
-//                           </div>
-//                         ) : visibleMessages.length === 0 ? (
+//                         {visibleMessages.length === 0 ? (
 //                           <div className="flex flex-col items-center justify-center h-[300px]">
 //                             <div className="w-24 h-24 bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 rounded-3xl flex items-center justify-center mb-4">
 //                               <MessageCircle className="w-12 h-12 text-[#B84A68]" />
 //                             </div>
 //                             <h3 className="text-xl font-serif font-bold text-gray-900 mb-2">
-//                               {selectedBranchDetails.id === myBranchId 
-//                                 ? 'No messages yet?' 
-//                                 : 'No messages yet'}
+//                               No messages yet
 //                             </h3>
 //                             <p className="text-gray-500 text-center max-w-md">
-//                               {selectedBranchDetails.id === myBranchId 
-//                                 ? `Start a conversation with ${selectedBranchDetails.name}. Your messages will appear here.` 
-//                                 : `Start a conversation with ${selectedBranchDetails.name}. Your messages will appear here.`}
+//                               Start a conversation with {selectedBranchDetails.name}. Your messages will appear here.
 //                             </p>
 //                           </div>
 //                         ) : (
@@ -805,7 +863,7 @@
 //                                               </p>
 //                                             )}
                                             
-//                                             {/* ✅ Reply Indicator */}
+//                                             {/* Reply Indicator */}
 //                                             {msg.replyToId && (
 //                                               <div className="mb-2 pl-2 border-l-3 border-[#FA9DB7] bg-gray-50 p-2 rounded-lg text-xs">
 //                                                 <p className="text-[#B84A68] font-semibold flex items-center gap-1">
@@ -815,9 +873,6 @@
 //                                                 <p className="text-gray-600 line-clamp-2">
 //                                                   {msg.replyToContent || '📷 Image'}
 //                                                 </p>
-//                                                 {msg.replyToImage && (
-//                                                   <span className="text-gray-500 text-[10px]">🖼️ Image</span>
-//                                                 )}
 //                                               </div>
 //                                             )}
                                             
@@ -876,7 +931,7 @@
 //                                               </>
 //                                             )}
                                             
-//                                             {/* Time & Status */}
+//                                             {/* ✅ Time & Status - 1 Tick, 2 Ticks, Blue Ticks */}
 //                                             <div className={cn(
 //                                               "flex items-center justify-end gap-1 mt-1 text-[10px]",
 //                                               isMe ? "text-gray-600" : "text-gray-400"
@@ -887,7 +942,7 @@
 //                                               {isMe && msg.status === 'seen' && <CheckCheck className="w-3 h-3 text-blue-600" />}
 //                                             </div>
 
-//                                             {/* Actions Menu - Sab messages ke liye (except edit for non-own) */}
+//                                             {/* Actions Menu */}
 //                                             {editingMessage?.id !== msg.id && (
 //                                               <div className="absolute -top-2 -right-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
 //                                                 <DropdownMenu>
@@ -904,13 +959,13 @@
 //                                                     <DropdownMenuLabel>Message Actions</DropdownMenuLabel>
 //                                                     <DropdownMenuSeparator />
                                                     
-//                                                     {/* ✅ Reply - Sab ke liye */}
+//                                                     {/* Reply - Sab ke liye */}
 //                                                     <DropdownMenuItem onClick={() => setReplyingTo(msg)}>
 //                                                       <Reply className="w-4 h-4 mr-2" />
 //                                                       Reply
 //                                                     </DropdownMenuItem>
                                                     
-//                                                     {/* ✅ Copy - Sirf text messages ke liye */}
+//                                                     {/* Copy - Sirf text messages ke liye */}
 //                                                     {msg.content && (
 //                                                       <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
 //                                                         <Copy className="w-4 h-4 mr-2" />
@@ -920,7 +975,7 @@
                                                     
 //                                                     <DropdownMenuSeparator />
                                                     
-//                                                     {/* ✅ Edit - Sirf apne messages ke liye */}
+//                                                     {/* Edit - Sirf apne messages ke liye */}
 //                                                     {isMe && (
 //                                                       <DropdownMenuItem onClick={() => startEditing(msg)}>
 //                                                         <Edit className="w-4 h-4 mr-2" />
@@ -928,7 +983,7 @@
 //                                                       </DropdownMenuItem>
 //                                                     )}
                                                     
-//                                                     {/* ✅ Delete for me - Sirf apne messages ke liye */}
+//                                                     {/* Delete for me - Sirf apne messages ke liye */}
 //                                                     {isMe && (
 //                                                       <DropdownMenuItem onClick={() => handleDeleteForMe(msg)}>
 //                                                         <EyeOff className="w-4 h-4 mr-2" />
@@ -936,7 +991,7 @@
 //                                                       </DropdownMenuItem>
 //                                                     )}
                                                     
-//                                                     {/* ✅ Delete for everyone - Sirf apne messages ke liye */}
+//                                                     {/* Delete for everyone - Sirf apne messages ke liye */}
 //                                                     {isMe && (
 //                                                       <DropdownMenuItem 
 //                                                         onClick={() => handleDeleteForEveryone(msg)}
@@ -975,10 +1030,10 @@
 //                     </ScrollArea>
 //                   </div>
 
-//                   {/* MESSAGE INPUT WITH REPLY & IMAGE UPLOAD - FIXED */}
+//                   {/* MESSAGE INPUT WITH REPLY & IMAGE UPLOAD - NO LOADING STATES */}
 //                   <div className="bg-white/80 backdrop-blur-xl border-t border-gray-200/80 px-6 py-1 shrink-0">
                     
-//                     {/* ✅ Reply Preview */}
+//                     {/* Reply Preview */}
 //                     {replyingTo && (
 //                       <div className="mb-3 p-3 bg-blue-50 rounded-lg flex items-center gap-3 border-l-4 border-blue-500">
 //                         <ReplyAll className="w-4 h-4 text-blue-600 shrink-0" />
@@ -1040,7 +1095,6 @@
 //                         size="icon"
 //                         className="h-12 w-12 rounded-full border-gray-200 hover:border-[#FA9DB7] hover:bg-[#FA9DB7]/5 shrink-0"
 //                         onClick={() => fileInputRef.current?.click()}
-//                         disabled={uploadingImage}
 //                       >
 //                         <ImageIcon className="w-5 h-5 text-gray-600" />
 //                       </Button>
@@ -1064,14 +1118,13 @@
 //                             }
 //                             onKeyPress={(e) => e.key === 'Enter' && handleSendReply()}
 //                             className="border-0 bg-transparent px-3 py-5 focus-visible:ring-0 text-sm"
-//                             disabled={uploadingImage}
 //                           />
 //                         </div>
 //                       </div>
                       
 //                       <Button 
 //                         onClick={handleSendReply} 
-//                         disabled={(!newMessage.trim() && !selectedImage) || uploadingImage}
+//                         disabled={!newMessage.trim() && !selectedImage}
 //                         className={cn(
 //                           "h-12 px-6 bg-gradient-to-r rounded-2xl shadow-lg disabled:opacity-50 shrink-0",
 //                           replyingTo 
@@ -1079,17 +1132,8 @@
 //                             : "from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852]"
 //                         )}
 //                       >
-//                         {uploadingImage ? (
-//                           <>
-//                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-//                             Processing...
-//                           </>
-//                         ) : (
-//                           <>
-//                             <Send className="w-4 h-4 mr-2" />
-//                             {replyingTo ? 'Reply' : 'Send'}
-//                           </>
-//                         )}
+//                         <Send className="w-4 h-4 mr-2" />
+//                         {replyingTo ? 'Reply' : 'Send'}
 //                       </Button>
 //                     </div>
 //                   </div>
@@ -1117,13 +1161,13 @@
 //           </Card>
 //         </div>
 //       </div>
+    
 //     </div>
+//     </ProtectedRoute>
 //   );
 // }
 
-
-// new code
-
+// new
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -1192,6 +1236,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface Message {
   id: string;
@@ -1278,30 +1323,55 @@ export default function BranchMessages() {
     fetchMyBranch();
   }, []);
 
-  // ✅ Fetch ALL branches - NO LOADING STATE
+  // ✅ Fetch branches - WITH BRANCH FILTERING
   useEffect(() => {
-    const fetchAllBranches = async () => {
+    const fetchBranches = async () => {
       try {
         const branchesRef = collection(db, 'branches');
-        const q = query(branchesRef);
-        const snapshot = await getDocs(q);
         
-        let branchesData = snapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        })) as { id: string; name: string; [key: string]: any }[];
-        
-        branchesData = branchesData.sort((a, b) => 
-          (a.name || '').localeCompare(b.name || '')
-        );
-        
-        setBranches(branchesData);
+        // ✅ BRANCH FILTERING - Sirf assigned branch dikhao
+        // Branch admin ke liye - sirf apni branch
+        if (user?.role === 'admin' && user?.branchId) {
+          console.log(`🏢 Branch Admin - Showing only assigned branch: ${user.branchName}`);
+          
+          const branchDoc = await getDoc(doc(db, 'branches', user.branchId));
+          if (branchDoc.exists()) {
+            const branchData = [{
+              id: branchDoc.id,
+              ...branchDoc.data()
+            }];
+            setBranches(branchData);
+            
+            // ✅ Auto-select the branch
+            setSelectedBranchId(user.branchId);
+          }
+        } 
+        // Super admin ke liye - saari branches
+        else {
+          console.log('👑 Super Admin - Showing all branches');
+          const q = query(branchesRef);
+          const snapshot = await getDocs(q);
+          
+          let branchesData = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+          })) as { id: string; name: string; [key: string]: any }[];
+          
+          branchesData = branchesData.sort((a, b) => 
+            (a.name || '').localeCompare(b.name || '')
+          );
+          
+          setBranches(branchesData);
+        }
       } catch (error) {
         console.error('Error:', error);
       }
     };
-    fetchAllBranches();
-  }, []);
+    
+    if (user) {
+      fetchBranches();
+    }
+  }, [user]);
 
   // Update selected branch details
   useEffect(() => {
@@ -1701,14 +1771,20 @@ export default function BranchMessages() {
     }
   };
 
-  // ✅ FILTER BRANCHES - ALL BRANCHES
-  const filteredBranches = branches.filter(branch => 
-    branch.name?.toLowerCase().includes(branchSearchQuery.toLowerCase()) ||
-    branch.city?.toLowerCase().includes(branchSearchQuery.toLowerCase()) ||
-    branch.managerName?.toLowerCase().includes(branchSearchQuery.toLowerCase())
-  );
+  // ✅ FILTER BRANCHES - SIRF ASSIGNED BRANCH FOR BRANCH ADMIN
+  const filteredBranches = branches.filter(branch => {
+    // Agar branch admin hai to sirf assigned branch dikhao
+    if (user?.role === 'admin' && user?.branchId) {
+      return branch.id === user.branchId;
+    }
+    // Super admin ke liye search filter
+    return branch.name?.toLowerCase().includes(branchSearchQuery.toLowerCase()) ||
+           branch.city?.toLowerCase().includes(branchSearchQuery.toLowerCase()) ||
+           branch.managerName?.toLowerCase().includes(branchSearchQuery.toLowerCase());
+  });
 
   return (
+    <ProtectedRoute requiredRole='admin'>
     <div className="h-screen flex overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
       <AdminSidebar 
         role="branch_admin" 
@@ -1736,7 +1812,11 @@ export default function BranchMessages() {
                   </div>
                   <div>
                     <h1 className="text-2xl font-serif font-bold text-gray-900">Branch Communications</h1>
-                    <p className="text-xs text-gray-500 mt-0.5">Branch Admin</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {user?.role === 'admin' 
+                        ? `${user?.branchName || 'Branch'} Admin` 
+                        : 'Branch Admin'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1745,16 +1825,17 @@ export default function BranchMessages() {
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="px-4 py-2 border-[#FA9DB7]/30 text-[#B84A68] bg-white rounded-full">
                 <Sparkles className="w-3.5 h-3.5 mr-2" />
-                {'Branch Chat'}
+                {user?.role === 'admin' && user?.branchName 
+                  ? `${user.branchName} Chat` 
+                  : 'Branch Chat'}
               </Badge>
               <Button 
                 variant="ghost" 
                 size="icon" 
                 className="rounded-full hover:bg-red-50 hover:text-red-600"
                 onClick={logout}
-
               >
-                
+                {/* Add icon here if needed */}
               </Button>
             </div>
           </div>
@@ -1767,67 +1848,85 @@ export default function BranchMessages() {
             {/* CARD CONTENT - FIXED */}
             <div className="flex-1 flex flex-col min-h-0">
               
-              {/* SELECT BRANCH - ALL BRANCHES */}
+              {/* SELECT BRANCH - WITH BRANCH FILTERING */}
               <div className="bg-gradient-to-r from-white to-gray-50/80 px-6 py-5 border-b border-gray-200/80 shrink-0">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex-1">
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2 block">
-                      SELECT BRANCH TO CHAT
+                      {user?.role === 'admin' 
+                        ? 'YOUR BRANCH' 
+                        : 'SELECT BRANCH TO CHAT'}
                     </label>
-                    <Select 
-                      value={selectedBranchId} 
-                      onValueChange={setSelectedBranchId}
-                    >
-                      <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-gray-200/80 hover:border-[#FA9DB7]/50 focus:ring-2 focus:ring-[#FA9DB7]/30 rounded-2xl bg-white/80">
-                        <SelectValue placeholder={
-                          <div className="flex items-center gap-3 text-gray-500">
-                            <Building className="w-5 h-5 text-[#FA9DB7]" />
-                            <span>All Branches ({branches.length})</span>
-                          </div>
-                        } />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-0 shadow-2xl p-2 bg-white/95">
-                        <div className="px-3 py-2 border-b border-gray-100">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                              placeholder="Search by branch, city, or manager..."
-                              value={branchSearchQuery}
-                              onChange={(e) => setBranchSearchQuery(e.target.value)}
-                              className="pl-9 h-11 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7]/30"
-                            />
-                          </div>
+                    
+                    {user?.role === 'admin' && user?.branchId ? (
+                      /* Branch Admin - Show branch name directly (no dropdown) */
+                      <div className="w-full md:w-[400px] h-14 border-2 border-[#FA9DB7]/30 bg-gradient-to-r from-[#FA9DB7]/5 to-white rounded-2xl flex items-center px-4">
+                        <div className="flex items-center gap-3">
+                          <Building className="w-5 h-5 text-[#B84A68]" />
+                          <span className="font-semibold text-gray-900">
+                            {branches.find(b => b.id === user.branchId)?.name || user.branchName || 'Your Branch'}
+                          </span>
+                          <Badge className="bg-[#FA9DB7]/10 text-[#B84A68] border-0 ml-2">
+                            Assigned Branch
+                          </Badge>
                         </div>
-                        <ScrollArea className="h-[280px]">
-                          {filteredBranches.length > 0 ? (
-                            filteredBranches.map(branch => (
-                              <SelectItem 
-                                key={branch.id} 
-                                value={branch.id}
-                                className="rounded-xl py-3 px-3 cursor-pointer hover:bg-[#FA9DB7]/5"
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="w-8 h-8 mt-1 rounded-xl bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 flex items-center justify-center">
-                                    <Building className="w-5 h-5 text-[#B84A68]" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-gray-900">{branch.name}</div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs text-gray-500">{branch.country}</span>
-                                    </div>
-                                    
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="py-8 text-center text-gray-500">
-                              No branches found
+                      </div>
+                    ) : (
+                      /* Super Admin - Show dropdown with all branches */
+                      <Select 
+                        value={selectedBranchId} 
+                        onValueChange={setSelectedBranchId}
+                      >
+                        <SelectTrigger className="w-full md:w-[400px] h-14 border-2 border-gray-200/80 hover:border-[#FA9DB7]/50 focus:ring-2 focus:ring-[#FA9DB7]/30 rounded-2xl bg-white/80">
+                          <SelectValue placeholder={
+                            <div className="flex items-center gap-3 text-gray-500">
+                              <Building className="w-5 h-5 text-[#FA9DB7]" />
+                              <span>All Branches ({branches.length})</span>
                             </div>
-                          )}
-                        </ScrollArea>
-                      </SelectContent>
-                    </Select>
+                          } />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-0 shadow-2xl p-2 bg-white/95">
+                          <div className="px-3 py-2 border-b border-gray-100">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input
+                                placeholder="Search by branch, city, or manager..."
+                                value={branchSearchQuery}
+                                onChange={(e) => setBranchSearchQuery(e.target.value)}
+                                className="pl-9 h-11 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#FA9DB7]/30"
+                              />
+                            </div>
+                          </div>
+                          <ScrollArea className="h-[280px]">
+                            {filteredBranches.length > 0 ? (
+                              filteredBranches.map(branch => (
+                                <SelectItem 
+                                  key={branch.id} 
+                                  value={branch.id}
+                                  className="rounded-xl py-3 px-3 cursor-pointer hover:bg-[#FA9DB7]/5"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 mt-1 rounded-xl bg-gradient-to-br from-[#FA9DB7]/20 to-[#B84A68]/10 flex items-center justify-center">
+                                      <Building className="w-5 h-5 text-[#B84A68]" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="font-semibold text-gray-900">{branch.name}</div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-xs text-gray-500">{branch.country}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="py-8 text-center text-gray-500">
+                                No branches found
+                              </div>
+                            )}
+                          </ScrollArea>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   
                   {selectedBranchDetails && (
@@ -1888,7 +1987,7 @@ export default function BranchMessages() {
                               ? "bg-[#FA9DB7]/10 text-[#B84A68]" 
                               : "bg-blue-50 text-blue-700"
                           )}>
-                            {selectedBranchDetails.id === myBranchId ? 'Head Ofiice' : 'Head Office'}
+                            {selectedBranchDetails.id === myBranchId ? 'Head Office' : 'Head Office'}
                           </Badge>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -2272,11 +2371,17 @@ export default function BranchMessages() {
                       Welcome, {myBranchDetails?.name || 'Branch'}
                     </h3>
                     <p className="text-gray-500 mb-8">
-                      Select a branch from the dropdown above to start chatting. You can chat with any branch including your own!
+                      {user?.role === 'admin' 
+                        ? `You are chatting with your assigned branch.` 
+                        : `Select a branch from the dropdown above to start chatting. You can chat with any branch including your own!`}
                     </p>
                     <div className="flex items-center justify-center gap-2 text-sm text-[#B84A68] bg-[#FA9DB7]/10 px-6 py-3 rounded-2xl">
                       <Sparkles className="w-4 h-4" />
-                      <span>{branches.length} total branches available</span>
+                      <span>
+                        {user?.role === 'admin'
+                          ? `Chatting as ${user?.branchName || 'Your Branch'}`
+                          : `${branches.length} total branches available`}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2285,6 +2390,8 @@ export default function BranchMessages() {
           </Card>
         </div>
       </div>
+    
     </div>
+    </ProtectedRoute>
   );
 }

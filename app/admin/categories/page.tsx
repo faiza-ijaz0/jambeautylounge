@@ -501,7 +501,7 @@ export default function SuperAdminCategories() {
               </div>
               <Button
                 onClick={() => handleAddDialogOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30"
                 disabled={loading}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -1323,7 +1323,7 @@ export default function SuperAdminCategories() {
                 <Button
                   onClick={handleEditCategory}
                   disabled={isEditing || !formData.name.trim()}
-                  className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="w-full sm:w-auto bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 transition-all duration-200"
                 >
                   {isEditing ? (
                     <>

@@ -1,6 +1,2290 @@
+// "use client";
+
+// import { useState, useEffect, useRef } from "react";
+// import {
+//   Card,
+//   CardContent,
+//   CardDescription,
+//   CardHeader,
+//   CardTitle,
+// } from "@/components/ui/card";
+// import { Button } from "@/components/ui/button";
+// import { Badge } from "@/components/ui/badge";
+// import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// import {
+//   Calendar,
+//   Users,
+//   DollarSign,
+//   TrendingUp,
+//   Building,
+//   Settings,
+//   UserPlus,
+//   LogOut,
+//   ChevronRight,
+//   Package,
+//   Layers,
+//   Star,
+//   CheckCircle,
+//   Clock,
+//   AlertCircle,
+//   Plus,
+//   Eye,
+//   Download,
+//   Filter,
+//   Bell,
+//   Activity,
+//   BarChart3,
+//   PieChart,
+//   ShoppingCart,
+//   Award,
+//   Scissors,
+//   Tag,
+//   MessageCircle,
+//   Wrench,
+//   Sparkles,
+//   Mail,
+//   Phone,
+//   MapPin,
+//   Globe,
+//   CreditCard,
+//   FileText,
+//   HelpCircle,
+//   Briefcase,
+//   Target,
+//   Zap,
+//   Heart,
+//   Gift,
+//   Truck,
+//   Repeat,
+//   Shield,
+//   Moon,
+//   Sun,
+//   Search,
+//   Menu,
+//   X,
+//   Edit,
+//   Trash2,
+//   MoreVertical,
+//   Copy,
+//   Check,
+//   CheckCheck,
+//   CheckCheckIcon
+// } from "lucide-react";
+
+// import { useAuth } from "@/contexts/AuthContext";
+// import { useRouter } from "next/navigation";
+// import {
+//   AdminSidebar,
+//   AdminMobileSidebar,
+// } from "@/components/admin/AdminSidebar";
+// import { cn } from "@/lib/utils";
+
+// // Firebase imports
+// import { db } from "@/lib/firebase";
+// import { 
+//   collection, 
+//   getDocs, 
+//   query, 
+//   where, 
+//   onSnapshot,
+//   orderBy,
+//   limit,
+//   doc,
+//   updateDoc
+// } from "firebase/firestore";
+// import Link from "next/link";
+// import ProtectedRoute from "@/components/ProtectedRoute";
+
+// // Define TypeScript interfaces
+// interface OverallStats {
+//   totalBranches: number;
+//   totalRevenue: number;
+//   totalCustomers: number;
+//   totalStaff: number;
+//   avgRating: number;
+//   monthlyGrowth: number;
+//   totalServices: number;
+//   totalProducts: number;
+//   totalCategories: number;
+//   totalBookings: number;
+// }
+
+// interface BranchPerformance {
+//   id: string;
+//   name: string;
+//   revenue: number;
+//   customers: number;
+//   rating: number;
+//   status: string;
+//   city: string;
+//   manager: string;
+//   bookings: number;
+// }
+
+// interface RecentActivity {
+//   id: string;
+//   type: string;
+//   message: string;
+//   time: string;
+//   branch?: string;
+//   timestamp?: any;
+//   read?: boolean;
+//   senderBranch?: string;
+//   recipientBranch?: string;
+//   senderRole?: string;
+//   readBy?: string[];
+//   status?: string;
+// }
+
+// interface RecentCategory {
+//   id: string;
+//   name: string;
+//   type: string;
+//   branch: string;
+//   time: string;
+//   isActive: boolean;
+// }
+
+// interface RecentProduct {
+//   id: string;
+//   name: string;
+//   price: number;
+//   category: string;
+//   time: string;
+//   status: string;
+// }
+
+// interface RecentService {
+//   id: string;
+//   name: string;
+//   price: number;
+//   duration: number;
+//   category: string;
+//   time: string;
+//   status: string;
+// }
+
+// interface RecentBooking {
+//   id: string;
+//   serviceName: string;
+//   customerName: string;
+//   date: string;
+//   time: string;
+//   totalAmount: number;
+//   status: string;
+//   timeAgo: string;
+// }
+
+// interface Notification {
+//   id: string;
+//   type: 'message' | 'booking' | 'feedback' | 'system';
+//   title: string;
+//   message: string;
+//   timestamp: any;
+//   read: boolean;
+//   data?: any;
+// }
+
+// // Firebase document interfaces
+// interface BranchDocument {
+//   id: string;
+//   name?: string;
+//   city?: string;
+//   managerName?: string;
+//   [key: string]: any;
+// }
+
+// interface FeedbackDocument {
+//   id: string;
+//   rating?: number;
+//   customerName?: string;
+//   branchName?: string;
+//   branchId?: string;
+//   createdAt?: { toDate: () => Date };
+//   [key: string]: any;
+// }
+
+// interface ServiceDocument {
+//   id: string;
+//   name?: string;
+//   price?: number;
+//   revenue?: number;
+//   duration?: number;
+//   category?: string;
+//   status?: string;
+//   branches?: string[];
+//   branchNames?: string[];
+//   createdAt?: { toDate: () => Date };
+//   [key: string]: any;
+// }
+
+// interface ProductDocument {
+//   id: string;
+//   name?: string;
+//   price?: number;
+//   revenue?: number;
+//   category?: string;
+//   status?: string;
+//   branches?: string[];
+//   branchNames?: string[];
+//   createdAt?: { toDate: () => Date };
+//   [key: string]: any;
+// }
+
+// interface CategoryDocument {
+//   id: string;
+//   name?: string;
+//   type?: string;
+//   branchName?: string;
+//   isActive?: boolean;
+//   createdAt?: { toDate: () => Date };
+//   [key: string]: any;
+// }
+
+// interface BookingDocument {
+//   id: string;
+//   serviceName?: string;
+//   customerName?: string;
+//   date?: string;
+//   time?: string;
+//   totalAmount?: number;
+//   status?: string;
+//   branchId?: string;
+//   branchName?: string;
+//   createdAt?: { toDate: () => Date };
+//   [key: string]: any;
+// }
+
+// // Updated interface for branchMessages
+// interface BranchMessageDocument {
+//   id: string;
+//   content: string;
+//   senderId: string;
+//   senderName: string;
+//   senderRole: 'super_admin' | 'branch_admin';
+//   senderBranchId?: string;
+//   senderBranchName?: string;
+//   recipientBranchId: string;
+//   recipientBranchName: string;
+//   timestamp: any;
+//   read: boolean;
+//   readBy?: string[];
+//   deliveredTo?: string[];
+//   deletedFor?: string[];
+//   deletedForEveryone?: boolean;
+//   edited?: boolean;
+//   status: 'sent' | 'delivered' | 'seen';
+// }
+
+// export default function SuperAdminDashboard() {
+//   const { user, logout } = useAuth();
+//   const router = useRouter();
+//   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+//   const [activeTab, setActiveTab] = useState<string>("bookings");
+  
+//   // ✅ Real-time notifications state
+//   const [notifications, setNotifications] = useState<Notification[]>([]);
+//   const [unreadCount, setUnreadCount] = useState<number>(0);
+//   const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  
+//   // ✅ AUDIO FIX
+//   const audioRef = useRef<HTMLAudioElement | null>(null);
+//   const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+//   const [showAudioPermissionPrompt, setShowAudioPermissionPrompt] = useState<boolean>(false);
+
+//   // ✅ Load read notifications from localStorage on mount
+//   useEffect(() => {
+//     if (typeof window !== 'undefined') {
+//       const readNotifications = localStorage.getItem('super_admin_read_notifications');
+//       if (readNotifications) {
+//         try {
+//           const readIds = JSON.parse(readNotifications);
+//           setNotifications(prev => prev.filter(n => !readIds.includes(n.id)));
+//         } catch (error) {
+//           console.log('Error loading read notifications:', error);
+//         }
+//       }
+//     }
+//   }, []);
+
+//   // Initial state with cached data
+//   const [overallStats, setOverallStats] = useState<OverallStats>(() => {
+//     if (typeof window !== 'undefined') {
+//       const cachedStats = localStorage.getItem('super_admin_dashboard_stats');
+//       if (cachedStats) {
+//         try {
+//           return JSON.parse(cachedStats);
+//         } catch {
+//           // Fallback to defaults
+//         }
+//       }
+//     }
+//     return {
+//       totalBranches: 0,
+//       totalRevenue: 0,
+//       totalCustomers: 0,
+//       totalStaff: 0,
+//       avgRating: 0,
+//       monthlyGrowth: 0,
+//       totalServices: 0,
+//       totalProducts: 0,
+//       totalCategories: 0,
+//       totalBookings: 0,
+//     };
+//   });
+
+//   const [branchPerformance, setBranchPerformance] = useState<BranchPerformance[]>(
+//     () => {
+//       if (typeof window !== 'undefined') {
+//         const cachedBranches = localStorage.getItem('super_admin_branch_performance');
+//         if (cachedBranches) {
+//           try {
+//             return JSON.parse(cachedBranches);
+//           } catch {
+//             // Fallback to empty array
+//           }
+//         }
+//       }
+//       return [];
+//     }
+//   );
+
+//   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
+//     () => {
+//       if (typeof window !== 'undefined') {
+//         const cachedActivities = localStorage.getItem('super_admin_recent_activities');
+//         if (cachedActivities) {
+//           try {
+//             return JSON.parse(cachedActivities);
+//           } catch {
+//             // Fallback to empty array
+//           }
+//         }
+//       }
+//       return [];
+//     }
+//   );
+
+//   const [recentCategories, setRecentCategories] = useState<RecentCategory[]>(
+//     () => {
+//       if (typeof window !== 'undefined') {
+//         const cachedCategories = localStorage.getItem('super_admin_recent_categories');
+//         if (cachedCategories) {
+//           try {
+//             return JSON.parse(cachedCategories);
+//           } catch {
+//             // Fallback to empty array
+//           }
+//         }
+//       }
+//       return [];
+//     }
+//   );
+  
+//   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>(
+//     () => {
+//       if (typeof window !== 'undefined') {
+//         const cachedProducts = localStorage.getItem('super_admin_recent_products');
+//         if (cachedProducts) {
+//           try {
+//             return JSON.parse(cachedProducts);
+//           } catch {
+//             // Fallback to empty array
+//           }
+//         }
+//       }
+//       return [];
+//     }
+//   );
+  
+//   const [recentServices, setRecentServices] = useState<RecentService[]>(
+//     () => {
+//       if (typeof window !== 'undefined') {
+//         const cachedServices = localStorage.getItem('super_admin_recent_services');
+//         if (cachedServices) {
+//           try {
+//             return JSON.parse(cachedServices);
+//           } catch {
+//             // Fallback to empty array
+//           }
+//         }
+//       }
+//       return [];
+//     }
+//   );
+  
+//   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>(
+//     () => {
+//       if (typeof window !== 'undefined') {
+//         const cachedBookings = localStorage.getItem('super_admin_recent_bookings');
+//         if (cachedBookings) {
+//           try {
+//             return JSON.parse(cachedBookings);
+//           } catch {
+//             // Fallback to empty array
+//           }
+//         }
+//       }
+//       return [];
+//     }
+//   );
+
+//   // ✅ AUDIO FIX - Initialize audio
+//   useEffect(() => {
+//     if (typeof window !== 'undefined') {
+//       const audio = new Audio('/notification.mp3');
+//       audio.preload = 'auto';
+//       audio.volume = 0.7;
+//       audioRef.current = audio;
+//       audio.load();
+      
+//       const enableAudio = () => {
+//         if (audioRef.current) {
+//           audioRef.current.volume = 0.01;
+//           audioRef.current.play()
+//             .then(() => {
+//               console.log('✅ Audio initialized successfully');
+//               setAudioEnabled(true);
+//               setShowAudioPermissionPrompt(false);
+//               audioRef.current.pause();
+//               audioRef.current.currentTime = 0;
+//               audioRef.current.volume = 0.7;
+//             })
+//             .catch(error => {
+//               console.log('❌ Audio initialization failed:', error);
+//               setAudioEnabled(false);
+//               setShowAudioPermissionPrompt(true);
+//             });
+//         }
+//       };
+
+//       const handleUserInteraction = () => {
+//         enableAudio();
+//         document.removeEventListener('click', handleUserInteraction);
+//         document.removeEventListener('touchstart', handleUserInteraction);
+//         document.removeEventListener('keydown', handleUserInteraction);
+//       };
+
+//       document.addEventListener('click', handleUserInteraction);
+//       document.addEventListener('touchstart', handleUserInteraction);
+//       document.addEventListener('keydown', handleUserInteraction);
+
+//       enableAudio();
+
+//       return () => {
+//         if (audioRef.current) {
+//           audioRef.current.pause();
+//           audioRef.current = null;
+//         }
+//         document.removeEventListener('click', handleUserInteraction);
+//         document.removeEventListener('touchstart', handleUserInteraction);
+//         document.removeEventListener('keydown', handleUserInteraction);
+//       };
+//     }
+//   }, []);
+
+//   // ✅ Play notification sound
+//   const playNotificationSound = async () => {
+//     if (!audioRef.current) return false;
+
+//     if (!audioEnabled) {
+//       try {
+//         audioRef.current.volume = 0.01;
+//         await audioRef.current.play();
+//         audioRef.current.pause();
+//         audioRef.current.currentTime = 0;
+//         audioRef.current.volume = 0.7;
+//         setAudioEnabled(true);
+//         setShowAudioPermissionPrompt(false);
+//       } catch (error) {
+//         setShowAudioPermissionPrompt(true);
+//         return false;
+//       }
+//     }
+
+//     try {
+//       audioRef.current.currentTime = 0;
+//       const playPromise = audioRef.current.play();
+//       if (playPromise !== undefined) {
+//         playPromise.catch(error => {
+//           console.log('❌ Failed to play sound:', error);
+//           setAudioEnabled(false);
+//           setShowAudioPermissionPrompt(true);
+//         });
+//       }
+//       return true;
+//     } catch (error) {
+//       return false;
+//     }
+//   };
+
+//   // ✅ Manual enable audio
+//   const enableAudioManually = async () => {
+//     if (audioRef.current) {
+//       try {
+//         audioRef.current.volume = 0.01;
+//         await audioRef.current.play();
+//         audioRef.current.pause();
+//         audioRef.current.currentTime = 0;
+//         audioRef.current.volume = 0.7;
+//         setAudioEnabled(true);
+//         setShowAudioPermissionPrompt(false);
+//         setTimeout(() => playNotificationSound(), 100);
+//         return true;
+//       } catch (error) {
+//         return false;
+//       }
+//     }
+//     return false;
+//   };
+
+//   // ✅ Show browser notification
+//   const showBrowserNotification = (title: string, body: string) => {
+//     if (typeof window !== 'undefined' && 'Notification' in window) {
+//       if (Notification.permission === 'granted') {
+//         new Notification(title, { body, icon: '/icon.png' });
+//       } else if (Notification.permission !== 'denied') {
+//         Notification.requestPermission().then(permission => {
+//           if (permission === 'granted') {
+//             new Notification(title, { body, icon: '/icon.png' });
+//           }
+//         });
+//       }
+//     }
+//   };
+
+//   // ✅ Request notification permission
+//   useEffect(() => {
+//     if (typeof window !== 'undefined' && 'Notification' in window) {
+//       if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+//         Notification.requestPermission();
+//       }
+//     }
+//   }, []);
+
+//   // ✅ MESSAGES NOTIFICATIONS - FROM BRANCHMESSAGES COLLECTION
+//   useEffect(() => {
+//     if (!user) return;
+
+//     console.log("🔔 Setting up branchMessages listener...");
+    
+//     const messagesQuery = query(
+//       collection(db, 'branchMessages'),
+//       orderBy('timestamp', 'desc')
+//     );
+
+//     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+//       snapshot.docChanges().forEach((change) => {
+//         if (change.type === 'added') {
+//           const messageData = {
+//             id: change.doc.id,
+//             ...change.doc.data()
+//           } as BranchMessageDocument;
+          
+//           console.log("📨 NEW MESSAGE in branchMessages:", messageData);
+          
+//           // ✅ SUPER ADMIN - No branch filter, sab messages dikhao
+          
+//           const readNotifications = localStorage.getItem('super_admin_read_notifications');
+//           if (readNotifications) {
+//             const readIds = JSON.parse(readNotifications);
+//             if (readIds.includes(messageData.id)) {
+//               return;
+//             }
+//           }
+          
+//           const senderName = messageData.senderName || 'Unknown';
+//           const senderRole = messageData.senderRole || 'user';
+//           const messageContent = messageData.content || '📷 Image';
+//           const recipientBranch = messageData.recipientBranchName || 'Unknown Branch';
+//           const senderBranch = messageData.senderBranchName || 'Unknown';
+          
+//           // ✅ Create title based on sender role
+//           let notificationTitle = '';
+//           let fromTo = '';
+//           let roleIcon = '';
+          
+//           if (senderRole === 'super_admin') {
+//             roleIcon = '👑';
+//             notificationTitle = `📢 Super Admin → ${recipientBranch}`;
+//             fromTo = `Super Admin → ${recipientBranch}`;
+//           } else {
+//             roleIcon = '🏢';
+//             notificationTitle = `💬 ${senderBranch} Admin → Super Admin`;
+//             fromTo = `${senderBranch} Admin → Super Admin`;
+//           }
+          
+//           // ✅ Check if message is read by super admin
+//           const isReadBySuperAdmin = messageData.readBy?.includes('super-admin') || false;
+          
+//           // Play sound
+//           playNotificationSound();
+          
+//           // Show browser notification
+//           showBrowserNotification(
+//             notificationTitle,
+//             messageContent
+//           );
+          
+//           // ✅ Create notification object with all details
+//           const notification: Notification = {
+//             id: messageData.id,
+//             type: 'message',
+//             title: notificationTitle,
+//             message: messageContent,
+//             timestamp: messageData.timestamp,
+//             read: false,
+//             data: {
+//               ...messageData,
+//               fromTo: fromTo,
+//               senderBranch: senderBranch,
+//               recipientBranch: recipientBranch,
+//               senderRole: senderRole,
+//               roleIcon: roleIcon,
+//               readBy: messageData.readBy || [],
+//               status: messageData.status,
+//               isReadBySuperAdmin: isReadBySuperAdmin
+//             }
+//           };
+
+//           setNotifications(prev => {
+//             const exists = prev.some(n => n.id === messageData.id);
+//             if (exists) return prev;
+//             return [notification, ...prev].slice(0, 50);
+//           });
+          
+//           setUnreadCount(prev => prev + 1);
+          
+//           // ✅ Add to recent activities with full details
+//           const timeAgo = calculateTimeAgo(messageData.timestamp?.toDate?.() || new Date());
+          
+//           let activityMessage = '';
+//           if (senderRole === 'super_admin') {
+//             activityMessage = `📢 Super Admin → ${recipientBranch}: ${messageContent.substring(0, 30)}${messageContent.length > 30 ? '...' : ''}`;
+//           } else {
+//             activityMessage = `💬 ${senderBranch} Admin → Super Admin: ${messageContent.substring(0, 30)}${messageContent.length > 30 ? '...' : ''}`;
+//           }
+          
+//           const activity: RecentActivity = {
+//             id: messageData.id,
+//             type: 'message',
+//             message: activityMessage,
+//             time: timeAgo,
+//             branch: recipientBranch,
+//             senderBranch: senderBranch,
+//             recipientBranch: recipientBranch,
+//             senderRole: senderRole,
+//             readBy: messageData.readBy,
+//             status: messageData.status,
+//             timestamp: messageData.timestamp,
+//             read: false
+//           };
+          
+//           setRecentActivities(prev => {
+//             const exists = prev.some(a => a.id === messageData.id);
+//             if (exists) return prev;
+//             return [activity, ...prev].slice(0, 10);
+//           });
+//         }
+//       });
+//     }, (error) => {
+//       console.error("❌ branchMessages listener error:", error);
+//     });
+
+//     return () => unsubscribeMessages();
+//   }, [user]);
+
+//   // ✅ BOOKINGS NOTIFICATIONS - SUPER ADMIN SEES ALL
+//   useEffect(() => {
+//     if (!user) return;
+
+//     const bookingsQuery = query(
+//       collection(db, 'bookings')
+//     );
+
+//     const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
+//       snapshot.docChanges().forEach((change) => {
+//         if (change.type === 'added') {
+//           const bookingData = {
+//             id: change.doc.id,
+//             ...change.doc.data()
+//           };
+          
+//           const readNotifications = localStorage.getItem('super_admin_read_notifications');
+//           if (readNotifications) {
+//             const readIds = JSON.parse(readNotifications);
+//             if (readIds.includes(bookingData.id)) {
+//               return;
+//             }
+//           }
+          
+//           const notification: Notification = {
+//             id: bookingData.id,
+//             type: 'booking',
+//             title: '📅 New Booking',
+//             message: `${bookingData.customerName || 'Customer'} booked ${bookingData.serviceName || 'a service'} at ${bookingData.branchName || 'branch'}`,
+//             timestamp: bookingData.createdAt,
+//             read: false,
+//             data: bookingData
+//           };
+
+//           setNotifications(prev => [notification, ...prev].slice(0, 50));
+//           setUnreadCount(prev => prev + 1);
+          
+//           playNotificationSound();
+//           showBrowserNotification(notification.title, notification.message);
+//         }
+//       });
+//     });
+
+//     return () => unsubscribeBookings();
+//   }, [user]);
+
+//   // ✅ FEEDBACKS NOTIFICATIONS - SUPER ADMIN SEES ALL
+//   useEffect(() => {
+//     if (!user) return;
+
+//     const feedbackQuery = query(
+//       collection(db, 'feedbacks')
+//     );
+
+//     const unsubscribeFeedback = onSnapshot(feedbackQuery, (snapshot) => {
+//       snapshot.docChanges().forEach((change) => {
+//         if (change.type === 'added') {
+//           const feedbackData = {
+//             id: change.doc.id,
+//             ...change.doc.data()
+//           };
+          
+//           const readNotifications = localStorage.getItem('super_admin_read_notifications');
+//           if (readNotifications) {
+//             const readIds = JSON.parse(readNotifications);
+//             if (readIds.includes(feedbackData.id)) {
+//               return;
+//             }
+//           }
+          
+//           const notification: Notification = {
+//             id: feedbackData.id,
+//             type: 'feedback',
+//             title: '⭐ New Review',
+//             message: `${feedbackData.customerName || 'Customer'} left a ${feedbackData.rating}★ review at ${feedbackData.branchName || 'branch'}`,
+//             timestamp: feedbackData.createdAt,
+//             read: false,
+//             data: feedbackData
+//           };
+
+//           setNotifications(prev => [notification, ...prev].slice(0, 50));
+//           setUnreadCount(prev => prev + 1);
+          
+//           playNotificationSound();
+//           showBrowserNotification(notification.title, notification.message);
+//         }
+//       });
+//     });
+
+//     return () => unsubscribeFeedback();
+//   }, [user]);
+
+//   const handleLogout = () => {
+//     logout();
+//     router.push("/login");
+//   };
+
+//   // ✅ Mark notification as read
+//   const markNotificationAsRead = (notificationId: string) => {
+//     setNotifications(prev => prev.filter(n => n.id !== notificationId));
+//     setUnreadCount(prev => Math.max(0, prev - 1));
+    
+//     const readNotifications = localStorage.getItem('super_admin_read_notifications');
+//     let readIds: string[] = [];
+    
+//     if (readNotifications) {
+//       readIds = JSON.parse(readNotifications);
+//     }
+    
+//     if (!readIds.includes(notificationId)) {
+//       readIds.push(notificationId);
+//       localStorage.setItem('super_admin_read_notifications', JSON.stringify(readIds));
+//     }
+//   };
+
+//   // ✅ Mark all as read
+//   const markAllAsRead = () => {
+//     const currentIds = notifications.map(n => n.id);
+//     setNotifications([]);
+//     setUnreadCount(0);
+    
+//     const readNotifications = localStorage.getItem('super_admin_read_notifications');
+//     let readIds: string[] = [];
+    
+//     if (readNotifications) {
+//       readIds = JSON.parse(readNotifications);
+//     }
+    
+//     currentIds.forEach(id => {
+//       if (!readIds.includes(id)) {
+//         readIds.push(id);
+//       }
+//     });
+    
+//     localStorage.setItem('super_admin_read_notifications', JSON.stringify(readIds));
+//   };
+
+//   // Helper function to calculate time ago
+//   const calculateTimeAgo = (date: Date | null | undefined): string => {
+//     if (!date) return "Recently";
+
+//     const now = new Date();
+//     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+//     if (diffInSeconds < 60) return "Just now";
+//     if (diffInSeconds < 3600)
+//       return `${Math.floor(diffInSeconds / 60)} min ago`;
+//     if (diffInSeconds < 86400)
+//       return `${Math.floor(diffInSeconds / 3600)} hour${
+//         Math.floor(diffInSeconds / 3600) > 1 ? "s" : ""
+//       } ago`;
+//     return `${Math.floor(diffInSeconds / 86400)} day${
+//       Math.floor(diffInSeconds / 86400) > 1 ? "s" : ""
+//     } ago`;
+//   };
+
+//   // ✅ MAIN FETCH FUNCTION - SUPER ADMIN, NO BRANCH FILTERING
+//   useEffect(() => {
+//     const fetchDashboardData = async () => {
+//       try {
+//         console.log("🔄 Fetching super admin dashboard data...");
+
+//         const fetchPromises = [
+//           getDocs(collection(db, "branches")),
+//           getDocs(collection(db, "feedbacks")),
+//           getDocs(collection(db, "services")),
+//           getDocs(collection(db, "products")),
+//           getDocs(collection(db, "categories")),
+//           getDocs(collection(db, "bookings")),
+//           getDocs(collection(db, "staff"))
+//         ];
+
+//         const timeoutPromise = new Promise((_, reject) => 
+//           setTimeout(() => reject(new Error('Data fetch timeout')), 5000)
+//         );
+
+//         const results = await Promise.race([
+//           Promise.all(fetchPromises),
+//           timeoutPromise
+//         ]) as any[];
+
+//         const [
+//           branchesSnapshot,
+//           feedbacksSnapshot,
+//           servicesSnapshot,
+//           productsSnapshot,
+//           categoriesSnapshot,
+//           bookingsSnapshot,
+//           staffSnapshot
+//         ] = results;
+
+//         const allBranches: BranchDocument[] = branchesSnapshot.docs.map(
+//           (doc: any) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//           }),
+//         );
+
+//         const allServices: ServiceDocument[] = servicesSnapshot.docs.map(
+//           (doc: any) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//           }),
+//         );
+
+//         const allProducts: ProductDocument[] = productsSnapshot.docs.map(
+//           (doc: any) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//           }),
+//         );
+
+//         const allCategories: CategoryDocument[] = categoriesSnapshot.docs.map(
+//           (doc: any) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//           }),
+//         );
+
+//         const allBookings: BookingDocument[] = bookingsSnapshot.docs.map(
+//           (doc: any) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//           }),
+//         );
+
+//         const allFeedbacks: FeedbackDocument[] = feedbacksSnapshot.docs.map(
+//           (doc: any) => ({
+//             id: doc.id,
+//             ...doc.data(),
+//           }),
+//         );
+
+//         const allStaff = staffSnapshot.size;
+
+//         // ✅ Fetch customers from users collection with role="customer"
+//         let totalCustomers = 0;
+//         try {
+//           const customersQuery = query(
+//             collection(db, "users"),
+//             where("role", "==", "customer")
+//           );
+//           const customersSnapshot = await getDocs(customersQuery);
+//           totalCustomers = customersSnapshot.size;
+//         } catch (error) {
+//           console.error("❌ Error fetching customers:", error);
+//         }
+
+//         // ✅ SUPER ADMIN - NO FILTERING, SAB DATA DIKHAO
+//         const totalRevenue = allBookings.reduce(
+//           (sum, booking) => sum + (booking.totalAmount || 0),
+//           0,
+//         );
+
+//         const totalRating = allFeedbacks.reduce(
+//           (sum, feedback) => sum + (feedback.rating || 0),
+//           0,
+//         );
+        
+//         const avgRating =
+//           allFeedbacks.length > 0
+//             ? parseFloat((totalRating / allFeedbacks.length).toFixed(1))
+//             : 0;
+
+//         const newStats = {
+//           totalBranches: allBranches.length,
+//           totalRevenue: totalRevenue,
+//           totalCustomers: totalCustomers,
+//           totalStaff: allStaff,
+//           avgRating: avgRating,
+//           monthlyGrowth: 12.5,
+//           totalServices: allServices.length,
+//           totalProducts: allProducts.length,
+//           totalCategories: allCategories.length,
+//           totalBookings: allBookings.length,
+//         };
+
+//         setOverallStats(newStats);
+
+//         // ✅ Branch Performance - ALL BRANCHES
+//         const branchPerformanceData: BranchPerformance[] = allBranches.map((branch) => {
+//           const branchBookings = allBookings.filter(
+//             (b) => b.branchId === branch.id || b.branchName === branch.name,
+//           );
+//           const branchFeedbacks = allFeedbacks.filter(
+//             (f) => f.branchId === branch.id || f.branchName === branch.name,
+//           );
+//           const branchRevenue = branchBookings.reduce(
+//             (sum, b) => sum + (b.totalAmount || 0),
+//             0,
+//           );
+//           const branchRatingTotal = branchFeedbacks.reduce(
+//             (sum, f) => sum + (f.rating || 0),
+//             0,
+//           );
+//           const branchRating =
+//             branchFeedbacks.length > 0
+//               ? branchRatingTotal / branchFeedbacks.length
+//               : 0;
+
+//           return {
+//             id: branch.id,
+//             name: branch.name || "Unnamed Branch",
+//             revenue: branchRevenue,
+//             customers: branchFeedbacks.length,
+//             rating: parseFloat(branchRating.toFixed(1)),
+//             status:
+//               branchRating >= 4.5
+//                 ? "excellent"
+//                 : branchRating >= 4.0
+//                   ? "good"
+//                   : branchRating >= 3.5
+//                     ? "average"
+//                     : "needs_attention",
+//             city: branch.city || "N/A",
+//             manager: branch.managerName || "N/A",
+//             bookings: branchBookings.length,
+//           };
+//         });
+
+//         setBranchPerformance(branchPerformanceData);
+
+//         // ✅ Recent items - ALL DATA
+//         const recentCategoriesData: RecentCategory[] = allCategories
+//           .sort((a, b) => {
+//             const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+//             const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
+//             return dateB - dateA;
+//           })
+//           .slice(0, 5)
+//           .map((category) => ({
+//             id: category.id,
+//             name: category.name || "Unnamed Category",
+//             type: category.type || "service",
+//             branch: category.branchName || "All Branches",
+//             time: calculateTimeAgo(category.createdAt?.toDate()),
+//             isActive: category.isActive || false,
+//           }));
+
+//         const recentProductsData: RecentProduct[] = allProducts
+//           .sort((a, b) => {
+//             const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+//             const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
+//             return dateB - dateA;
+//           })
+//           .slice(0, 5)
+//           .map((product) => ({
+//             id: product.id,
+//             name: product.name || "Unnamed Product",
+//             price: product.price || 0,
+//             category: product.category || "Uncategorized",
+//             time: calculateTimeAgo(product.createdAt?.toDate()),
+//             status: product.status || "active",
+//           }));
+
+//         const recentServicesData: RecentService[] = allServices
+//           .sort((a, b) => {
+//             const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+//             const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
+//             return dateB - dateA;
+//           })
+//           .slice(0, 5)
+//           .map((service) => ({
+//             id: service.id,
+//             name: service.name || "Unnamed Service",
+//             price: service.price || 0,
+//             duration: service.duration || 0,
+//             category: service.category || "Uncategorized",
+//             time: calculateTimeAgo(service.createdAt?.toDate()),
+//             status: service.status || "active",
+//           }));
+
+//         const recentBookingsData: RecentBooking[] = allBookings
+//           .sort((a, b) => {
+//             const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+//             const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
+//             return dateB - dateA;
+//           })
+//           .slice(0, 5)
+//           .map((booking) => ({
+//             id: booking.id,
+//             serviceName: booking.serviceName || "Service",
+//             customerName: booking.customerName || "Customer",
+//             date: booking.date || "N/A",
+//             time: booking.time || "N/A",
+//             totalAmount: booking.totalAmount || 0,
+//             status: booking.status || "pending",
+//             timeAgo: calculateTimeAgo(booking.createdAt?.toDate()),
+//           }));
+
+//         setRecentCategories(recentCategoriesData);
+//         setRecentProducts(recentProductsData);
+//         setRecentServices(recentServicesData);
+//         setRecentBookings(recentBookingsData);
+
+//         // ✅ Cache the data
+//         try {
+//           localStorage.setItem('super_admin_dashboard_stats', JSON.stringify(newStats));
+//           localStorage.setItem('super_admin_branch_performance', JSON.stringify(branchPerformanceData));
+//           localStorage.setItem('super_admin_recent_categories', JSON.stringify(recentCategoriesData));
+//           localStorage.setItem('super_admin_recent_products', JSON.stringify(recentProductsData));
+//           localStorage.setItem('super_admin_recent_services', JSON.stringify(recentServicesData));
+//           localStorage.setItem('super_admin_recent_bookings', JSON.stringify(recentBookingsData));
+//           localStorage.setItem('super_admin_dashboard_last_fetched', Date.now().toString());
+//         } catch (error) {
+//           console.log('Could not cache dashboard data');
+//         }
+
+//         console.log("✅ Super Admin Dashboard loaded successfully!");
+//       } catch (error) {
+//         console.log("Dashboard data fetch:", error);
+//       }
+//     };
+
+//     const lastFetched = localStorage.getItem('super_admin_dashboard_last_fetched');
+//     const shouldFetch = !lastFetched || (Date.now() - parseInt(lastFetched)) > 300000;
+    
+//     if (shouldFetch) {
+//       fetchDashboardData();
+//     }
+//   }, []);
+
+//   const getStatusColor = (status: string): string => {
+//     switch (status) {
+//       case "active":
+//       case "completed":
+//       case "excellent":
+//         return "bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200";
+//       case "good":
+//       case "pending":
+//         return "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border-blue-200";
+//       case "average":
+//         return "bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 border-yellow-200";
+//       case "needs_attention":
+//       case "cancelled":
+//         return "bg-gradient-to-r from-red-100 to-red-50 text-red-800 border-red-200";
+//       default:
+//         return "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 border-gray-200";
+//     }
+//   };
+
+//   const getStatusIcon = (status: string) => {
+//     switch (status) {
+//       case "active":
+//       case "completed":
+//       case "excellent":
+//         return <CheckCircle className="h-4 w-4 text-green-600" />;
+//       case "pending":
+//         return <Clock className="h-4 w-4 text-blue-600" />;
+//       case "cancelled":
+//         return <AlertCircle className="h-4 w-4 text-red-600" />;
+//       default:
+//         return null;
+//     }
+//   };
+
+//   return (
+//     <ProtectedRoute>
+//        <style jsx global>{`
+//         html, body {
+//           overflow: hidden !important;
+//           height: 100vh;
+//           margin: 0;
+//           padding: 0;
+//         }
+//         #__next {
+//           height: 100vh;
+//           overflow: hidden;
+//         }
+//         .sidebar-container {
+//           height: 100vh;
+//           overflow: visible !important;
+//           position: relative;
+//           z-index: 50;
+//         }
+//         .sidebar-container::-webkit-scrollbar {
+//           display: none;
+//         }
+//         .main-scrollbar::-webkit-scrollbar {
+//           width: 8px;
+//         }
+//         .main-scrollbar::-webkit-scrollbar-track {
+//           background: #f1f1f1;
+//           border-radius: 10px;
+//         }
+//         .main-scrollbar::-webkit-scrollbar-thumb {
+//           background: #FA9DB7;
+//           border-radius: 10px;
+//         }
+//         .main-scrollbar::-webkit-scrollbar-thumb:hover {
+//           background: #B84A68;
+//         }
+//         .admin-sidebar {
+//           height: 100vh;
+//           overflow-y: auto;
+//           scrollbar-width: none;
+//           -ms-overflow-style: none;
+//         }
+//         .admin-sidebar::-webkit-scrollbar {
+//           display: none;
+//         }
+//       `}</style>
+
+//     <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100/50 overflow-hidden">
+//       {/* Sidebar */}
+//       <AdminSidebar
+//         role="super_admin"
+//         onLogout={handleLogout}
+//         isOpen={sidebarOpen}
+//         onToggle={() => setSidebarOpen(!sidebarOpen)}
+//       />
+
+//       {/* Main Content */}
+//       <div
+//         className={cn(
+//           "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
+//           sidebarOpen ? "lg:ml-0" : "lg:ml-0",
+//         )}
+//       >
+//         {/* Modern Header */}
+//         <header className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 shrink-0">
+//           <div className="flex items-center justify-between px-1 py-1">
+//             <div className="flex items-center gap-4">
+//               <AdminMobileSidebar
+//                 role="super_admin"
+//                 onLogout={handleLogout}
+//                 isOpen={sidebarOpen}
+//                 onToggle={() => setSidebarOpen(!sidebarOpen)}
+//               />
+//               <div className="flex items-center gap-4">
+//                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+//                   <Building className="h-7 w-7 text-white" />
+//                 </div>
+//                 <div>
+//                   <div className="flex items-center gap-3">
+//                     <h1 className="text-2xl font-bold text-white font-serif">
+//                       Super Admin Dashboard
+//                     </h1>
+//                     <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 px-3 py-1 rounded-full">
+//                       👑 Super Admin
+//                     </Badge>
+//                   </div>
+//                   <p className="text-sm text-white/90 mt-1 flex items-center gap-2">
+//                     <Activity className="h-3 w-3 animate-pulse" />
+//                     Multi-Branch Management System - All Data
+//                   </p>
+//                 </div>
+//               </div>
+//             </div>
+
+//             <div className="flex items-center gap-4">
+//               {/* ✅ AUDIO PERMISSION PROMPT */}
+             
+
+//               {/* ✅ Real-time Notifications - WITH RECIPIENT BRANCH AND READ BY */}
+//               <div className="relative">
+//                 <Button
+//                   variant="ghost"
+//                   size="icon"
+//                   className="relative rounded-xl bg-white/10 hover:bg-white/20 text-white"
+//                   onClick={() => setShowNotifications(!showNotifications)}
+//                 >
+//                   <Bell className="h-5 w-5" />
+//                   {unreadCount > 0 && (
+//                     <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+//                       {unreadCount > 9 ? '9+' : unreadCount}
+//                     </span>
+//                   )}
+//                 </Button>
+
+//                 {/* Notifications Dropdown - WITH FULL DETAILS */}
+//                 {showNotifications && (
+//                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50">
+//                     <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+//                       <h3 className="font-semibold text-gray-900">Notifications</h3>
+//                       {unreadCount > 0 && (
+//                         <Button
+//                           variant="ghost"
+//                           size="sm"
+//                           className="text-xs text-[#B84A68] hover:text-[#B84A68]/80 h-8"
+//                           onClick={markAllAsRead}
+//                         >
+//                           Mark all as read
+//                         </Button>
+//                       )}
+//                     </div>
+//                     <div className="max-h-96 overflow-y-auto">
+//                       {notifications.length === 0 ? (
+//                         <div className="p-6 text-center text-gray-500">
+//                           <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+//                           <p className="text-sm">No notifications</p>
+//                         </div>
+//                       ) : (
+//                         notifications.slice(0, 10).map((notification) => (
+//                           <div
+//                             key={notification.id}
+//                             className={cn(
+//                               "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors relative group",
+//                               !notification.read && "bg-[#FA9DB7]/5"
+//                             )}
+//                           >
+//                             <div className="flex items-start gap-3">
+//                               <div className={cn(
+//                                 "p-2 rounded-lg",
+//                                 notification.type === 'message' ? 'bg-blue-100' :
+//                                 notification.type === 'booking' ? 'bg-green-100' :
+//                                 notification.type === 'feedback' ? 'bg-purple-100' : 'bg-gray-100'
+//                               )}>
+//                                 {notification.type === 'message' && <MessageCircle className="h-4 w-4 text-blue-600" />}
+//                                 {notification.type === 'booking' && <Calendar className="h-4 w-4 text-green-600" />}
+//                                 {notification.type === 'feedback' && <Star className="h-4 w-4 text-purple-600" />}
+//                               </div>
+//                               <div className="flex-1">
+//                                 {/* Title with role and recipient */}
+//                                 <p className="text-sm font-medium text-gray-900">
+//                                   {notification.type === 'message' && notification.data?.senderRole === 'super_admin' ? (
+//                                     <span>👑 Super Admin → {notification.data?.recipientBranch || 'Branch'}</span>
+//                                   ) : notification.type === 'message' && notification.data?.senderRole === 'branch_admin' ? (
+//                                     <span>🏢 {notification.data.recipientBranch} Admin → Super Admin</span>
+//                                   ) : (
+//                                     notification.title
+//                                   )}
+//                                 </p>
+                                
+//                                 {/* Message content */}
+//                                 <p className="text-xs text-gray-500 mt-0.5">
+//                                   {notification.message}
+//                                 </p>
+                                
+                               
+                               
+                                
+                              
+                                
+//                                 {/* Timestamp */}
+//                                 <p className="text-xs text-gray-400 mt-1">
+//                                   {calculateTimeAgo(notification.timestamp?.toDate())}
+//                                 </p>
+//                               </div>
+//                               {!notification.read && (
+//                                 <div className="w-2 h-2 bg-[#FA9DB7] rounded-full"></div>
+//                               )}
+//                             </div>
+                            
+//                             <Button
+//                               variant="ghost"
+//                               size="sm"
+//                               className="absolute top-2 right-2 h-6 w-6 p-0 opacity-100 group-hover:opacity-100 transition-opacity"
+//                               onClick={(e) => {
+//                                 e.stopPropagation();
+//                                 markNotificationAsRead(notification.id);
+//                               }}
+//                               title="Mark as read"
+//                             >
+//                               <Check className="h-3 w-3 text-green-600" /> 
+//                             </Button>
+//                           </div>
+//                         ))
+//                       )}
+//                     </div>
+//                     <div className="p-2 border-t border-gray-100"></div>
+//                   </div>
+//                 )}
+//               </div>
+
+//               {/* User Profile */}
+//               <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer">
+//                 <Avatar className="h-10 w-10 border-2 border-white/30">
+//                   <AvatarFallback className="bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] text-white font-bold">
+//                     {user?.email?.charAt(0).toUpperCase()}
+//                   </AvatarFallback>
+//                 </Avatar>
+//                 <div className="text-white">
+//                   <p className="text-sm font-semibold">{user?.email}</p>
+//                   <p className="text-xs opacity-90 capitalize">
+//                     Super Admin
+//                   </p>
+//                 </div>
+//               </div>
+
+//               {/* Logout Button */}
+//               <Button
+//                 onClick={handleLogout}
+//                 className="bg-white text-[#B84A68] hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
+//               >
+//                 <LogOut className="h-4 w-4 mr-2" />
+//                 Logout
+//               </Button>
+//             </div>
+//           </div>
+//         </header>
+
+//         {/* Content Area - Stats Cards and Tabs */}
+//         <div className="flex-1 overflow-y-auto min-h-0">
+//           <div className="h-full p-4 lg:p-6">
+//             {/* Dashboard Stats Section */}
+//             <div className="mb-8">
+//               <div className="flex items-center justify-between mb-6">
+//                 <div>
+//                   <h2 className="text-2xl font-bold text-gray-900 font-serif">
+//                     Dashboard Overview
+//                   </h2>
+//                   <p className="text-gray-600">
+//                     Real-time statistics for all branches
+//                   </p>
+//                 </div>
+//               </div>
+
+//               {/* Main Stats Cards */}
+//               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+//                 {/* Total Revenue Card */}
+//                 <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-green-50/50 hover-lift group overflow-hidden">
+//                   <div className="absolute top-0 right-0 w-24 h-24 bg-green-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+//                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+//                     <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+//                       Total Revenue
+//                     </CardTitle>
+//                     <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl shadow-lg">
+//                       <DollarSign className="h-5 w-5 text-white" />
+//                     </div>
+//                   </CardHeader>
+//                   <CardContent className="relative z-10">
+//                     <div className="flex items-end gap-2 mb-3">
+//                       <div className="text-3xl font-bold text-gray-900">
+//                         ${overallStats.totalRevenue.toLocaleString()}
+//                       </div>
+//                       <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-green-100 px-2 py-1 rounded-full">
+//                         <TrendingUp className="h-3 w-3 mr-1" />
+//                         +{overallStats.monthlyGrowth}%
+//                       </div>
+//                     </div>
+//                     <p className="text-xs text-gray-500 mb-3">All branches revenue</p>
+//                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+//                       <div 
+//                         className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full"
+//                         style={{ width: '75%' }}
+//                       />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 {/* Total Customers Card */}
+//                 <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/50 hover-lift group overflow-hidden">
+//                   <div className="absolute top-0 right-0 w-24 h-24 bg-purple-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+//                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+//                     <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+//                       Total Customers
+//                     </CardTitle>
+//                     <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl shadow-lg">
+//                       <Users className="h-5 w-5 text-white" />
+//                     </div>
+//                   </CardHeader>
+//                   <CardContent className="relative z-10">
+//                     <div className="flex items-end gap-2 mb-3">
+//                       <div className="text-3xl font-bold text-gray-900">
+//                         {overallStats.totalCustomers}
+//                       </div>
+//                       <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-purple-100 px-2 py-1 rounded-full">
+//                         <TrendingUp className="h-3 w-3 mr-1" />
+//                         +5.2%
+//                       </div>
+//                     </div>
+//                     <p className="text-xs text-gray-500 mb-3">
+//                       Registered customers
+//                     </p>
+//                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+//                       <div 
+//                         className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full"
+//                         style={{ width: '65%' }}
+//                       />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 {/* Total Staff Card */}
+//                 <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/50 hover-lift group overflow-hidden">
+//                   <div className="absolute top-0 right-0 w-24 h-24 bg-blue-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+//                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+//                     <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+//                       Total Staff
+//                     </CardTitle>
+//                     <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+//                       <UserPlus className="h-5 w-5 text-white" />
+//                     </div>
+//                   </CardHeader>
+//                   <CardContent className="relative z-10">
+//                     <div className="flex items-end gap-2 mb-3">
+//                       <div className="text-3xl font-bold text-gray-900">
+//                         {overallStats.totalStaff}
+//                       </div>
+//                       <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-blue-100 px-2 py-1 rounded-full">
+//                         <TrendingUp className="h-3 w-3 mr-1" />
+//                         +8.3%
+//                       </div>
+//                     </div>
+//                     <p className="text-xs text-gray-500 mb-3">
+//                       Staff members
+//                     </p>
+//                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+//                       <div 
+//                         className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+//                         style={{ width: '70%' }}
+//                       />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 {/* Total Branches Card */}
+//                 <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-[#FA9DB7]/10 hover-lift group overflow-hidden">
+//                   <div className="absolute top-0 right-0 w-24 h-24 bg-[#FA9DB7]/10 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+//                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+//                     <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+//                       Total Branches
+//                     </CardTitle>
+//                     <div className="p-3 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-2xl shadow-lg">
+//                       <Building className="h-5 w-5 text-white" />
+//                     </div>
+//                   </CardHeader>
+//                   <CardContent className="relative z-10">
+//                     <div className="flex items-end gap-2 mb-3">
+//                       <div className="text-3xl font-bold text-gray-900">
+//                         {overallStats.totalBranches}
+//                       </div>
+//                       <div className="text-sm text-[#B84A68] font-semibold flex items-center mb-2 bg-[#FA9DB7]/10 px-2 py-1 rounded-full">
+//                         <CheckCircle className="h-3 w-3 mr-1" />
+//                         Active
+//                       </div>
+//                     </div>
+//                     <p className="text-xs text-gray-500 mb-3">
+//                       All locations operational
+//                     </p>
+//                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+//                       <div 
+//                         className="h-full bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-full"
+//                         style={{ width: '100%' }}
+//                       />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+//               </div>
+
+//               {/* Secondary Stats Cards */}
+//               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+//                 <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-pink-50/30">
+//                   <CardContent className="p-4 flex items-center justify-between">
+//                     <div>
+//                       <p className="text-xs font-medium text-gray-500 mb-1">
+//                         Services
+//                       </p>
+//                       <p className="text-2xl font-bold text-gray-900">
+//                         {overallStats.totalServices}
+//                       </p>
+//                     </div>
+//                     <div className="p-2 bg-pink-100 rounded-lg">
+//                       <Settings className="h-5 w-5 text-pink-600" />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-cyan-50/30">
+//                   <CardContent className="p-4 flex items-center justify-between">
+//                     <div>
+//                       <p className="text-xs font-medium text-gray-500 mb-1">
+//                         Products
+//                       </p>
+//                       <p className="text-2xl font-bold text-gray-900">
+//                         {overallStats.totalProducts}
+//                       </p>
+//                     </div>
+//                     <div className="p-2 bg-cyan-100 rounded-lg">
+//                       <Package className="h-5 w-5 text-cyan-600" />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-orange-50/30">
+//                   <CardContent className="p-4 flex items-center justify-between">
+//                     <div>
+//                       <p className="text-xs font-medium text-gray-500 mb-1">
+//                         Categories
+//                       </p>
+//                       <p className="text-2xl font-bold text-gray-900">
+//                         {overallStats.totalCategories}
+//                       </p>
+//                     </div>
+//                     <div className="p-2 bg-orange-100 rounded-lg">
+//                       <Layers className="h-5 w-5 text-orange-600" />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-teal-50/30">
+//                   <CardContent className="p-4 flex items-center justify-between">
+//                     <div>
+//                       <p className="text-xs font-medium text-gray-500 mb-1">
+//                         Bookings
+//                       </p>
+//                       <p className="text-2xl font-bold text-gray-900">
+//                         {overallStats.totalBookings}
+//                       </p>
+//                     </div>
+//                     <div className="p-2 bg-teal-100 rounded-lg">
+//                       <Calendar className="h-5 w-5 text-teal-600" />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+
+//                 <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-indigo-50/30">
+//                   <CardContent className="p-4 flex items-center justify-between">
+//                     <div>
+//                       <p className="text-xs font-medium text-gray-500 mb-1">
+//                         Growth Rate
+//                       </p>
+//                       <p className="text-2xl font-bold text-gray-900">
+//                         +{overallStats.monthlyGrowth}%
+//                       </p>
+//                     </div>
+//                     <div className="p-2 bg-indigo-100 rounded-lg">
+//                       <TrendingUp className="h-5 w-5 text-indigo-600" />
+//                     </div>
+//                   </CardContent>
+//                 </Card>
+//               </div>
+//             </div>
+
+//             {/* Tabs Section for Recent Items */}
+//             <Card className="border-none shadow-xl mb-8 overflow-hidden">
+//               <Tabs
+//                 value={activeTab}
+//                 onValueChange={setActiveTab}
+//                 className="w-full"
+//               >
+//                 <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+//                   <div className="flex flex-col gap-4">
+//                     <div className="flex items-center justify-between">
+//                       <div>
+//                         <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+//                           Recent Items
+//                         </CardTitle>
+//                         <CardDescription>
+//                           Latest items from all branches
+//                         </CardDescription>
+//                       </div>
+//                     </div>
+//                     <TabsList className="grid grid-cols-4 w-full bg-gray-100/50 p-1 rounded-xl">
+//                       <TabsTrigger
+//                         value="bookings"
+//                         className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-[#B84A68] rounded-lg transition-all"
+//                       >
+//                         <Calendar className="h-4 w-4 mr-2" />
+//                         Bookings
+//                         {recentBookings.length > 0 && (
+//                           <Badge className="ml-2 h-5 w-5 p-0 bg-[#B84A68] text-white">
+//                             {recentBookings.length}
+//                           </Badge>
+//                         )}
+//                       </TabsTrigger>
+//                       <TabsTrigger
+//                         value="services"
+//                         className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-pink-600 rounded-lg transition-all"
+//                       >
+//                         <Settings className="h-4 w-4 mr-2" />
+//                         Services
+//                         {recentServices.length > 0 && (
+//                           <Badge className="ml-2 h-5 w-5 p-0 bg-pink-500 text-white">
+//                             {recentServices.length}
+//                           </Badge>
+//                         )}
+//                       </TabsTrigger>
+//                       <TabsTrigger
+//                         value="products"
+//                         className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-cyan-600 rounded-lg transition-all"
+//                       >
+//                         <Package className="h-4 w-4 mr-2" />
+//                         Products
+//                         {recentProducts.length > 0 && (
+//                           <Badge className="ml-2 h-5 w-5 p-0 bg-cyan-500 text-white">
+//                             {recentProducts.length}
+//                           </Badge>
+//                         )}
+//                       </TabsTrigger>
+//                       <TabsTrigger
+//                         value="categories"
+//                         className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-orange-600 rounded-lg transition-all"
+//                       >
+//                         <Layers className="h-4 w-4 mr-2" />
+//                         Categories
+//                         {recentCategories.length > 0 && (
+//                           <Badge className="ml-2 h-5 w-5 p-0 bg-orange-500 text-white">
+//                             {recentCategories.length}
+//                           </Badge>
+//                         )}
+//                       </TabsTrigger>
+                     
+//                     </TabsList>
+//                   </div>
+//                 </CardHeader>
+
+//                 <CardContent className="p-6">
+//                   {/* Bookings Tab */}
+//                   <TabsContent value="bookings" className="mt-0">
+//                     {recentBookings.length === 0 ? (
+//                       <div className="text-center py-12">
+//                         <div className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+//                           <Calendar className="h-10 w-10 text-gray-400" />
+//                         </div>
+//                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
+//                           No Recent Bookings
+//                         </h3>
+//                         <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+//                           Bookings will appear here once customers start booking
+//                           services
+//                         </p>
+//                         <Link
+//                           href="/admin/bookings"
+//                           className="inline-flex items-center gap-2 px-4 py-2 bg-[#B84A68] text-white rounded-xl hover:bg-[#9C3852] transition-colors shadow-md"
+//                         >
+//                           <Calendar className="h-4 w-4" />
+//                           View All Bookings
+//                         </Link>
+//                       </div>
+//                     ) : (
+//                       <div className="space-y-4">
+//                         {recentBookings.map((booking) => (
+//                           <div
+//                             key={booking.id}
+//                             className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
+//                           >
+//                             <div className="flex items-center gap-4">
+//                               <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-50 rounded-xl">
+//                                 <Calendar className="h-6 w-6 text-blue-600" />
+//                               </div>
+//                               <div className="flex-1">
+//                                 <div className="flex items-center justify-between mb-2">
+//                                   <h3 className="font-bold text-lg text-gray-900">
+//                                     {booking.serviceName}
+//                                   </h3>
+//                                   <Badge
+//                                     className={cn(
+//                                       "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+//                                       getStatusColor(booking.status),
+//                                     )}
+//                                   >
+//                                     <span className="flex items-center gap-1">
+//                                       {getStatusIcon(booking.status)}
+//                                       {booking.status}
+//                                     </span>
+//                                   </Badge>
+//                                 </div>
+//                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+//                                   <div>
+//                                     <p className="text-xs text-gray-500">
+//                                       Customer
+//                                     </p>
+//                                     <p className="font-semibold">
+//                                       {booking.customerName}
+//                                     </p>
+//                                   </div>
+//                                   <div>
+//                                     <p className="text-xs text-gray-500">Date</p>
+//                                     <p className="font-semibold">{booking.date}</p>
+//                                   </div>
+//                                   <div>
+//                                     <p className="text-xs text-gray-500">Time</p>
+//                                     <p className="font-semibold">{booking.time}</p>
+//                                   </div>
+//                                   <div>
+//                                     <p className="text-xs text-gray-500">Amount</p>
+//                                     <p className="font-semibold text-lg text-green-600">
+//                                       ${booking.totalAmount}
+//                                     </p>
+//                                   </div>
+//                                 </div>
+//                               </div>
+//                             </div>
+//                             <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#B84A68] transition-colors ml-4" />
+//                           </div>
+//                         ))}
+//                       </div>
+//                     )}
+//                   </TabsContent>
+
+//                   {/* Services Tab */}
+//                   <TabsContent value="services" className="mt-0">
+//                     {recentServices.length === 0 ? (
+//                       <div className="text-center py-12">
+//                         <div className="w-20 h-20 mx-auto bg-gradient-to-br from-pink-100 to-pink-200 rounded-full flex items-center justify-center mb-4">
+//                           <Settings className="h-10 w-10 text-pink-400" />
+//                         </div>
+//                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
+//                           No Services Yet
+//                         </h3>
+//                         <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+//                           Start adding services to see them here
+//                         </p>
+//                         <Link
+//                           href="/admin/services"
+//                           className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition-colors shadow-md"
+//                         >
+//                           <Settings className="h-4 w-4" />
+//                           Add First Service
+//                         </Link>
+//                       </div>
+//                     ) : (
+//                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                         {recentServices.map((service) => (
+//                           <div
+//                             key={service.id}
+//                             className="p-5 bg-gradient-to-br from-white to-pink-50/30 border border-gray-100 rounded-2xl hover:border-pink-200 hover:shadow-xl transition-all duration-300 group"
+//                           >
+//                             <div className="flex items-start justify-between mb-4">
+//                               <div className="flex items-center gap-3">
+//                                 <div className="p-2 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl">
+//                                   <Settings className="h-5 w-5 text-white" />
+//                                 </div>
+//                                 <div>
+//                                   <h3 className="font-bold text-lg text-gray-900">
+//                                     {service.name}
+//                                   </h3>
+//                                   <p className="text-sm text-gray-500">
+//                                     {service.category}
+//                                   </p>
+//                                 </div>
+//                               </div>
+//                               <Badge
+//                                 className={cn(
+//                                   "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+//                                   getStatusColor(service.status),
+//                                 )}
+//                               >
+//                                 {service.status}
+//                               </Badge>
+//                             </div>
+//                             <div className="grid grid-cols-2 gap-4 mb-4">
+//                               <div>
+//                                 <p className="text-xs text-gray-500">Price</p>
+//                                 <p className="text-xl font-bold text-[#B84A68]">
+//                                   ${service.price}
+//                                 </p>
+//                               </div>
+//                               <div>
+//                                 <p className="text-xs text-gray-500">Duration</p>
+//                                 <p className="text-lg font-semibold">
+//                                   {service.duration} mins
+//                                 </p>
+//                               </div>
+//                             </div>
+//                             <div className="flex items-center justify-between">
+//                               <span className="text-sm text-gray-500">
+//                                 Added {service.time}
+//                               </span>
+//                             </div>
+//                           </div>
+//                         ))}
+//                       </div>
+//                     )}
+//                   </TabsContent>
+
+//                   {/* Products Tab */}
+//                   <TabsContent value="products" className="mt-0">
+//                     {recentProducts.length === 0 ? (
+//                       <div className="text-center py-12">
+//                         <div className="w-20 h-20 mx-auto bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-full flex items-center justify-center mb-4">
+//                           <Package className="h-10 w-10 text-cyan-400" />
+//                         </div>
+//                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
+//                           No Products Yet
+//                         </h3>
+//                         <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+//                           Start adding products to see them here
+//                         </p>
+//                         <Link
+//                           href="/admin/products"
+//                           className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors shadow-md"
+//                         >
+//                           <Package className="h-4 w-4" />
+//                           Add First Product
+//                         </Link>
+//                       </div>
+//                     ) : (
+//                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                         {recentProducts.map((product) => (
+//                           <div
+//                             key={product.id}
+//                             className="p-5 bg-gradient-to-br from-white to-cyan-50/30 border border-gray-100 rounded-2xl hover:border-cyan-200 hover:shadow-xl transition-all duration-300 group"
+//                           >
+//                             <div className="flex items-start justify-between mb-4">
+//                               <div className="flex items-center gap-3">
+//                                 <div className="p-2 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-xl">
+//                                   <Package className="h-5 w-5 text-white" />
+//                                 </div>
+//                                 <div>
+//                                   <h3 className="font-bold text-lg text-gray-900">
+//                                     {product.name}
+//                                   </h3>
+//                                   <p className="text-sm text-gray-500">
+//                                     {product.category}
+//                                   </p>
+//                                 </div>
+//                               </div>
+//                               <Badge
+//                                 className={cn(
+//                                   "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+//                                   getStatusColor(product.status),
+//                                 )}
+//                               >
+//                                 {product.status}
+//                               </Badge>
+//                             </div>
+//                             <div className="mb-4">
+//                               <p className="text-xs text-gray-500 mb-1">Price</p>
+//                               <p className="text-2xl font-bold text-[#B84A68]">
+//                                 ${product.price}
+//                               </p>
+//                             </div>
+//                             <div className="flex items-center justify-between">
+//                               <span className="text-sm text-gray-500">
+//                                 Added {product.time}
+//                               </span>
+//                             </div>
+//                           </div>
+//                         ))}
+//                       </div>
+//                     )}
+//                   </TabsContent>
+
+//                   {/* Categories Tab */}
+//                   <TabsContent value="categories" className="mt-0">
+//                     {recentCategories.length === 0 ? (
+//                       <div className="text-center py-12">
+//                         <div className="w-20 h-20 mx-auto bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mb-4">
+//                           <Layers className="h-10 w-10 text-orange-400" />
+//                         </div>
+//                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
+//                           No Categories Yet
+//                         </h3>
+//                         <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+//                           Start adding categories to organize your services and
+//                           products
+//                         </p>
+//                         <Link
+//                           href="/admin/categories"
+//                           className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors shadow-md"
+//                         >
+//                           <Layers className="h-4 w-4" />
+//                           Add First Category
+//                         </Link>
+//                       </div>
+//                     ) : (
+//                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+//                         {recentCategories.map((category) => (
+//                           <div
+//                             key={category.id}
+//                             className="p-5 bg-gradient-to-br from-white to-orange-50/30 border border-gray-100 rounded-2xl hover:border-orange-200 hover:shadow-xl transition-all duration-300 group"
+//                           >
+//                             <div className="flex items-start justify-between mb-4">
+//                               <div className="flex items-center gap-3">
+//                                 <div className="p-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
+//                                   <Layers className="h-5 w-5 text-white" />
+//                                 </div>
+//                                 <div>
+//                                   <h3 className="font-bold text-lg text-gray-900">
+//                                     {category.name}
+//                                   </h3>
+//                                   <div className="flex items-center gap-2 mt-1">
+//                                     <Badge className="bg-blue-100 text-blue-700 px-2 py-0.5 text-xs">
+//                                       {category.type}
+//                                     </Badge>
+//                                     <Badge
+//                                       className={cn(
+//                                         "px-2 py-0.5 text-xs",
+//                                         category.isActive
+//                                           ? "bg-green-100 text-green-700"
+//                                           : "bg-gray-100 text-gray-700",
+//                                       )}
+//                                     >
+//                                       {category.isActive ? "Active" : "Inactive"}
+//                                     </Badge>
+//                                   </div>
+//                                 </div>
+//                               </div>
+//                             </div>
+//                             <div className="space-y-3">
+//                               <div>
+//                                 <p className="text-xs text-gray-500">Branch</p>
+//                                 <p className="font-semibold">{category.branch}</p>
+//                               </div>
+//                               <div className="flex items-center justify-between">
+//                                 <span className="text-sm text-gray-500">
+//                                   Added {category.time}
+//                                 </span>
+//                               </div>
+//                             </div>
+//                           </div>
+//                         ))}
+//                       </div>
+//                     )}
+//                   </TabsContent>
+
+//                   {/* Activities Tab - WITH RECIPIENT BRANCH AND READ BY */}
+//                   <TabsContent value="activities" className="mt-0">
+//                     {recentActivities.length === 0 ? (
+//                       <div className="text-center py-12">
+//                         <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center mb-4">
+//                           <Activity className="h-10 w-10 text-purple-400" />
+//                         </div>
+//                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
+//                           No Recent Activities
+//                         </h3>
+//                         <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+//                           Activities will appear here as users interact with the
+//                           system
+//                         </p>
+//                       </div>
+//                     ) : (
+//                       <div className="space-y-4">
+//                         {recentActivities.slice(0, 5).map((activity, index) => (
+//                           <div
+//                             key={activity.id || index}
+//                             className="flex items-start gap-4 p-5 bg-gradient-to-r from-white to-purple-50/30 border border-gray-100 rounded-2xl hover:border-purple-200 hover:shadow-lg transition-all duration-300 group"
+//                           >
+//                             <div className="p-2.5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl">
+//                               {activity.type === "message" ? (
+//                                 <MessageCircle className="h-5 w-5 text-blue-600" />
+//                               ) : activity.type === "feedback" ? (
+//                                 <Star className="h-5 w-5 text-purple-600" />
+//                               ) : activity.type === "booking" ? (
+//                                 <Calendar className="h-5 w-5 text-green-600" />
+//                               ) : (
+//                                 <Activity className="h-5 w-5 text-purple-600" />
+//                               )}
+//                             </div>
+//                             <div className="flex-1">
+//                               <p className="text-sm font-semibold text-gray-900">
+//                                 {activity.message}
+//                               </p>
+//                               <div className="flex justify-between items-center mt-2">
+//                                 <div className="flex items-center gap-2">
+//                                   <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">
+//                                     {activity.time}
+//                                   </span>
+//                                   {activity.branch && (
+//                                     <Badge className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5">
+//                                       {activity.branch}
+//                                     </Badge>
+//                                   )}
+//                                 </div>
+//                               </div>
+                              
+//                               {/* Show sender role, recipient branch and read status for messages */}
+//                               {activity.type === "message" && (
+//                                 <div className="mt-2 space-y-1">
+//                                   <div className="flex items-center gap-2">
+//                                     {activity.senderRole === 'super_admin' ? (
+//                                       <Badge className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5">
+//                                         👑 Super Admin
+//                                       </Badge>
+//                                     ) : (
+//                                       <Badge className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5">
+//                                         🏢 Branch Admin
+//                                       </Badge>
+//                                     )}
+                                    
+//                                     {/* Read status */}
+//                                     {activity.readBy?.includes('super-admin') ? (
+//                                       <Badge className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 flex items-center gap-1">
+//                                         <CheckCheckIcon className="h-3 w-3" />
+//                                         Read
+//                                       </Badge>
+//                                     ) : (
+//                                       <Badge className="bg-gray-100 text-gray-700 text-[10px] px-2 py-0.5 flex items-center gap-1">
+//                                         <Check className="h-3 w-3" />
+//                                         Delivered
+//                                       </Badge>
+//                                     )}
+//                                   </div>
+                                  
+//                                   {/* Sender/Recipient branches - WITH RECIPIENT BRANCH NAME */}
+//                                   {activity.senderBranch && activity.recipientBranch && (
+//                                     <div className="flex items-center gap-2">
+//                                       <Badge className="bg-purple-100 text-purple-700 text-[8px] px-2 py-0.5">
+//                                         From: {activity.senderBranch}
+//                                       </Badge>
+//                                       <Badge className="bg-indigo-100 text-indigo-700 text-[8px] px-2 py-0.5">
+//                                         To: {activity.recipientBranch}
+//                                       </Badge>
+//                                     </div>
+//                                   )}
+//                                 </div>
+//                               )}
+//                             </div>
+//                           </div>
+//                         ))}
+//                       </div>
+//                     )}
+//                   </TabsContent>
+//                 </CardContent>
+//               </Tabs>
+//             </Card>
+
+//             {/* Branch Performance and Quick Actions */}
+//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+//               {/* Branch Performance */}
+//               <div className="lg:col-span-2">
+//                 <Card className="border-none shadow-xl">
+//                   <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+//                     <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+//                       Branch Performance Overview
+//                     </CardTitle>
+//                     <CardDescription>
+//                       Revenue, customers, and ratings across all locations
+//                     </CardDescription>
+//                   </CardHeader>
+//                   <CardContent className="p-6">
+//                     {branchPerformance.length === 0 ? (
+//                       <div className="text-center py-8">
+//                         <Building className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+//                         <p className="text-gray-500">No branch data available</p>
+//                       </div>
+//                     ) : (
+//                       <div className="space-y-4">
+//                         {branchPerformance.map((branch) => (
+//                           <div
+//                             key={branch.id}
+//                             className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
+//                           >
+//                             <div className="flex-1">
+//                               <div className="flex items-center gap-3 mb-3">
+//                                 <h3 className="font-bold text-lg text-gray-900">
+//                                   {branch.name}
+//                                 </h3>
+                               
+//                               </div>
+//                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+//                                 <div>
+
+//                                   <p className="text-xs text-gray-500">Revenue</p>
+//                                   <p className="font-bold text-gray-900">
+//                                     ${branch.revenue.toLocaleString()}
+//                                   </p>
+                                  
+//                                 </div>
+//                                 <div>
+//                                  <p className="text-xs text-gray-500">
+//                                   Manager: <span className="font-semibold">{branch.manager}</span>
+//                                 </p>
+//                                 </div>
+//                                 <div>
+//                                   <span className="text-sm text-gray-500">
+//                                   {branch.city}
+//                                 </span>
+//                                 </div>
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Bookings</p>
+//                                   <p className="font-bold text-gray-900">
+//                                     {branch.bookings}
+//                                   </p>
+//                                 </div>
+//                               </div>
+                              
+//                             </div>
+                           
+//                           </div>
+//                         ))}
+//                       </div>
+//                     )}
+//                   </CardContent>
+//                 </Card>
+//               </div>
+
+//               {/* Quick Actions & Recent Activities */}
+//               <div className="space-y-6">
+//                 {/* Quick Actions */}
+//                 <Card className="border-none shadow-xl">
+//                   <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+//                     <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+//                       Quick Actions
+//                     </CardTitle>
+//                     <CardDescription>
+//                       System-wide administrative tasks
+//                     </CardDescription>
+//                   </CardHeader>
+//                   <CardContent className="p-6 space-y-3">
+//                     <Link
+//                       href="/super-admin/branches"
+//                       className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-[#FA9DB7]/30 hover:bg-gradient-to-br hover:from-[#FA9DB7]/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+//                     >
+//                       <div className="flex items-center gap-3">
+//                         <div className="p-2 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-lg">
+//                           <Building className="h-4 w-4 text-white" />
+//                         </div>
+//                         <span className="text-sm font-semibold text-gray-900">
+//                           Manage Branches
+//                         </span>
+//                       </div>
+//                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[#B84A68] transition-colors" />
+//                     </Link>
+
+//                     <Link
+//                       href="/super-admin/staff"
+//                       className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-green-500/30 hover:bg-gradient-to-br hover:from-green-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+//                     >
+//                       <div className="flex items-center gap-3">
+//                         <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-lg">
+//                           <Users className="h-4 w-4 text-white" />
+//                         </div>
+//                         <span className="text-sm font-semibold text-gray-900">
+//                           Manage Staff
+//                         </span>
+//                       </div>
+//                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-green-600 transition-colors" />
+//                     </Link>
+
+//                     <Link
+//                       href="/super-admin/categories"
+//                       className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-purple-500/30 hover:bg-gradient-to-br hover:from-purple-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+//                     >
+//                       <div className="flex items-center gap-3">
+//                         <div className="p-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg">
+//                           <Layers className="h-4 w-4 text-white" />
+//                         </div>
+//                         <span className="text-sm font-semibold text-gray-900">
+//                           Manage Categories
+//                         </span>
+//                       </div>
+//                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-purple-600 transition-colors" />
+//                     </Link>
+
+//                     <Link
+//                       href="/super-admin/products"
+//                       className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-cyan-500/30 hover:bg-gradient-to-br hover:from-cyan-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+//                     >
+//                       <div className="flex items-center gap-3">
+//                         <div className="p-2 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg">
+//                           <Package className="h-4 w-4 text-white" />
+//                         </div>
+//                         <span className="text-sm font-semibold text-gray-900">
+//                           Manage Products
+//                         </span>
+//                       </div>
+//                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-cyan-600 transition-colors" />
+//                     </Link>
+
+//                     <Link
+//                       href="/super-admin/services"
+//                       className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-pink-500/30 hover:bg-gradient-to-br hover:from-pink-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+//                     >
+//                       <div className="flex items-center gap-3">
+//                         <div className="p-2 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg">
+//                           <Settings className="h-4 w-4 text-white" />
+//                         </div>
+//                         <span className="text-sm font-semibold text-gray-900">
+//                           Manage Services
+//                         </span>
+//                       </div>
+//                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-pink-600 transition-colors" />
+//                     </Link>
+
+//                     <Link
+//                       href="/super-admin/bookings"
+//                       className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-amber-500/30 hover:bg-gradient-to-br hover:from-amber-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+//                     >
+//                       <div className="flex items-center gap-3">
+//                         <div className="p-2 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg">
+//                           <Calendar className="h-4 w-4 text-white" />
+//                         </div>
+//                         <span className="text-sm font-semibold text-gray-900">
+//                           Manage Bookings
+//                         </span>
+//                       </div>
+//                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-amber-600 transition-colors" />
+//                     </Link>
+//                   </CardContent>
+//                 </Card>
+
+               
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//     </ProtectedRoute>
+//   );
+// }
+
+// new code
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -10,13 +2294,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   Users,
   DollarSign,
   TrendingUp,
   Building,
-  BarChart3,
   Settings,
   UserPlus,
   LogOut,
@@ -24,6 +2309,51 @@ import {
   Package,
   Layers,
   Star,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Plus,
+  Eye,
+  Download,
+  Filter,
+  Bell,
+  Activity,
+  BarChart3,
+  PieChart,
+  ShoppingCart,
+  Award,
+  Scissors,
+  Tag,
+  MessageCircle,
+  Wrench,
+  Sparkles,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  Briefcase,
+  Target,
+  Zap,
+  Heart,
+  Gift,
+  Truck,
+  Repeat,
+  Shield,
+  Moon,
+  Sun,
+  Search,
+  Menu,
+  X,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Copy,
+  Check,
+  CheckCheck,
+  CheckCheckIcon
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,14 +2366,29 @@ import { cn } from "@/lib/utils";
 
 // Firebase imports
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  onSnapshot,
+  orderBy,
+  limit,
+  doc,
+  updateDoc,
+  DocumentData,
+  QuerySnapshot,
+  DocumentChange
+} from "firebase/firestore";
 import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Define TypeScript interfaces
 interface OverallStats {
   totalBranches: number;
   totalRevenue: number;
   totalCustomers: number;
+  totalStaff: number;
   avgRating: number;
   monthlyGrowth: number;
   totalServices: number;
@@ -65,10 +2410,18 @@ interface BranchPerformance {
 }
 
 interface RecentActivity {
+  id: string;
   type: string;
   message: string;
   time: string;
   branch?: string;
+  timestamp?: any;
+  read?: boolean;
+  senderBranch?: string;
+  recipientBranch?: string;
+  senderRole?: string;
+  readBy?: string[];
+  status?: string;
 }
 
 interface RecentCategory {
@@ -108,6 +2461,16 @@ interface RecentBooking {
   totalAmount: number;
   status: string;
   timeAgo: string;
+}
+
+interface Notification {
+  id: string;
+  type: 'message' | 'booking' | 'feedback' | 'system';
+  title: string;
+  message: string;
+  timestamp: any;
+  read: boolean;
+  data?: any;
 }
 
 // Firebase document interfaces
@@ -180,20 +2543,89 @@ interface BookingDocument {
   [key: string]: any;
 }
 
+// Updated interface for branchMessages
+interface BranchMessageDocument {
+  id: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'super_admin' | 'branch_admin';
+  senderBranchId?: string;
+  senderBranchName?: string;
+  recipientBranchId: string;
+  recipientBranchName: string;
+  timestamp: any;
+  read: boolean;
+  readBy?: string[];
+  deliveredTo?: string[];
+  deletedFor?: string[];
+  deletedForEveryone?: boolean;
+  edited?: boolean;
+  status: 'sent' | 'delivered' | 'seen';
+}
+
+// Extended booking data type
+interface BookingData extends DocumentData {
+  branchId?: string;
+  branchName?: string;
+  customerName?: string;
+  serviceName?: string;
+  createdAt?: any;
+  totalAmount?: number;
+  status?: string;
+  date?: string;
+  time?: string;
+}
+
+// Extended feedback data type
+interface FeedbackData extends DocumentData {
+  branchId?: string;
+  branchName?: string;
+  customerName?: string;
+  rating?: number;
+  createdAt?: any;
+}
+
 export default function SuperAdminDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>("bookings");
   
-  // Initial state with cached data if available
+  // ✅ Real-time notifications state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  
+  // ✅ AUDIO FIX
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+  const [showAudioPermissionPrompt, setShowAudioPermissionPrompt] = useState<boolean>(false);
+
+  // ✅ Load read notifications from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const readNotifications = localStorage.getItem('super_admin_read_notifications');
+      if (readNotifications) {
+        try {
+          const readIds = JSON.parse(readNotifications) as string[];
+          setNotifications(prev => prev.filter(n => !readIds.includes(n.id)));
+        } catch (error) {
+          console.log('Error loading read notifications:', error);
+        }
+      }
+    }
+  }, []);
+
+  // Initial state with cached data
   const [overallStats, setOverallStats] = useState<OverallStats>(() => {
     if (typeof window !== 'undefined') {
-      const cachedStats = localStorage.getItem('dashboard_stats');
+      const cachedStats = localStorage.getItem('super_admin_dashboard_stats');
       if (cachedStats) {
         try {
-          return JSON.parse(cachedStats);
+          return JSON.parse(cachedStats) as OverallStats;
         } catch {
-          // If cached data is invalid, return defaults
+          // Fallback to defaults
         }
       }
     }
@@ -201,6 +2633,7 @@ export default function SuperAdminDashboard() {
       totalBranches: 0,
       totalRevenue: 0,
       totalCustomers: 0,
+      totalStaff: 0,
       avgRating: 0,
       monthlyGrowth: 0,
       totalServices: 0,
@@ -213,28 +2646,12 @@ export default function SuperAdminDashboard() {
   const [branchPerformance, setBranchPerformance] = useState<BranchPerformance[]>(
     () => {
       if (typeof window !== 'undefined') {
-        const cachedBranches = localStorage.getItem('dashboard_branches');
+        const cachedBranches = localStorage.getItem('super_admin_branch_performance');
         if (cachedBranches) {
           try {
-            return JSON.parse(cachedBranches);
+            return JSON.parse(cachedBranches) as BranchPerformance[];
           } catch {
-            // If cached data is invalid, return empty array
-          }
-        }
-      }
-      return [];
-    }
-  );
-  
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
-    () => {
-      if (typeof window !== 'undefined') {
-        const cachedActivities = localStorage.getItem('dashboard_activities');
-        if (cachedActivities) {
-          try {
-            return JSON.parse(cachedActivities);
-          } catch {
-            // If cached data is invalid, return empty array
+            // Fallback to empty array
           }
         }
       }
@@ -242,16 +2659,31 @@ export default function SuperAdminDashboard() {
     }
   );
 
-  // Recent items states with initial cached values
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
+    () => {
+      if (typeof window !== 'undefined') {
+        const cachedActivities = localStorage.getItem('super_admin_recent_activities');
+        if (cachedActivities) {
+          try {
+            return JSON.parse(cachedActivities) as RecentActivity[];
+          } catch {
+            // Fallback to empty array
+          }
+        }
+      }
+      return [];
+    }
+  );
+
   const [recentCategories, setRecentCategories] = useState<RecentCategory[]>(
     () => {
       if (typeof window !== 'undefined') {
-        const cachedCategories = localStorage.getItem('dashboard_categories');
+        const cachedCategories = localStorage.getItem('super_admin_recent_categories');
         if (cachedCategories) {
           try {
-            return JSON.parse(cachedCategories);
+            return JSON.parse(cachedCategories) as RecentCategory[];
           } catch {
-            // If cached data is invalid, return empty array
+            // Fallback to empty array
           }
         }
       }
@@ -262,12 +2694,12 @@ export default function SuperAdminDashboard() {
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>(
     () => {
       if (typeof window !== 'undefined') {
-        const cachedProducts = localStorage.getItem('dashboard_products');
+        const cachedProducts = localStorage.getItem('super_admin_recent_products');
         if (cachedProducts) {
           try {
-            return JSON.parse(cachedProducts);
+            return JSON.parse(cachedProducts) as RecentProduct[];
           } catch {
-            // If cached data is invalid, return empty array
+            // Fallback to empty array
           }
         }
       }
@@ -278,12 +2710,12 @@ export default function SuperAdminDashboard() {
   const [recentServices, setRecentServices] = useState<RecentService[]>(
     () => {
       if (typeof window !== 'undefined') {
-        const cachedServices = localStorage.getItem('dashboard_services');
+        const cachedServices = localStorage.getItem('super_admin_recent_services');
         if (cachedServices) {
           try {
-            return JSON.parse(cachedServices);
+            return JSON.parse(cachedServices) as RecentService[];
           } catch {
-            // If cached data is invalid, return empty array
+            // Fallback to empty array
           }
         }
       }
@@ -294,12 +2726,12 @@ export default function SuperAdminDashboard() {
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>(
     () => {
       if (typeof window !== 'undefined') {
-        const cachedBookings = localStorage.getItem('dashboard_bookings');
+        const cachedBookings = localStorage.getItem('super_admin_recent_bookings');
         if (cachedBookings) {
           try {
-            return JSON.parse(cachedBookings);
+            return JSON.parse(cachedBookings) as RecentBooking[];
           } catch {
-            // If cached data is invalid, return empty array
+            // Fallback to empty array
           }
         }
       }
@@ -307,9 +2739,429 @@ export default function SuperAdminDashboard() {
     }
   );
 
+  // ✅ AUDIO FIX - Initialize audio
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const audio = new Audio('/notification.mp3');
+      audio.preload = 'auto';
+      audio.volume = 0.7;
+      audioRef.current = audio;
+      audio.load();
+      
+      const enableAudio = () => {
+        if (!audioRef.current) return;
+        
+        audioRef.current.volume = 0.01;
+        audioRef.current.play()
+          .then(() => {
+            console.log('✅ Audio initialized successfully');
+            setAudioEnabled(true);
+            setShowAudioPermissionPrompt(false);
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+              audioRef.current.volume = 0.7;
+            }
+          })
+          .catch((error: Error) => {
+            console.log('❌ Audio initialization failed:', error);
+            setAudioEnabled(false);
+            setShowAudioPermissionPrompt(true);
+          });
+      };
+
+      const handleUserInteraction = () => {
+        enableAudio();
+        document.removeEventListener('click', handleUserInteraction);
+        document.removeEventListener('touchstart', handleUserInteraction);
+        document.removeEventListener('keydown', handleUserInteraction);
+      };
+
+      document.addEventListener('click', handleUserInteraction);
+      document.addEventListener('touchstart', handleUserInteraction);
+      document.addEventListener('keydown', handleUserInteraction);
+
+      enableAudio();
+
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        document.removeEventListener('click', handleUserInteraction);
+        document.removeEventListener('touchstart', handleUserInteraction);
+        document.removeEventListener('keydown', handleUserInteraction);
+      };
+    }
+  }, []);
+
+  // ✅ Play notification sound
+  const playNotificationSound = async (): Promise<boolean> => {
+    if (!audioRef.current) return false;
+
+    if (!audioEnabled) {
+      try {
+        audioRef.current.volume = 0.01;
+        await audioRef.current.play();
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.volume = 0.7;
+        setAudioEnabled(true);
+        setShowAudioPermissionPrompt(false);
+      } catch (error) {
+        setShowAudioPermissionPrompt(true);
+        return false;
+      }
+    }
+
+    try {
+      audioRef.current.currentTime = 0;
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error: Error) => {
+          console.log('❌ Failed to play sound:', error);
+          setAudioEnabled(false);
+          setShowAudioPermissionPrompt(true);
+        });
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // ✅ Manual enable audio
+  const enableAudioManually = async (): Promise<boolean> => {
+    if (!audioRef.current) return false;
+    
+    try {
+      audioRef.current.volume = 0.01;
+      await audioRef.current.play();
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 0.7;
+      setAudioEnabled(true);
+      setShowAudioPermissionPrompt(false);
+      setTimeout(() => playNotificationSound(), 100);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // ✅ Show browser notification
+  const showBrowserNotification = (title: string, body: string) => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/icon.png' });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            new Notification(title, { body, icon: '/icon.png' });
+          }
+        });
+      }
+    }
+  };
+
+  // ✅ Request notification permission
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // ✅ MESSAGES NOTIFICATIONS - FROM BRANCHMESSAGES COLLECTION
+  useEffect(() => {
+    if (!user) return;
+
+    console.log("🔔 Setting up branchMessages listener...");
+    
+    const messagesQuery = query(
+      collection(db, 'branchMessages'),
+      orderBy('timestamp', 'desc')
+    );
+
+    // const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot: QuerySnapshot) => {
+    //   snapshot.docChanges().forEach((change: DocumentChange) => {
+    //     if (change.type === 'added') {
+    //       const data = change.doc.data() as BranchMessageDocument;
+    //       const messageData = {
+    //         id: change.doc.id,
+    //         ...data
+    //       };
+
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot: QuerySnapshot) => {
+  snapshot.docChanges().forEach((change: DocumentChange) => {
+    if (change.type === 'added') {
+      const data = change.doc.data() as BranchMessageDocument;
+      
+      // ✅ FIX: Pehle data lo, phir id add karo taake overwrite na ho
+      const messageData = {
+        ...data,
+        id: change.doc.id
+      };
+          
+          console.log("📨 NEW MESSAGE in branchMessages:", messageData);
+          
+          // ✅ SUPER ADMIN - No branch filter, sab messages dikhao
+          
+          const readNotifications = localStorage.getItem('super_admin_read_notifications');
+          if (readNotifications) {
+            const readIds = JSON.parse(readNotifications) as string[];
+            if (readIds.includes(messageData.id)) {
+              return;
+            }
+          }
+          
+          const senderName = messageData.senderName || 'Unknown';
+          const senderRole = messageData.senderRole || 'user';
+          const messageContent = messageData.content || '📷 Image';
+          const recipientBranch = messageData.recipientBranchName || 'Unknown Branch';
+          const senderBranch = messageData.senderBranchName || 'Unknown';
+          
+          // ✅ Create title based on sender role
+          let notificationTitle = '';
+          let fromTo = '';
+          let roleIcon = '';
+          
+          if (senderRole === 'super_admin') {
+            roleIcon = '👑';
+            notificationTitle = `📢 Super Admin → ${recipientBranch}`;
+            fromTo = `Super Admin → ${recipientBranch}`;
+          } else {
+            roleIcon = '🏢';
+            notificationTitle = `💬 ${senderBranch} Admin → Super Admin`;
+            fromTo = `${senderBranch} Admin → Super Admin`;
+          }
+          
+          // ✅ Check if message is read by super admin
+          const isReadBySuperAdmin = messageData.readBy?.includes('super-admin') || false;
+          
+          // Play sound
+          playNotificationSound();
+          
+          // Show browser notification
+          showBrowserNotification(
+            notificationTitle,
+            messageContent
+          );
+          
+          // ✅ Create notification object with all details
+          const notification: Notification = {
+            id: messageData.id,
+            type: 'message',
+            title: notificationTitle,
+            message: messageContent,
+            timestamp: messageData.timestamp,
+            read: false,
+            data: {
+              ...messageData,
+              fromTo: fromTo,
+              senderBranch: senderBranch,
+              recipientBranch: recipientBranch,
+              senderRole: senderRole,
+              roleIcon: roleIcon,
+              readBy: messageData.readBy || [],
+              status: messageData.status,
+              isReadBySuperAdmin: isReadBySuperAdmin
+            }
+          };
+
+          setNotifications(prev => {
+            const exists = prev.some(n => n.id === messageData.id);
+            if (exists) return prev;
+            return [notification, ...prev].slice(0, 50);
+          });
+          
+          setUnreadCount(prev => prev + 1);
+          
+          // ✅ Add to recent activities with full details
+          const timeAgo = calculateTimeAgo(messageData.timestamp?.toDate?.() || new Date());
+          
+          let activityMessage = '';
+          if (senderRole === 'super_admin') {
+            activityMessage = `📢 Super Admin → ${recipientBranch}: ${messageContent.substring(0, 30)}${messageContent.length > 30 ? '...' : ''}`;
+          } else {
+            activityMessage = `💬 ${senderBranch} Admin → Super Admin: ${messageContent.substring(0, 30)}${messageContent.length > 30 ? '...' : ''}`;
+          }
+          
+          const activity: RecentActivity = {
+            id: messageData.id,
+            type: 'message',
+            message: activityMessage,
+            time: timeAgo,
+            branch: recipientBranch,
+            senderBranch: senderBranch,
+            recipientBranch: recipientBranch,
+            senderRole: senderRole,
+            readBy: messageData.readBy,
+            status: messageData.status,
+            timestamp: messageData.timestamp,
+            read: false
+          };
+          
+          setRecentActivities(prev => {
+            const exists = prev.some(a => a.id === messageData.id);
+            if (exists) return prev;
+            return [activity, ...prev].slice(0, 10);
+          });
+        }
+      });
+    }, (error: Error) => {
+      console.error("❌ branchMessages listener error:", error);
+    });
+
+    return () => unsubscribeMessages();
+  }, [user]);
+
+  // ✅ BOOKINGS NOTIFICATIONS - SUPER ADMIN SEES ALL
+  useEffect(() => {
+    if (!user) return;
+
+    const bookingsQuery = query(
+      collection(db, 'bookings')
+    );
+
+    const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot: QuerySnapshot) => {
+      snapshot.docChanges().forEach((change: DocumentChange) => {
+        if (change.type === 'added') {
+          const data = change.doc.data() as BookingData;
+          const bookingData = {
+            id: change.doc.id,
+            branchName: data.branchName,
+            customerName: data.customerName,
+            serviceName: data.serviceName,
+            createdAt: data.createdAt,
+            ...data
+          };
+          
+          const readNotifications = localStorage.getItem('super_admin_read_notifications');
+          if (readNotifications) {
+            const readIds = JSON.parse(readNotifications) as string[];
+            if (readIds.includes(bookingData.id)) {
+              return;
+            }
+          }
+          
+          const notification: Notification = {
+            id: bookingData.id,
+            type: 'booking',
+            title: '📅 New Booking',
+            message: `${bookingData.customerName || 'Customer'} booked ${bookingData.serviceName || 'a service'} at ${bookingData.branchName || 'branch'}`,
+            timestamp: bookingData.createdAt,
+            read: false,
+            data: bookingData
+          };
+
+          setNotifications(prev => [notification, ...prev].slice(0, 50));
+          setUnreadCount(prev => prev + 1);
+          
+          playNotificationSound();
+          showBrowserNotification(notification.title, notification.message);
+        }
+      });
+    });
+
+    return () => unsubscribeBookings();
+  }, [user]);
+
+  // ✅ FEEDBACKS NOTIFICATIONS - SUPER ADMIN SEES ALL
+  useEffect(() => {
+    if (!user) return;
+
+    const feedbackQuery = query(
+      collection(db, 'feedbacks')
+    );
+
+    const unsubscribeFeedback = onSnapshot(feedbackQuery, (snapshot: QuerySnapshot) => {
+      snapshot.docChanges().forEach((change: DocumentChange) => {
+        if (change.type === 'added') {
+          const data = change.doc.data() as FeedbackData;
+          const feedbackData = {
+            id: change.doc.id,
+            branchName: data.branchName,
+            customerName: data.customerName,
+            rating: data.rating,
+            createdAt: data.createdAt,
+            ...data
+          };
+          
+          const readNotifications = localStorage.getItem('super_admin_read_notifications');
+          if (readNotifications) {
+            const readIds = JSON.parse(readNotifications) as string[];
+            if (readIds.includes(feedbackData.id)) {
+              return;
+            }
+          }
+          
+          const notification: Notification = {
+            id: feedbackData.id,
+            type: 'feedback',
+            title: '⭐ New Review',
+            message: `${feedbackData.customerName || 'Customer'} left a ${feedbackData.rating}★ review at ${feedbackData.branchName || 'branch'}`,
+            timestamp: feedbackData.createdAt,
+            read: false,
+            data: feedbackData
+          };
+
+          setNotifications(prev => [notification, ...prev].slice(0, 50));
+          setUnreadCount(prev => prev + 1);
+          
+          playNotificationSound();
+          showBrowserNotification(notification.title, notification.message);
+        }
+      });
+    });
+
+    return () => unsubscribeFeedback();
+  }, [user]);
+
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  // ✅ Mark notification as read
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    
+    const readNotifications = localStorage.getItem('super_admin_read_notifications');
+    let readIds: string[] = [];
+    
+    if (readNotifications) {
+      readIds = JSON.parse(readNotifications) as string[];
+    }
+    
+    if (!readIds.includes(notificationId)) {
+      readIds.push(notificationId);
+      localStorage.setItem('super_admin_read_notifications', JSON.stringify(readIds));
+    }
+  };
+
+  // ✅ Mark all as read
+  const markAllAsRead = () => {
+    const currentIds = notifications.map(n => n.id);
+    setNotifications([]);
+    setUnreadCount(0);
+    
+    const readNotifications = localStorage.getItem('super_admin_read_notifications');
+    let readIds: string[] = [];
+    
+    if (readNotifications) {
+      readIds = JSON.parse(readNotifications) as string[];
+    }
+    
+    currentIds.forEach(id => {
+      if (!readIds.includes(id)) {
+        readIds.push(id);
+      }
+    });
+    
+    localStorage.setItem('super_admin_read_notifications', JSON.stringify(readIds));
   };
 
   // Helper function to calculate time ago
@@ -331,29 +3183,30 @@ export default function SuperAdminDashboard() {
     } ago`;
   };
 
-  // Fetch all data from Firebase - NON-BLOCKING
+  // ✅ MAIN FETCH FUNCTION - SUPER ADMIN, NO BRANCH FILTERING
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Use Promise.all for parallel fetching
+        console.log("🔄 Fetching super admin dashboard data...");
+
         const fetchPromises = [
           getDocs(collection(db, "branches")),
           getDocs(collection(db, "feedbacks")),
           getDocs(collection(db, "services")),
           getDocs(collection(db, "products")),
           getDocs(collection(db, "categories")),
-          getDocs(collection(db, "bookings"))
+          getDocs(collection(db, "bookings")),
+          getDocs(collection(db, "staff"))
         ];
 
-        // Wait for all data with timeout
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Data fetch timeout')), 5000)
         );
 
         const results = await Promise.race([
           Promise.all(fetchPromises),
           timeoutPromise
-        ]) as any[];
+        ]) as QuerySnapshot[];
 
         const [
           branchesSnapshot,
@@ -361,159 +3214,140 @@ export default function SuperAdminDashboard() {
           servicesSnapshot,
           productsSnapshot,
           categoriesSnapshot,
-          bookingsSnapshot
+          bookingsSnapshot,
+          staffSnapshot
         ] = results;
 
-        // Process data
-        const branchesData: BranchDocument[] = branchesSnapshot.docs.map(
-          (doc: any) => ({
+        const allBranches: BranchDocument[] = branchesSnapshot.docs.map(
+          (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
-        );
+          })) as BranchDocument[];
 
-        const feedbacksData: FeedbackDocument[] = feedbacksSnapshot.docs.map(
-          (doc: any) => ({
+        const allServices: ServiceDocument[] = servicesSnapshot.docs.map(
+          (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
-        );
+          })) as ServiceDocument[];
 
-        const servicesData: ServiceDocument[] = servicesSnapshot.docs.map(
-          (doc: any) => ({
+        const allProducts: ProductDocument[] = productsSnapshot.docs.map(
+          (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
-        );
+          })) as ProductDocument[];
 
-        const productsData: ProductDocument[] = productsSnapshot.docs.map(
-          (doc: any) => ({
+        const allCategories: CategoryDocument[] = categoriesSnapshot.docs.map(
+          (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
-        );
+          })) as CategoryDocument[];
 
-        const categoriesData: CategoryDocument[] = categoriesSnapshot.docs.map(
-          (doc: any) => ({
+        const allBookings: BookingDocument[] = bookingsSnapshot.docs.map(
+          (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
-        );
+          })) as BookingDocument[];
 
-        const bookingsData: BookingDocument[] = bookingsSnapshot.docs.map(
-          (doc: any) => ({
+        const allFeedbacks: FeedbackDocument[] = feedbacksSnapshot.docs.map(
+          (doc) => ({
             id: doc.id,
             ...doc.data(),
-          })
-        );
+          })) as FeedbackDocument[];
 
-        // Calculate overall stats
-        const totalBranches = branchesData.length;
+        const allStaff = staffSnapshot.size;
 
-        // Calculate total revenue from bookings
-        const totalBookingsRevenue = bookingsData.reduce(
+        // ✅ Fetch customers from users collection with role="customer"
+        let totalCustomers = 0;
+        try {
+          const customersQuery = query(
+            collection(db, "users"),
+            where("role", "==", "customer")
+          );
+          const customersSnapshot = await getDocs(customersQuery);
+          totalCustomers = customersSnapshot.size;
+        } catch (error) {
+          console.error("❌ Error fetching customers:", error);
+        }
+
+        // ✅ SUPER ADMIN - NO FILTERING, SAB DATA DIKHAO
+        const totalRevenue = allBookings.reduce(
           (sum, booking) => sum + (booking.totalAmount || 0),
-          0
+          0,
         );
 
-        // Calculate average rating
-        const totalRating = feedbacksData.reduce(
+        const totalRating = allFeedbacks.reduce(
           (sum, feedback) => sum + (feedback.rating || 0),
-          0
+          0,
         );
+        
         const avgRating =
-          feedbacksData.length > 0
-            ? parseFloat((totalRating / feedbacksData.length).toFixed(1))
+          allFeedbacks.length > 0
+            ? parseFloat((totalRating / allFeedbacks.length).toFixed(1))
             : 0;
 
-        // Prepare branch performance data
-        const branchPerformanceData: BranchPerformance[] = branchesData.map(
-          (branch) => {
-            const branchFeedbacks = feedbacksData.filter(
-              (fb) => fb.branchId === branch.id || fb.branchName === branch.name
-            );
+        const newStats: OverallStats = {
+          totalBranches: allBranches.length,
+          totalRevenue: totalRevenue,
+          totalCustomers: totalCustomers,
+          totalStaff: allStaff,
+          avgRating: avgRating,
+          monthlyGrowth: 12.5,
+          totalServices: allServices.length,
+          totalProducts: allProducts.length,
+          totalCategories: allCategories.length,
+          totalBookings: allBookings.length,
+        };
 
-            const branchRatingTotal = branchFeedbacks.reduce(
-              (sum, fb) => sum + (fb.rating || 0),
-              0
-            );
-            const branchRating =
-              branchFeedbacks.length > 0
-                ? parseFloat((branchRatingTotal / branchFeedbacks.length).toFixed(1))
-                : 0;
+        setOverallStats(newStats);
 
-            const branchServices = servicesData.filter(
-              (service) =>
-                service.branches?.includes(branch.id) ||
-                service.branchNames?.includes(branch.name as string)
-            );
-            const branchProducts = productsData.filter(
-              (product) =>
-                product.branches?.includes(branch.id) ||
-                product.branchNames?.includes(branch.name as string)
-            );
+        // ✅ Branch Performance - ALL BRANCHES
+        const branchPerformanceData: BranchPerformance[] = allBranches.map((branch) => {
+          const branchBookings = allBookings.filter(
+            (b) => b.branchId === branch.id || b.branchName === branch.name,
+          );
+          const branchFeedbacks = allFeedbacks.filter(
+            (f) => f.branchId === branch.id || f.branchName === branch.name,
+          );
+          const branchRevenue = branchBookings.reduce(
+            (sum, b) => sum + (b.totalAmount || 0),
+            0,
+          );
+          const branchRatingTotal = branchFeedbacks.reduce(
+            (sum, f) => sum + (f.rating || 0),
+            0,
+          );
+          const branchRating =
+            branchFeedbacks.length > 0
+              ? branchRatingTotal / branchFeedbacks.length
+              : 0;
 
-            const branchServiceRevenue = branchServices.reduce(
-              (sum, s) => sum + (s.revenue || 0),
-              0
-            );
-            const branchProductRevenue = branchProducts.reduce(
-              (sum, p) => sum + (p.revenue || 0),
-              0
-            );
-            const branchRevenue = branchServiceRevenue + branchProductRevenue;
+          return {
+            id: branch.id,
+            name: branch.name || "Unnamed Branch",
+            revenue: branchRevenue,
+            customers: branchFeedbacks.length,
+            rating: parseFloat(branchRating.toFixed(1)),
+            status:
+              branchRating >= 4.5
+                ? "excellent"
+                : branchRating >= 4.0
+                  ? "good"
+                  : branchRating >= 3.5
+                    ? "average"
+                    : "needs_attention",
+            city: branch.city || "N/A",
+            manager: branch.managerName || "N/A",
+            bookings: branchBookings.length,
+          };
+        });
 
-            const branchBookings = bookingsData.filter(
-              (booking) =>
-                booking.branchId === branch.id ||
-                booking.branchName === branch.name
-            );
+        setBranchPerformance(branchPerformanceData);
 
-            let status = "average";
-            if (branchRating >= 4.5) status = "excellent";
-            else if (branchRating >= 4.0) status = "good";
-            else if (branchRating >= 3.5) status = "average";
-            else status = "needs_attention";
-
-            return {
-              id: branch.id,
-              name: branch.name || "Unnamed Branch",
-              revenue: branchRevenue,
-              customers: branchFeedbacks.length,
-              rating: branchRating,
-              status: status,
-              city: branch.city || "N/A",
-              manager: branch.managerName || "N/A",
-              bookings: branchBookings.length,
-            };
-          }
-        );
-
-        // Prepare recent activities
-        const recentActivitiesData: RecentActivity[] = feedbacksData
+        // ✅ Recent items - ALL DATA
+        const recentCategoriesData: RecentCategory[] = allCategories
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
-            return dateB - dateA;
-          })
-          .slice(0, 5)
-          .map((feedback) => {
-            const timeAgo = calculateTimeAgo(feedback.createdAt?.toDate());
-            return {
-              type: "customer_feedback",
-              message: `New ${feedback.rating || 0}★ review from ${
-                feedback.customerName || "Customer"
-              }`,
-              time: timeAgo,
-              branch: feedback.branchName || "Unknown Branch",
-            };
-          });
-
-        // Get recent categories
-        const recentCategoriesData: RecentCategory[] = categoriesData
-          .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -526,11 +3360,10 @@ export default function SuperAdminDashboard() {
             isActive: category.isActive || false,
           }));
 
-        // Get recent products
-        const recentProductsData: RecentProduct[] = productsData
+        const recentProductsData: RecentProduct[] = allProducts
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -543,11 +3376,10 @@ export default function SuperAdminDashboard() {
             status: product.status || "active",
           }));
 
-        // Get recent services
-        const recentServicesData: RecentService[] = servicesData
+        const recentServicesData: RecentService[] = allServices
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -561,11 +3393,10 @@ export default function SuperAdminDashboard() {
             status: service.status || "active",
           }));
 
-        // Get recent bookings
-        const recentBookingsData: RecentBooking[] = bookingsData
+        const recentBookingsData: RecentBooking[] = allBookings
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -580,50 +3411,32 @@ export default function SuperAdminDashboard() {
             timeAgo: calculateTimeAgo(booking.createdAt?.toDate()),
           }));
 
-        // Update state with real data
-        const newStats = {
-          totalBranches: totalBranches,
-          totalRevenue: totalBookingsRevenue,
-          totalCustomers: feedbacksData.length,
-          avgRating: avgRating,
-          monthlyGrowth: 12.5,
-          totalServices: servicesData.length,
-          totalProducts: productsData.length,
-          totalCategories: categoriesData.length,
-          totalBookings: bookingsData.length,
-        };
-
-        setOverallStats(newStats);
-        setBranchPerformance(branchPerformanceData);
-        setRecentActivities(recentActivitiesData);
         setRecentCategories(recentCategoriesData);
         setRecentProducts(recentProductsData);
         setRecentServices(recentServicesData);
         setRecentBookings(recentBookingsData);
 
-        // Cache data in localStorage
+        // ✅ Cache the data
         try {
-          localStorage.setItem('dashboard_stats', JSON.stringify(newStats));
-          localStorage.setItem('dashboard_branches', JSON.stringify(branchPerformanceData));
-          localStorage.setItem('dashboard_activities', JSON.stringify(recentActivitiesData));
-          localStorage.setItem('dashboard_categories', JSON.stringify(recentCategoriesData));
-          localStorage.setItem('dashboard_products', JSON.stringify(recentProductsData));
-          localStorage.setItem('dashboard_services', JSON.stringify(recentServicesData));
-          localStorage.setItem('dashboard_bookings', JSON.stringify(recentBookingsData));
-          localStorage.setItem('dashboard_last_fetched', Date.now().toString());
+          localStorage.setItem('super_admin_dashboard_stats', JSON.stringify(newStats));
+          localStorage.setItem('super_admin_branch_performance', JSON.stringify(branchPerformanceData));
+          localStorage.setItem('super_admin_recent_categories', JSON.stringify(recentCategoriesData));
+          localStorage.setItem('super_admin_recent_products', JSON.stringify(recentProductsData));
+          localStorage.setItem('super_admin_recent_services', JSON.stringify(recentServicesData));
+          localStorage.setItem('super_admin_recent_bookings', JSON.stringify(recentBookingsData));
+          localStorage.setItem('super_admin_dashboard_last_fetched', Date.now().toString());
         } catch (error) {
           console.log('Could not cache dashboard data');
         }
 
+        console.log("✅ Super Admin Dashboard loaded successfully!");
       } catch (error) {
         console.log("Dashboard data fetch:", error);
-        // Keep using cached data if available
       }
     };
 
-    // Only fetch fresh data if cache is older than 5 minutes
-    const lastFetched = localStorage.getItem('dashboard_last_fetched');
-    const shouldFetch = !lastFetched || (Date.now() - parseInt(lastFetched)) > 300000; // 5 minutes
+    const lastFetched = localStorage.getItem('super_admin_dashboard_last_fetched');
+    const shouldFetch = !lastFetched || (Date.now() - parseInt(lastFetched)) > 300000;
     
     if (shouldFetch) {
       fetchDashboardData();
@@ -635,38 +3448,84 @@ export default function SuperAdminDashboard() {
       case "active":
       case "completed":
       case "excellent":
-        return "bg-green-100 text-green-800";
+        return "bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200";
       case "good":
       case "pending":
-        return "bg-blue-100 text-blue-800";
+        return "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border-blue-200";
       case "average":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 border-yellow-200";
       case "needs_attention":
       case "cancelled":
-        return "bg-red-100 text-red-800";
+        return "bg-gradient-to-r from-red-100 to-red-50 text-red-800 border-red-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 border-gray-200";
     }
   };
 
-  const getStatusBadge = (status: string): string => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "active":
-        return "Active";
-      case "pending":
-        return "Pending";
       case "completed":
-        return "Completed";
+      case "excellent":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-blue-600" />;
       case "cancelled":
-        return "Cancelled";
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
       default:
-        return status;
+        return null;
     }
   };
 
   return (
-    <div className="flex h-screen bg-[#f8f9fa]">
-      {/* Sidebar - Now visible by default */}
+    <ProtectedRoute>
+       <style jsx global>{`
+        html, body {
+          overflow: hidden !important;
+          height: 100vh;
+          margin: 0;
+          padding: 0;
+        }
+        #__next {
+          height: 100vh;
+          overflow: hidden;
+        }
+        .sidebar-container {
+          height: 100vh;
+          overflow: visible !important;
+          position: relative;
+          z-index: 50;
+        }
+        .sidebar-container::-webkit-scrollbar {
+          display: none;
+        }
+        .main-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .main-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .main-scrollbar::-webkit-scrollbar-thumb {
+          background: #FA9DB7;
+          border-radius: 10px;
+        }
+        .main-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #B84A68;
+        }
+        .admin-sidebar {
+          height: 100vh;
+          overflow-y: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .admin-sidebar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100/50 overflow-hidden">
+      {/* Sidebar */}
       <AdminSidebar
         role="super_admin"
         onLogout={handleLogout}
@@ -677,13 +3536,13 @@ export default function SuperAdminDashboard() {
       {/* Main Content */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",
-          sidebarOpen ? "lg:ml-0" : "lg:ml-0"
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
+          sidebarOpen ? "lg:ml-0" : "lg:ml-0",
         )}
       >
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 shrink-0">
-          <div className="flex items-center justify-between px-4 py-4 lg:px-8">
+        {/* Modern Header */}
+        <header className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 shrink-0">
+          <div className="flex items-center justify-between px-1 py-1">
             <div className="flex items-center gap-4">
               <AdminMobileSidebar
                 role="super_admin"
@@ -691,618 +3550,874 @@ export default function SuperAdminDashboard() {
                 isOpen={sidebarOpen}
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
               />
-              <div>
-                <h1 className="text-2xl font-serif font-bold text-primary">
-                  Super Admin Dashboard
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Multi-Branch Management System
-                </p>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Building className="h-7 w-7 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-white font-serif">
+                      Super Admin Dashboard
+                    </h1>
+                    <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 px-3 py-1 rounded-full">
+                      👑 Super Admin
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-white/90 mt-1 flex items-center gap-2">
+                    <Activity className="h-3 w-3 animate-pulse" />
+                    Multi-Branch Management System - All Data
+                  </p>
+                </div>
               </div>
             </div>
+
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                Welcome, {user?.email}
-              </span>
+              {/* ✅ AUDIO PERMISSION PROMPT */}
+              {showAudioPermissionPrompt && (
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-100 rounded-xl px-3 py-1 text-xs flex items-center gap-1"
+                    onClick={enableAudioManually}
+                  >
+                    <span className="animate-pulse">🔊</span>
+                    Enable Sound
+                  </Button>
+                </div>
+              )}
+
+              {/* ✅ Real-time Notifications - WITH RECIPIENT BRANCH AND READ BY */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative rounded-xl bg-white/10 hover:bg-white/20 text-white"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+
+                {/* Notifications Dropdown - WITH FULL DETAILS */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50">
+                    <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-[#B84A68] hover:text-[#B84A68]/80 h-8"
+                          onClick={markAllAsRead}
+                        >
+                          Mark all as read
+                        </Button>
+                      )}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500">
+                          <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-sm">No notifications</p>
+                        </div>
+                      ) : (
+                        notifications.slice(0, 10).map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={cn(
+                              "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors relative group",
+                              !notification.read && "bg-[#FA9DB7]/5"
+                            )}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={cn(
+                                "p-2 rounded-lg",
+                                notification.type === 'message' ? 'bg-blue-100' :
+                                notification.type === 'booking' ? 'bg-green-100' :
+                                notification.type === 'feedback' ? 'bg-purple-100' : 'bg-gray-100'
+                              )}>
+                                {notification.type === 'message' && <MessageCircle className="h-4 w-4 text-blue-600" />}
+                                {notification.type === 'booking' && <Calendar className="h-4 w-4 text-green-600" />}
+                                {notification.type === 'feedback' && <Star className="h-4 w-4 text-purple-600" />}
+                              </div>
+                              <div className="flex-1">
+                                {/* Title with role and recipient */}
+                                <p className="text-sm font-medium text-gray-900">
+                                  {notification.type === 'message' && notification.data?.senderRole === 'super_admin' ? (
+                                    <span>👑 Super Admin → {notification.data?.recipientBranch || 'Branch'}</span>
+                                  ) : notification.type === 'message' && notification.data?.senderRole === 'branch_admin' ? (
+                                    <span>🏢 {notification.data.senderBranch} Admin → Super Admin</span>
+                                  ) : (
+                                    notification.title
+                                  )}
+                                </p>
+                                
+                                {/* Message content */}
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {notification.message}
+                                </p>
+                                
+                                {/* Read by status */}
+                                {notification.type === 'message' && notification.data?.readBy?.includes('super-admin') && (
+                                  <div className="mt-1 flex items-center gap-1">
+                                    <CheckCheckIcon className="h-3 w-3 text-green-600" />
+                                    <span className="text-[10px] text-green-600">Read</span>
+                                  </div>
+                                )}
+                                
+                                {/* Timestamp */}
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {calculateTimeAgo(notification.timestamp?.toDate?.())}
+                                </p>
+                              </div>
+                              {!notification.read && (
+                                <div className="w-2 h-2 bg-[#FA9DB7] rounded-full"></div>
+                              )}
+                            </div>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2 h-6 w-6 p-0 opacity-100 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markNotificationAsRead(notification.id);
+                              }}
+                              title="Mark as read"
+                            >
+                              <Check className="h-3 w-3 text-green-600" /> 
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-gray-100"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* User Profile */}
+              <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer">
+                <Avatar className="h-10 w-10 border-2 border-white/30">
+                  <AvatarFallback className="bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] text-white font-bold">
+                    {user?.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-white">
+                  <p className="text-sm font-semibold">{user?.email}</p>
+                  <p className="text-xs opacity-90 capitalize">
+                    Super Admin
+                  </p>
+                </div>
+              </div>
+
+              {/* Logout Button */}
               <Button
-                variant="outline"
                 onClick={handleLogout}
-                className="hidden sm:flex border-primary/10 text-primary hover:bg-primary/5"
+                className="bg-white text-[#B84A68] hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto min-h-0 bg-[#f8f9fa]">
-          <div className="h-full p-4 lg:p-8">
-            {/* Overall Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Total Branches Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Branches
-                  </CardTitle>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Building className="h-4 w-4 text-blue-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {overallStats.totalBranches}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    All locations active
+        {/* Content Area - Stats Cards and Tabs */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="h-full p-4 lg:p-6">
+            {/* Dashboard Stats Section */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 font-serif">
+                    Dashboard Overview
+                  </h2>
+                  <p className="text-gray-600">
+                    Real-time statistics for all branches
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              {/* Total Revenue Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Revenue
-                  </CardTitle>
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    ${overallStats.totalRevenue.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    +{overallStats.monthlyGrowth}% from last month
-                  </p>
-                </CardContent>
-              </Card>
+              {/* Main Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {/* Total Revenue Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-green-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-green-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Total Revenue
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl shadow-lg">
+                      <DollarSign className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        ${overallStats.totalRevenue.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-green-100 px-2 py-1 rounded-full">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +{overallStats.monthlyGrowth}%
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">All branches revenue</p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full"
+                        style={{ width: '75%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Total Customers Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Customers
-                  </CardTitle>
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Users className="h-4 w-4 text-purple-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {overallStats.totalCustomers.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    +8% from last month
-                  </p>
-                </CardContent>
-              </Card>
+                {/* Total Customers Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Total Customers
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl shadow-lg">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        {overallStats.totalCustomers}
+                      </div>
+                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-purple-100 px-2 py-1 rounded-full">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +5.2%
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Registered customers
+                    </p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full"
+                        style={{ width: '65%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Average Rating Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Average Rating
-                  </CardTitle>
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <Star className="h-4 w-4 text-amber-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">
-                    {overallStats.avgRating}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    Based on {overallStats.totalCustomers} reviews
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                {/* Total Staff Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/50 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Total Staff
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                      <UserPlus className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        {overallStats.totalStaff}
+                      </div>
+                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-blue-100 px-2 py-1 rounded-full">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +8.3%
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Staff members
+                    </p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                        style={{ width: '70%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-            {/* Additional Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              {/* Total Bookings Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Bookings
-                  </CardTitle>
-                  <div className="p-2 bg-indigo-100 rounded-lg">
-                    <Calendar className="h-4 w-4 text-indigo-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalBookings}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Appointments scheduled
-                  </p>
-                </CardContent>
-              </Card>
+                {/* Total Branches Card */}
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-[#FA9DB7]/10 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#FA9DB7]/10 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                      Total Branches
+                    </CardTitle>
+                    <div className="p-3 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-2xl shadow-lg">
+                      <Building className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative z-10">
+                    <div className="flex items-end gap-2 mb-3">
+                      <div className="text-3xl font-bold text-gray-900">
+                        {overallStats.totalBranches}
+                      </div>
+                      <div className="text-sm text-[#B84A68] font-semibold flex items-center mb-2 bg-[#FA9DB7]/10 px-2 py-1 rounded-full">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                      All locations operational
+                    </p>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-full"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-              {/* Total Services Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Services
-                  </CardTitle>
-                  <div className="p-2 bg-pink-100 rounded-lg">
-                    <Settings className="h-4 w-4 text-pink-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalServices}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Active services
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Products Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Products
-                  </CardTitle>
-                  <div className="p-2 bg-cyan-100 rounded-lg">
-                    <Package className="h-4 w-4 text-cyan-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalProducts}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Available products
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Categories Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Total Categories
-                  </CardTitle>
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Layers className="h-4 w-4 text-orange-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    {overallStats.totalCategories}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Service & product categories
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Monthly Growth Card */}
-              <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Growth Rate
-                  </CardTitle>
-                  <div className="p-2 bg-teal-100 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-teal-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">
-                    +{overallStats.monthlyGrowth}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Monthly increase
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Items Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Recent Bookings */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Calendar className="w-5 h-5 text-indigo-600" />
-                    Recent Bookings
-                  </CardTitle>
-                  <CardDescription>
-                    Latest appointments and reservations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentBookings.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent bookings
+              {/* Secondary Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-pink-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Services
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalServices}
                       </p>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentBookings.map((booking) => (
-                        <div
-                          key={booking.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-200 hover:shadow-sm transition-all"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {booking.serviceName}
-                              </h3>
-                              <Badge
-                                className={cn(
-                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                  getStatusColor(booking.status)
-                                )}
-                              >
-                                {getStatusBadge(booking.status)}
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Customer
-                                </p>
-                                <p className="font-semibold">
-                                  {booking.customerName}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Date & Time
-                                </p>
-                                <p className="font-semibold">
-                                  {booking.date} • {booking.time}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <span className="text-lg font-bold text-primary">
-                                ${booking.totalAmount}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {booking.timeAgo}
-                              </span>
-                            </div>
-                          </div>
+                    <div className="p-2 bg-pink-100 rounded-lg">
+                      <Settings className="h-5 w-5 text-pink-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-cyan-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Products
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalProducts}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-cyan-100 rounded-lg">
+                      <Package className="h-5 w-5 text-cyan-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-orange-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Categories
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalCategories}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Layers className="h-5 w-5 text-orange-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-teal-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Bookings
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {overallStats.totalBookings}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-teal-100 rounded-lg">
+                      <Calendar className="h-5 w-5 text-teal-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-indigo-50/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">
+                        Growth Rate
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        +{overallStats.monthlyGrowth}%
+                      </p>
+                    </div>
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-indigo-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Tabs Section for Recent Items */}
+            <Card className="border-none shadow-xl mb-8 overflow-hidden">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full"
+              >
+                <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg font-bold text-gray-900 font-serif">
+                          Recent Items
+                        </CardTitle>
+                        <CardDescription>
+                          Latest items from all branches
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <TabsList className="grid grid-cols-4 w-full bg-gray-100/50 p-1 rounded-xl">
+                      <TabsTrigger
+                        value="bookings"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-[#B84A68] rounded-lg transition-all"
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Bookings
+                        {recentBookings.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-[#B84A68] text-white">
+                            {recentBookings.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="services"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-pink-600 rounded-lg transition-all"
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Services
+                        {recentServices.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-pink-500 text-white">
+                            {recentServices.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="products"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-cyan-600 rounded-lg transition-all"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Products
+                        {recentProducts.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-cyan-500 text-white">
+                            {recentProducts.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="categories"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-orange-600 rounded-lg transition-all"
+                      >
+                        <Layers className="h-4 w-4 mr-2" />
+                        Categories
+                        {recentCategories.length > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-orange-500 text-white">
+                            {recentCategories.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-6">
+                  {/* Bookings Tab */}
+                  <TabsContent value="bookings" className="mt-0">
+                    {recentBookings.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+                          <Calendar className="h-10 w-10 text-gray-400" />
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Recent Services */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Settings className="w-5 h-5 text-pink-600" />
-                    Recently Added Services
-                  </CardTitle>
-                  <CardDescription>
-                    New services added to branches
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentServices.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent services
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentServices.map((service) => (
-                        <div
-                          key={service.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-pink-200 hover:shadow-sm transition-all"
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Recent Bookings
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Bookings will appear here once customers start booking
+                          services
+                        </p>
+                        <Link
+                          href="/admin/bookings"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#B84A68] text-white rounded-xl hover:bg-[#9C3852] transition-colors shadow-md"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {service.name}
-                              </h3>
+                          <Calendar className="h-4 w-4" />
+                          View All Bookings
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {recentBookings.map((booking) => (
+                          <div
+                            key={booking.id}
+                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-50 rounded-xl">
+                                <Calendar className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {booking.serviceName}
+                                  </h3>
+                                  <Badge
+                                    className={cn(
+                                      "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                                      getStatusColor(booking.status),
+                                    )}
+                                  >
+                                    <span className="flex items-center gap-1">
+                                      {getStatusIcon(booking.status)}
+                                      {booking.status}
+                                    </span>
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                  <div>
+                                    <p className="text-xs text-gray-500">
+                                      Customer
+                                    </p>
+                                    <p className="font-semibold">
+                                      {booking.customerName}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Date</p>
+                                    <p className="font-semibold">{booking.date}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Time</p>
+                                    <p className="font-semibold">{booking.time}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Amount</p>
+                                    <p className="font-semibold text-lg text-green-600">
+                                      ${booking.totalAmount}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#B84A68] transition-colors ml-4" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Services Tab */}
+                  <TabsContent value="services" className="mt-0">
+                    {recentServices.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-pink-100 to-pink-200 rounded-full flex items-center justify-center mb-4">
+                          <Settings className="h-10 w-10 text-pink-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Services Yet
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Start adding services to see them here
+                        </p>
+                        <Link
+                          href="/admin/services"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition-colors shadow-md"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Add First Service
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recentServices.map((service) => (
+                          <div
+                            key={service.id}
+                            className="p-5 bg-gradient-to-br from-white to-pink-50/30 border border-gray-100 rounded-2xl hover:border-pink-200 hover:shadow-xl transition-all duration-300 group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl">
+                                  <Settings className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {service.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-500">
+                                    {service.category}
+                                  </p>
+                                </div>
+                              </div>
                               <Badge
                                 className={cn(
-                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                  getStatusColor(service.status)
+                                  "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                                  getStatusColor(service.status),
                                 )}
                               >
                                 {service.status}
                               </Badge>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
                               <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Category
-                                </p>
-                                <p className="font-semibold">
-                                  {service.category}
+                                <p className="text-xs text-gray-500">Price</p>
+                                <p className="text-xl font-bold text-[#B84A68]">
+                                  ${service.price}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Duration
-                                </p>
-                                <p className="font-semibold">
+                                <p className="text-xs text-gray-500">Duration</p>
+                                <p className="text-lg font-semibold">
                                   {service.duration} mins
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <span className="text-lg font-bold text-primary">
-                                ${service.price}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {service.time}
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">
+                                Added {service.time}
                               </span>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-            {/* Another Row for Products and Categories */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Recent Products */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Package className="w-5 h-5 text-cyan-600" />
-                    Recently Added Products
-                  </CardTitle>
-                  <CardDescription>New products in inventory</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentProducts.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent products
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentProducts.map((product) => (
-                        <div
-                          key={product.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-cyan-200 hover:shadow-sm transition-all"
+                  {/* Products Tab */}
+                  <TabsContent value="products" className="mt-0">
+                    {recentProducts.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-full flex items-center justify-center mb-4">
+                          <Package className="h-10 w-10 text-cyan-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Products Yet
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Start adding products to see them here
+                        </p>
+                        <Link
+                          href="/admin/products"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors shadow-md"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {product.name}
-                              </h3>
+                          <Package className="h-4 w-4" />
+                          Add First Product
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recentProducts.map((product) => (
+                          <div
+                            key={product.id}
+                            className="p-5 bg-gradient-to-br from-white to-cyan-50/30 border border-gray-100 rounded-2xl hover:border-cyan-200 hover:shadow-xl transition-all duration-300 group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-xl">
+                                  <Package className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {product.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-500">
+                                    {product.category}
+                                  </p>
+                                </div>
+                              </div>
                               <Badge
                                 className={cn(
-                                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                  getStatusColor(product.status)
+                                  "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                                  getStatusColor(product.status),
                                 )}
                               >
                                 {product.status}
                               </Badge>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Category
-                                </p>
-                                <p className="font-semibold">
-                                  {product.category}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Price
-                                </p>
-                                <p className="font-semibold">
-                                  ${product.price}
-                                </p>
-                              </div>
+                            <div className="mb-4">
+                              <p className="text-xs text-gray-500 mb-1">Price</p>
+                              <p className="text-2xl font-bold text-[#B84A68]">
+                                ${product.price}
+                              </p>
                             </div>
-                            <div className="flex items-center justify-between mt-3">
-                              <span className="text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-500">
                                 Added {product.time}
                               </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                              >
-                                View Details
-                              </Button>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-              {/* Recent Categories */}
-              <Card className="border-none shadow-sm">
-                <CardHeader className="border-b border-gray-50">
-                  <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                    <Layers className="w-5 h-5 text-orange-600" />
-                    Recently Added Categories
-                  </CardTitle>
-                  <CardDescription>
-                    New service & product categories
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recentCategories.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        No recent categories
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentCategories.map((category) => (
-                        <div
-                          key={category.id}
-                          className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-orange-200 hover:shadow-sm transition-all"
+                  {/* Categories Tab */}
+                  <TabsContent value="categories" className="mt-0">
+                    {recentCategories.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mb-4">
+                          <Layers className="h-10 w-10 text-orange-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          No Categories Yet
+                        </h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                          Start adding categories to organize your services and
+                          products
+                        </p>
+                        <Link
+                          href="/admin/categories"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors shadow-md"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-bold text-primary">
-                                {category.name}
-                              </h3>
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
-                                    category.isActive
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-gray-100 text-gray-700"
-                                  )}
-                                >
-                                  {category.isActive ? "Active" : "Inactive"}
-                                </Badge>
-                                <Badge className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none bg-blue-100 text-blue-700">
-                                  {category.type}
-                                </Badge>
+                          <Layers className="h-4 w-4" />
+                          Add First Category
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {recentCategories.map((category) => (
+                          <div
+                            key={category.id}
+                            className="p-5 bg-gradient-to-br from-white to-orange-50/30 border border-gray-100 rounded-2xl hover:border-orange-200 hover:shadow-xl transition-all duration-300 group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
+                                  <Layers className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg text-gray-900">
+                                    {category.name}
+                                  </h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge className="bg-blue-100 text-blue-700 px-2 py-0.5 text-xs">
+                                      {category.type}
+                                    </Badge>
+                                    <Badge
+                                      className={cn(
+                                        "px-2 py-0.5 text-xs",
+                                        category.isActive
+                                          ? "bg-green-100 text-green-700"
+                                          : "bg-gray-100 text-gray-700",
+                                      )}
+                                    >
+                                      {category.isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="space-y-3">
                               <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Branch
-                                </p>
-                                <p className="font-semibold">
-                                  {category.branch}
-                                </p>
+                                <p className="text-xs text-gray-500">Branch</p>
+                                <p className="font-semibold">{category.branch}</p>
                               </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">
-                                  Added
-                                </p>
-                                <p className="font-semibold">{category.time}</p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">
+                                  Added {category.time}
+                                </span>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
                 </CardContent>
-              </Card>
-            </div>
+              </Tabs>
+            </Card>
 
-            {/* Branch Performance and Recent Activities */}
+            {/* Branch Performance and Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Branch Performance */}
               <div className="lg:col-span-2">
-                <Card className="border-none shadow-sm">
-                  <CardHeader className="border-b border-gray-50">
-                    <CardTitle className="flex items-center gap-2 text-lg font-serif">
-                      <Building className="w-5 h-5 text-secondary" />
+                <Card className="border-none shadow-xl">
+                  <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                    <CardTitle className="text-lg font-bold text-gray-900 font-serif">
                       Branch Performance Overview
                     </CardTitle>
                     <CardDescription>
                       Revenue, customers, and ratings across all locations
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-6">
+                  <CardContent className="p-6">
                     {branchPerformance.length === 0 ? (
                       <div className="text-center py-8">
-                        <p className="text-muted-foreground">
-                          No branch data available
-                        </p>
+                        <Building className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">No branch data available</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         {branchPerformance.map((branch) => (
                           <div
                             key={branch.id}
-                            className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:border-secondary/30 hover:shadow-sm transition-all group"
+                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
                           >
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-bold text-primary">
+                              <div className="flex items-center gap-3 mb-3">
+                                <h3 className="font-bold text-lg text-gray-900">
                                   {branch.name}
                                 </h3>
-                                <span className="text-xs text-muted-foreground">
-                                  {branch.city}
-                                </span>
                                 <Badge
                                   className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none",
+                                    "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
                                     branch.status === "excellent"
-                                      ? "bg-green-100 text-green-700"
+                                      ? "bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200"
                                       : branch.status === "good"
-                                      ? "bg-blue-100 text-blue-700"
+                                      ? "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border-blue-200"
                                       : branch.status === "average"
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-red-100 text-red-700"
+                                      ? "bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 border-yellow-200"
+                                      : "bg-gradient-to-r from-red-100 to-red-50 text-red-800 border-red-200"
                                   )}
                                 >
                                   {branch.status.replace("_", " ")}
                                 </Badge>
                               </div>
-                              <div className="grid grid-cols-4 gap-4 text-sm">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Revenue
-                                  </p>
-                                  <p className="font-semibold text-primary">
+                                  <p className="text-xs text-gray-500">Revenue</p>
+                                  <p className="font-bold text-gray-900">
                                     ${branch.revenue.toLocaleString()}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Customers
-                                  </p>
-                                  <p className="font-semibold text-primary">
+                                  <p className="text-xs text-gray-500">Customers</p>
+                                  <p className="font-bold text-gray-900">
                                     {branch.customers}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Rating
-                                  </p>
-                                  <p className="font-semibold text-secondary">
+                                  <p className="text-xs text-gray-500">Rating</p>
+                                  <p className="font-bold text-[#B84A68]">
                                     ⭐ {branch.rating}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-muted-foreground text-xs">
-                                    Bookings
-                                  </p>
-                                  <p className="font-semibold text-primary">
+                                  <p className="text-xs text-gray-500">Bookings</p>
+                                  <p className="font-bold text-gray-900">
                                     {branch.bookings}
                                   </p>
                                 </div>
                               </div>
-                              <div className="mt-2">
-                                <p className="text-muted-foreground text-xs">
-                                  Manager:{" "}
-                                  <span className="font-semibold">
-                                    {branch.manager}
-                                  </span>
+                              <div className="mt-3">
+                                <p className="text-xs text-gray-500">
+                                  Manager: <span className="font-semibold">{branch.manager}</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Location: <span className="font-semibold">{branch.city}</span>
                                 </p>
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-secondary hover:text-secondary hover:bg-secondary/5 font-bold text-xs uppercase tracking-widest"
-                            >
-                              View Details
-                            </Button>
                           </div>
                         ))}
                       </div>
@@ -1311,130 +4426,107 @@ export default function SuperAdminDashboard() {
                 </Card>
               </div>
 
-              {/* Recent Activities & Quick Actions */}
+              {/* Quick Actions */}
               <div className="space-y-6">
-                {/* Quick Actions */}
-                <Card className="border-none shadow-sm">
-                  <CardHeader className="border-b border-gray-50">
-                    <CardTitle className="text-lg font-serif">
+                <Card className="border-none shadow-xl">
+                  <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                    <CardTitle className="text-lg font-bold text-gray-900 font-serif">
                       Quick Actions
                     </CardTitle>
                     <CardDescription>
                       System-wide administrative tasks
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-6 space-y-3">
+                  <CardContent className="p-6 space-y-3">
                     <Link
                       href="/super-admin/branches"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-[#FA9DB7]/30 hover:bg-gradient-to-br hover:from-[#FA9DB7]/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
-                          Manage Branch
+                        <div className="p-2 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-lg">
+                          <Building className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          Manage Branches
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[#B84A68] transition-colors" />
                     </Link>
 
                     <Link
                       href="/super-admin/staff"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-green-500/30 hover:bg-gradient-to-br hover:from-green-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
+                        <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-lg">
+                          <Users className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
                           Manage Staff
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-green-600 transition-colors" />
                     </Link>
 
                     <Link
                       href="/super-admin/categories"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-purple-500/30 hover:bg-gradient-to-br hover:from-purple-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
+                        <div className="p-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg">
+                          <Layers className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
                           Manage Categories
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-purple-600 transition-colors" />
                     </Link>
 
                     <Link
                       href="/super-admin/products"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-cyan-500/30 hover:bg-gradient-to-br hover:from-cyan-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
+                        <div className="p-2 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg">
+                          <Package className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
                           Manage Products
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-cyan-600 transition-colors" />
                     </Link>
 
                     <Link
                       href="/super-admin/services"
-                      className="flex items-center justify-between h-12 px-4 rounded-xl border border-gray-100 hover:border-secondary/30 hover:bg-secondary/5 hover:text-primary transition-all group"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-pink-500/30 hover:bg-gradient-to-br hover:from-pink-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-3">
-                        <UserPlus className="w-4 h-4 text-secondary" />
-                        <span className="text-sm font-medium">
+                        <div className="p-2 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg">
+                          <Settings className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
                           Manage Services
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-secondary transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-pink-600 transition-colors" />
                     </Link>
-                  </CardContent>
-                </Card>
 
-                {/* Recent Activities */}
-                <Card className="border-none shadow-sm">
-                  <CardHeader className="border-b border-gray-50">
-                    <CardTitle className="text-lg font-serif">
-                      Recent Activities
-                    </CardTitle>
-                    <CardDescription>
-                      Latest customer feedback and updates
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    {recentActivities.length === 0 ? (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">
-                          No recent activities
-                        </p>
+                    <Link
+                      href="/super-admin/bookings"
+                      className="flex items-center justify-between h-14 px-4 rounded-xl border-2 border-gray-100 hover:border-amber-500/30 hover:bg-gradient-to-br hover:from-amber-500/5 hover:to-white hover:shadow-lg transition-all duration-300 group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg">
+                          <Calendar className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          Manage Bookings
+                        </span>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {recentActivities.map((activity, index) => (
-                          <div
-                            key={index}
-                            className="flex items-start gap-3 p-3 bg-gray-50/50 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="w-2 h-2 bg-secondary rounded-full mt-2 shrink-0"></div>
-                            <div className="flex-1">
-                              <p className="text-sm font-bold text-primary">
-                                {activity.message}
-                              </p>
-                              <div className="flex justify-between items-center mt-1">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                  {activity.time}
-                                </p>
-                                {activity.branch && (
-                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                    {activity.branch}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-amber-600 transition-colors" />
+                    </Link>
                   </CardContent>
                 </Card>
               </div>
@@ -1443,5 +4535,6 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

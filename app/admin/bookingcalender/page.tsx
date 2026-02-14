@@ -3062,13 +3062,7 @@ export default function AdminAppointments() {
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="flex h-screen ">
-        <AdminSidebar
-          role={user?.role === 'admin' ? 'branch_admin' : 'super_admin'}
-          onLogout={handleLogout}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          key="admin-appointments-sidebar"
-        />
+       
 
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",

@@ -742,7 +742,7 @@ export default function SuperAdminProducts() {
               </div>
               <div className="flex items-center gap-4">
                 <Button 
-                  className="bg-secondary hover:bg-secondary/90"
+                  className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30"
                   onClick={() => {
                     setSelectedProduct(null);
                     resetProductForm();
@@ -754,7 +754,7 @@ export default function SuperAdminProducts() {
                   Add Product
                 </Button>
                 <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user?.email}</span>
-                <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
+                <Button variant="outline" onClick={handleLogout} className="hidden text-pink-600 sm:flex">
                   Logout
                 </Button>
               </div>
@@ -1338,7 +1338,7 @@ export default function SuperAdminProducts() {
               {/* Save Button */}
               <Button
                 onClick={selectedProduct ? handleEditProduct : handleAddProduct}
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary rounded-lg font-bold mt-6"
+                className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 font-bold mt-6"
                 disabled={isAdding || isEditing}
               >
                 {isAdding || isEditing ? (
