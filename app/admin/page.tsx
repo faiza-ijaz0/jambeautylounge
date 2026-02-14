@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -34,6 +35,41 @@ import {
   Filter,
   Bell,
   Activity,
+  BarChart3,
+  PieChart,
+  ShoppingCart,
+  Award,
+  Scissors,
+  Tag,
+  MessageCircle,
+  Wrench,
+  Sparkles,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  Briefcase,
+  Target,
+  Zap,
+  Heart,
+  Gift,
+  Truck,
+  Repeat,
+  Shield,
+  Moon,
+  Sun,
+  Search,
+  Menu,
+  X,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Copy,
+  Check,
+  CheckCheck
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,8 +82,17 @@ import { cn } from "@/lib/utils";
 
 // Firebase imports
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  onSnapshot,
+  orderBy,
+  limit 
+} from "firebase/firestore";
 import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Define TypeScript interfaces
 interface OverallStats {
@@ -75,10 +120,13 @@ interface BranchPerformance {
 }
 
 interface RecentActivity {
+  id: string;
   type: string;
   message: string;
   time: string;
   branch?: string;
+  timestamp?: any;
+  read?: boolean;
 }
 
 interface RecentCategory {
@@ -118,6 +166,16 @@ interface RecentBooking {
   totalAmount: number;
   status: string;
   timeAgo: string;
+}
+
+interface Notification {
+  id: string;
+  type: 'message' | 'booking' | 'feedback' | 'system';
+  title: string;
+  message: string;
+  timestamp: any;
+  read: boolean;
+  data?: any;
 }
 
 // Firebase document interfaces
@@ -190,11 +248,32 @@ interface BookingDocument {
   [key: string]: any;
 }
 
+interface MessageDocument {
+  id: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'super_admin' | 'branch_admin';
+  senderBranchId?: string;
+  senderBranchName?: string;
+  recipientBranchId: string;
+  recipientBranchName: string;
+  timestamp: any;
+  read: boolean;
+  status: 'sent' | 'delivered' | 'seen';
+}
+
 export default function SuperAdminDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("bookings");
+  
+  // ✅ Real-time notifications state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initial state with cached data
   const [overallStats, setOverallStats] = useState<OverallStats>(() => {
@@ -253,7 +332,6 @@ export default function SuperAdminDashboard() {
     }
   );
 
-  // Recent items states with cached data
   const [recentCategories, setRecentCategories] = useState<RecentCategory[]>(
     () => {
       if (typeof window !== 'undefined') {
@@ -318,9 +396,247 @@ export default function SuperAdminDashboard() {
     }
   );
 
+  // ✅ Initialize audio
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      audioRef.current = new Audio('/notification.mp3'); // Add this sound file to your public folder
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // ✅ Play notification sound
+  const playNotificationSound = () => {
+    if (audioRef.current) {
+      audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+    }
+  };
+
+  // ✅ Show browser notification
+  const showBrowserNotification = (title: string, body: string) => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/icon.png' });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            new Notification(title, { body, icon: '/icon.png' });
+          }
+        });
+      }
+    }
+  };
+
+  // ✅ Request notification permission on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // ✅ FIXED: Real-time notifications listener for messages - NO INDEX ERROR!
+  useEffect(() => {
+    if (!user) return;
+
+    // ✅ FIX 1: Simple query without orderBy first, then sort in memory
+    const messagesQuery = query(
+      collection(db, 'branchMessages'),
+      where('recipientBranchId', '==', 'super-admin')
+    );
+
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+      // Get all messages and sort in memory
+      const allMessages: any[] = [];
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          allMessages.push({
+            id: change.doc.id,
+            ...change.doc.data()
+          });
+        }
+      });
+      
+      // Sort by timestamp in memory (newest first)
+      allMessages.sort((a, b) => {
+        const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
+        const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
+        return timeB.getTime() - timeA.getTime();
+      });
+
+      // Process only the most recent messages
+      allMessages.slice(0, 5).forEach((messageData) => {
+        const notification: Notification = {
+          id: messageData.id,
+          type: 'message',
+          title: `New message from ${messageData.senderBranchName || 'Branch'}`,
+          message: messageData.content || '📷 Image',
+          timestamp: messageData.timestamp,
+          read: false,
+          data: messageData
+        };
+
+        setNotifications(prev => [notification, ...prev].slice(0, 50));
+        setUnreadCount(prev => prev + 1);
+        
+        playNotificationSound();
+        showBrowserNotification(
+          notification.title,
+          notification.message
+        );
+
+        const timeAgo = calculateTimeAgo(messageData.timestamp?.toDate());
+        const activity: RecentActivity = {
+          id: messageData.id,
+          type: 'message',
+          message: `New message from ${messageData.senderBranchName || 'Branch'}: ${messageData.content?.substring(0, 30)}${messageData.content?.length > 30 ? '...' : ''}`,
+          time: timeAgo,
+          branch: messageData.senderBranchName,
+          timestamp: messageData.timestamp,
+          read: false
+        };
+        
+        setRecentActivities(prev => [activity, ...prev].slice(0, 10));
+      });
+    });
+
+    // ✅ FIX 2: Simple query for bookings
+    const bookingsQuery = query(
+      collection(db, 'bookings')
+    );
+
+    const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
+      const allBookings: any[] = [];
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          allBookings.push({
+            id: change.doc.id,
+            ...change.doc.data()
+          });
+        }
+      });
+      
+      allBookings.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+        const timeB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+        return timeB.getTime() - timeA.getTime();
+      });
+
+      allBookings.slice(0, 5).forEach((bookingData) => {
+        const notification: Notification = {
+          id: bookingData.id,
+          type: 'booking',
+          title: 'New Booking',
+          message: `${bookingData.customerName || 'Customer'} booked ${bookingData.serviceName || 'a service'}`,
+          timestamp: bookingData.createdAt,
+          read: false,
+          data: bookingData
+        };
+
+        setNotifications(prev => [notification, ...prev].slice(0, 50));
+        setUnreadCount(prev => prev + 1);
+        
+        playNotificationSound();
+        showBrowserNotification(notification.title, notification.message);
+
+        const timeAgo = calculateTimeAgo(bookingData.createdAt?.toDate());
+        const activity: RecentActivity = {
+          id: bookingData.id,
+          type: 'booking',
+          message: `New booking from ${bookingData.customerName || 'Customer'}`,
+          time: timeAgo,
+          branch: bookingData.branchName,
+          timestamp: bookingData.createdAt,
+          read: false
+        };
+        
+        setRecentActivities(prev => [activity, ...prev].slice(0, 10));
+      });
+    });
+
+    // ✅ FIX 3: Simple query for feedback
+    const feedbackQuery = query(
+      collection(db, 'feedbacks')
+    );
+
+    const unsubscribeFeedback = onSnapshot(feedbackQuery, (snapshot) => {
+      const allFeedbacks: any[] = [];
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          allFeedbacks.push({
+            id: change.doc.id,
+            ...change.doc.data()
+          });
+        }
+      });
+      
+      allFeedbacks.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+        const timeB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+        return timeB.getTime() - timeA.getTime();
+      });
+
+      allFeedbacks.slice(0, 5).forEach((feedbackData) => {
+        const notification: Notification = {
+          id: feedbackData.id,
+          type: 'feedback',
+          title: 'New Review',
+          message: `${feedbackData.customerName || 'Customer'} left a ${feedbackData.rating}★ review`,
+          timestamp: feedbackData.createdAt,
+          read: false,
+          data: feedbackData
+        };
+
+        setNotifications(prev => [notification, ...prev].slice(0, 50));
+        setUnreadCount(prev => prev + 1);
+        
+        playNotificationSound();
+        showBrowserNotification(notification.title, notification.message);
+
+        const timeAgo = calculateTimeAgo(feedbackData.createdAt?.toDate());
+        const activity: RecentActivity = {
+          id: feedbackData.id,
+          type: 'feedback',
+          message: `New ${feedbackData.rating}★ review from ${feedbackData.customerName || 'Customer'}`,
+          time: timeAgo,
+          branch: feedbackData.branchName,
+          timestamp: feedbackData.createdAt,
+          read: false
+        };
+        
+        setRecentActivities(prev => [activity, ...prev].slice(0, 10));
+      });
+    });
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeBookings();
+      unsubscribeFeedback();
+    };
+  }, [user]);
+
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  // ✅ Mark notification as read
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  // ✅ Mark all notifications as read
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
   };
 
   // Helper function to calculate time ago
@@ -348,7 +664,6 @@ export default function SuperAdminDashboard() {
       try {
         console.log("🔄 Fetching dashboard data...");
 
-        // Use Promise.all for parallel fetching with timeout
         const fetchPromises = [
           getDocs(collection(db, "branches")),
           getDocs(collection(db, "feedbacks")),
@@ -358,7 +673,6 @@ export default function SuperAdminDashboard() {
           getDocs(collection(db, "bookings"))
         ];
 
-        // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Data fetch timeout')), 5000)
         );
@@ -377,7 +691,6 @@ export default function SuperAdminDashboard() {
           bookingsSnapshot
         ] = results;
 
-        // Convert to arrays
         const allBranches: BranchDocument[] = branchesSnapshot.docs.map(
           (doc: any) => ({
             id: doc.id,
@@ -420,7 +733,6 @@ export default function SuperAdminDashboard() {
           }),
         );
 
-        // Filter data based on user role
         let filteredServices: ServiceDocument[] = [];
         let filteredProducts: ProductDocument[] = [];
         let filteredCategories: CategoryDocument[] = [];
@@ -428,7 +740,6 @@ export default function SuperAdminDashboard() {
         let filteredFeedbacks: FeedbackDocument[] = [];
 
         if (user?.role === "admin" && user?.branchId) {
-          // BRANCH ADMIN: Filter for specific branch
           const userBranchId = user.branchId;
           const userBranchName = user.branchName;
 
@@ -459,7 +770,6 @@ export default function SuperAdminDashboard() {
               feedback.branchName === userBranchName
           );
         } else {
-          // SUPER ADMIN: Show all data
           filteredServices = allServices;
           filteredProducts = allProducts;
           filteredCategories = allCategories;
@@ -467,7 +777,6 @@ export default function SuperAdminDashboard() {
           filteredFeedbacks = allFeedbacks;
         }
 
-        // Calculate stats
         const totalRevenue = filteredBookings.reduce(
           (sum, booking) => sum + (booking.totalAmount || 0),
           0,
@@ -482,7 +791,6 @@ export default function SuperAdminDashboard() {
             ? parseFloat((totalRating / filteredFeedbacks.length).toFixed(1))
             : 0;
 
-        // Update overall stats
         const newStats = {
           totalBranches: user?.role === "admin" ? 1 : allBranches.length,
           totalRevenue: totalRevenue,
@@ -497,11 +805,9 @@ export default function SuperAdminDashboard() {
 
         setOverallStats(newStats);
 
-        // Prepare branch performance data
         const branchPerformanceData: BranchPerformance[] = [];
 
         if (user?.role === "admin" && user?.branchId) {
-          // For branch admin, only show their branch
           const userBranch = allBranches.find((b) => b.id === user.branchId);
           if (userBranch) {
             const branchBookings = filteredBookings;
@@ -539,7 +845,6 @@ export default function SuperAdminDashboard() {
             });
           }
         } else {
-          // For super admin, show all branches
           branchPerformanceData.push(
             ...allBranches.map((branch) => {
               const branchBookings = allBookings.filter(
@@ -585,31 +890,10 @@ export default function SuperAdminDashboard() {
 
         setBranchPerformance(branchPerformanceData);
 
-        // Prepare recent activities
-        const recentActivitiesData: RecentActivity[] = filteredFeedbacks
-          .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
-            return dateB - dateA;
-          })
-          .slice(0, 5)
-          .map((feedback) => {
-            const timeAgo = calculateTimeAgo(feedback.createdAt?.toDate());
-            return {
-              type: "customer_feedback",
-              message: `New ${feedback.rating || 0}★ review from ${
-                feedback.customerName || "Customer"
-              }`,
-              time: timeAgo,
-              branch: feedback.branchName || user?.branchName || "Your Branch",
-            };
-          });
-
-        // Prepare recent categories
         const recentCategoriesData: RecentCategory[] = filteredCategories
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -622,11 +906,10 @@ export default function SuperAdminDashboard() {
             isActive: category.isActive || false,
           }));
 
-        // Prepare recent products
         const recentProductsData: RecentProduct[] = filteredProducts
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -639,11 +922,10 @@ export default function SuperAdminDashboard() {
             status: product.status || "active",
           }));
 
-        // Prepare recent services
         const recentServicesData: RecentService[] = filteredServices
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -657,11 +939,10 @@ export default function SuperAdminDashboard() {
             status: service.status || "active",
           }));
 
-        // Prepare recent bookings
         const recentBookingsData: RecentBooking[] = filteredBookings
           .sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = a.createdAt?.toDate?.()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate?.()?.getTime() || 0;
             return dateB - dateA;
           })
           .slice(0, 5)
@@ -676,18 +957,14 @@ export default function SuperAdminDashboard() {
             timeAgo: calculateTimeAgo(booking.createdAt?.toDate()),
           }));
 
-        // Update all states
-        setRecentActivities(recentActivitiesData);
         setRecentCategories(recentCategoriesData);
         setRecentProducts(recentProductsData);
         setRecentServices(recentServicesData);
         setRecentBookings(recentBookingsData);
 
-        // Cache data in localStorage
         try {
           localStorage.setItem('admin_dashboard_stats', JSON.stringify(newStats));
           localStorage.setItem('admin_branch_performance', JSON.stringify(branchPerformanceData));
-          localStorage.setItem('admin_recent_activities', JSON.stringify(recentActivitiesData));
           localStorage.setItem('admin_recent_categories', JSON.stringify(recentCategoriesData));
           localStorage.setItem('admin_recent_products', JSON.stringify(recentProductsData));
           localStorage.setItem('admin_recent_services', JSON.stringify(recentServicesData));
@@ -700,13 +977,11 @@ export default function SuperAdminDashboard() {
         console.log("✅ Dashboard data loaded successfully!");
       } catch (error) {
         console.log("Dashboard data fetch:", error);
-        // Keep using cached data if available
       }
     };
 
-    // Only fetch fresh data if cache is older than 5 minutes
     const lastFetched = localStorage.getItem('admin_dashboard_last_fetched');
-    const shouldFetch = !lastFetched || (Date.now() - parseInt(lastFetched)) > 300000; // 5 minutes
+    const shouldFetch = !lastFetched || (Date.now() - parseInt(lastFetched)) > 300000;
     
     if (shouldFetch) {
       fetchDashboardData();
@@ -748,7 +1023,56 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+    <ProtectedRoute>
+       <style jsx global>{`
+        html, body {
+          overflow: hidden !important;
+          height: 100vh;
+          margin: 0;
+          padding: 0;
+        }
+        #__next {
+          height: 100vh;
+          overflow: hidden;
+        }
+        /* Sidebar - No scrollbar but visible */
+        .sidebar-container {
+          height: 100vh;
+          overflow: visible !important;
+          position: relative;
+          z-index: 50;
+        }
+        .sidebar-container::-webkit-scrollbar {
+          display: none;
+        }
+        /* Custom scrollbar styling for main content */
+        .main-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .main-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .main-scrollbar::-webkit-scrollbar-thumb {
+          background: #FA9DB7;
+          border-radius: 10px;
+        }
+        .main-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #B84A68;
+        }
+        /* Ensure sidebar content is fully visible */
+        .admin-sidebar {
+          height: 100vh;
+          overflow-y: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .admin-sidebar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100/50 overflow-hidden">
       {/* Sidebar */}
       <AdminSidebar
         role={user?.role === "super_admin" ? "super_admin" : "branch_admin"}
@@ -757,15 +1081,15 @@ export default function SuperAdminDashboard() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* Main Content */}
+      {/* Main Content - SINGLE SCROLLBAR */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0 overflow-hidden",
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
           sidebarOpen ? "lg:ml-0" : "lg:ml-0",
         )}
       >
-        {/* Modern Header */}
-        <header className="bg-gradient-to-r from-primary via-primary/95 to-primary/90 shadow-lg shadow-primary/10 border-b border-primary/20">
+        {/* Modern Header - Pink Theme (FIXED) */}
+        <header className="bg-gradient-to-r from-[#FA9DB7] via-[#FA9DB7]/95 to-[#B84A68]/90 shadow-lg shadow-[#FA9DB7]/20 border-b border-[#FA9DB7]/30 shrink-0">
           <div className="flex items-center justify-between px-1 py-1">
             <div className="flex items-center gap-4">
               <AdminMobileSidebar
@@ -809,22 +1133,102 @@ export default function SuperAdminDashboard() {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Notifications */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative rounded-xl bg-white/10 hover:bg-white/20 text-white"
-              >
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  3
-                </span>
-              </Button>
+              {/* ✅ Real-time Notifications */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative rounded-xl bg-white/10 hover:bg-white/20 text-white"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50">
+                    <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-[#B84A68] hover:text-[#B84A68]/80 h-8"
+                          onClick={markAllAsRead}
+                        >
+                          Mark all as read
+                        </Button>
+                      )}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500">
+                          <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-sm">No notifications</p>
+                        </div>
+                      ) : (
+                        notifications.slice(0, 10).map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={cn(
+                              "p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors",
+                              !notification.read && "bg-[#FA9DB7]/5"
+                            )}
+                            onClick={() => markNotificationAsRead(notification.id)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={cn(
+                                "p-2 rounded-lg",
+                                notification.type === 'message' ? 'bg-blue-100' :
+                                notification.type === 'booking' ? 'bg-green-100' :
+                                notification.type === 'feedback' ? 'bg-purple-100' : 'bg-gray-100'
+                              )}>
+                                {notification.type === 'message' && <MessageCircle className="h-4 w-4 text-blue-600" />}
+                                {notification.type === 'booking' && <Calendar className="h-4 w-4 text-green-600" />}
+                                {notification.type === 'feedback' && <Star className="h-4 w-4 text-purple-600" />}
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {calculateTimeAgo(notification.timestamp?.toDate())}
+                                </p>
+                              </div>
+                              {!notification.read && (
+                                <div className="w-2 h-2 bg-[#FA9DB7] rounded-full"></div>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-gray-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs text-gray-600 hover:text-[#B84A68]"
+                        onClick={() => router.push('/notifications')}
+                      >
+                        View all notifications
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* User Profile */}
               <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-colors cursor-pointer">
                 <Avatar className="h-10 w-10 border-2 border-white/30">
-                  <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white font-bold">
+                  <AvatarFallback className="bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] text-white font-bold">
                     {user?.email?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -839,7 +1243,7 @@ export default function SuperAdminDashboard() {
               {/* Logout Button */}
               <Button
                 onClick={handleLogout}
-                className="bg-white text-primary hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
+                className="bg-white text-[#B84A68] hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-4"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
@@ -848,8 +1252,8 @@ export default function SuperAdminDashboard() {
           </div>
         </header>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto min-h-0">
+        {/* Content Area - SINGLE SCROLLBAR HERE */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           <div className="h-full p-4 lg:p-6">
             {/* Dashboard Stats Section */}
             <div className="mb-8">
@@ -865,19 +1269,19 @@ export default function SuperAdminDashboard() {
                 <div className="flex items-center gap-3">
                   <Button
                     variant="outline"
-                    className="border-gray-200 hover:border-primary/30 rounded-xl"
+                    className="border-gray-200 hover:border-[#FA9DB7]/30 rounded-xl"
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Export Report
                   </Button>
                   <Button
                     variant="outline"
-                    className="border-gray-200 hover:border-primary/30 rounded-xl"
+                    className="border-gray-200 hover:border-[#FA9DB7]/30 rounded-xl"
                   >
                     <Filter className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
-                  <Button className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                  <Button className="bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] hover:from-[#E87A9B] hover:to-[#9C3852] rounded-xl shadow-md hover:shadow-lg transition-shadow">
                     <Plus className="h-4 w-4 mr-2" />
                     Add New
                   </Button>
@@ -951,13 +1355,13 @@ export default function SuperAdminDashboard() {
                 </Card>
 
                 {/* Total Branches Card */}
-                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/50 hover-lift group overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-200/20 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
+                <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-[#FA9DB7]/10 hover-lift group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-[#FA9DB7]/10 rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
                     <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wider">
                       {user?.role === "admin" ? "Your Branch" : "Total Branches"}
                     </CardTitle>
-                    <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                    <div className="p-3 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-2xl shadow-lg">
                       <Building className="h-5 w-5 text-white" />
                     </div>
                   </CardHeader>
@@ -966,7 +1370,7 @@ export default function SuperAdminDashboard() {
                       <div className="text-3xl font-bold text-gray-900">
                         {overallStats.totalBranches}
                       </div>
-                      <div className="text-sm text-green-600 font-semibold flex items-center mb-2 bg-blue-100 px-2 py-1 rounded-full">
+                      <div className="text-sm text-[#B84A68] font-semibold flex items-center mb-2 bg-[#FA9DB7]/10 px-2 py-1 rounded-full">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Active
                       </div>
@@ -978,7 +1382,7 @@ export default function SuperAdminDashboard() {
                     </p>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                        className="h-full bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-full"
                         style={{ width: '100%' }}
                       />
                     </div>
@@ -1137,7 +1541,7 @@ export default function SuperAdminDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-gray-200 hover:border-primary/30"
+                          className="border-gray-200 hover:border-[#FA9DB7]/30"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View All
@@ -1147,12 +1551,12 @@ export default function SuperAdminDashboard() {
                     <TabsList className="grid grid-cols-5 w-full bg-gray-100/50 p-1 rounded-xl">
                       <TabsTrigger
                         value="bookings"
-                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-primary rounded-lg transition-all"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-[#B84A68] rounded-lg transition-all"
                       >
                         <Calendar className="h-4 w-4 mr-2" />
                         Bookings
                         {recentBookings.length > 0 && (
-                          <Badge className="ml-2 h-5 w-5 p-0 bg-primary text-white">
+                          <Badge className="ml-2 h-5 w-5 p-0 bg-[#B84A68] text-white">
                             {recentBookings.length}
                           </Badge>
                         )}
@@ -1226,7 +1630,7 @@ export default function SuperAdminDashboard() {
                         </p>
                         <Link
                           href="/admin/bookings"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-md"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#B84A68] text-white rounded-xl hover:bg-[#9C3852] transition-colors shadow-md"
                         >
                           <Calendar className="h-4 w-4" />
                           View All Bookings
@@ -1237,7 +1641,7 @@ export default function SuperAdminDashboard() {
                         {recentBookings.map((booking) => (
                           <div
                             key={booking.id}
-                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-primary/20 hover:shadow-lg transition-all duration-300 group"
+                            className="flex items-center justify-between p-5 bg-gradient-to-r from-white to-gray-50/50 border border-gray-100 rounded-2xl hover:border-[#FA9DB7]/30 hover:shadow-lg transition-all duration-300 group"
                           >
                             <div className="flex items-center gap-4">
                               <div className="p-3 bg-gradient-to-r from-blue-100 to-blue-50 rounded-xl">
@@ -1286,7 +1690,7 @@ export default function SuperAdminDashboard() {
                                 </div>
                               </div>
                             </div>
-                            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-primary transition-colors ml-4" />
+                            <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#B84A68] transition-colors ml-4" />
                           </div>
                         ))}
                       </div>
@@ -1347,7 +1751,7 @@ export default function SuperAdminDashboard() {
                             <div className="grid grid-cols-2 gap-4 mb-4">
                               <div>
                                 <p className="text-xs text-gray-500">Price</p>
-                                <p className="text-xl font-bold text-primary">
+                                <p className="text-xl font-bold text-[#B84A68]">
                                   ${service.price}
                                 </p>
                               </div>
@@ -1397,7 +1801,7 @@ export default function SuperAdminDashboard() {
                           <Package className="h-4 w-4" />
                           Add First Product
                         </Link>
-                    </div>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {recentProducts.map((product) => (
@@ -1430,7 +1834,7 @@ export default function SuperAdminDashboard() {
                             </div>
                             <div className="mb-4">
                               <p className="text-xs text-gray-500 mb-1">Price</p>
-                              <p className="text-2xl font-bold text-primary">
+                              <p className="text-2xl font-bold text-[#B84A68]">
                                 ${product.price}
                               </p>
                             </div>
@@ -1551,14 +1955,18 @@ export default function SuperAdminDashboard() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {recentActivities.map((activity, index) => (
+                        {recentActivities.slice(0, 5).map((activity, index) => (
                           <div
-                            key={index}
+                            key={activity.id || index}
                             className="flex items-start gap-4 p-5 bg-gradient-to-r from-white to-purple-50/30 border border-gray-100 rounded-2xl hover:border-purple-200 hover:shadow-lg transition-all duration-300 group"
                           >
                             <div className="p-2.5 bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl">
-                              {activity.type === "customer_feedback" ? (
+                              {activity.type === "message" ? (
+                                <MessageCircle className="h-5 w-5 text-blue-600" />
+                              ) : activity.type === "feedback" ? (
                                 <Star className="h-5 w-5 text-purple-600" />
+                              ) : activity.type === "booking" ? (
+                                <Calendar className="h-5 w-5 text-green-600" />
                               ) : (
                                 <Activity className="h-5 w-5 text-purple-600" />
                               )}
@@ -1609,7 +2017,7 @@ export default function SuperAdminDashboard() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-primary hover:text-primary/80"
+                        className="text-[#B84A68] hover:text-[#B84A68]/80"
                       >
                         <Plus className="h-4 w-4 mr-1" />
                         Add More
@@ -1623,9 +2031,9 @@ export default function SuperAdminDashboard() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <Link
                         href="/admin/branches"
-                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
+                        className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-gray-100 hover:border-[#FA9DB7]/30 hover:bg-gradient-to-br hover:from-[#FA9DB7]/5 hover:to-white hover:shadow-xl transition-all duration-300 group"
                       >
-                        <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                        <div className="p-4 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
                           <Building className="h-7 w-7 text-white" />
                         </div>
                         <span className="text-sm font-semibold text-center text-gray-900">
@@ -1725,7 +2133,7 @@ export default function SuperAdminDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-primary hover:text-primary/80"
+                      className="text-[#B84A68] hover:text-[#B84A68]/80"
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       View All
@@ -1743,14 +2151,14 @@ export default function SuperAdminDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {recentActivities.map((activity, index) => (
+                      {recentActivities.slice(0, 5).map((activity, index) => (
                         <div
-                          key={index}
-                          className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50/50 to-white border border-gray-100 rounded-xl hover:border-primary/20 hover:shadow-sm transition-all duration-200 group"
+                          key={activity.id || index}
+                          className="flex items-start gap-3 p-4 bg-gradient-to-r from-gray-50/50 to-white border border-gray-100 rounded-xl hover:border-[#FA9DB7]/20 hover:shadow-sm transition-all duration-200 group"
                         >
                           <div className="relative">
-                            <div className="w-3 h-3 bg-gradient-to-r from-primary to-secondary rounded-full mt-2"></div>
-                            <div className="absolute top-2 left-2 w-3 h-3 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full animate-ping"></div>
+                            <div className="w-3 h-3 bg-gradient-to-r from-[#FA9DB7] to-[#B84A68] rounded-full mt-2"></div>
+                            <div className="absolute top-2 left-2 w-3 h-3 bg-gradient-to-r from-[#FA9DB7]/30 to-[#B84A68]/30 rounded-full animate-ping"></div>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">
@@ -1811,16 +2219,11 @@ export default function SuperAdminDashboard() {
               </Card>
             </div>
 
-            {/* Footer Note */}
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500">
-                Dashboard updated in real-time • Last refresh: Just now • All
-                times are in your local timezone
-              </p>
-            </div>
           </div>
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
+

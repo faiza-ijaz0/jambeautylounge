@@ -689,19 +689,19 @@ export default function SuperAdminProducts() {
   // Render loading state
   if (loading && products.length === 0) {
     return (
-      <ProtectedRoute requiredRole="admin">
+      <div role="admin">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-secondary" />
             <p className="text-muted-foreground">Loading products...</p>
           </div>
         </div>
-      </ProtectedRoute>
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute requiredRole="admin">
+    <div role="admin">
       <div className="flex h-screen bg-gray-50">
         <AdminSidebar role="branch_admin" onLogout={handleLogout} />
         <AdminMobileSidebar
@@ -1472,6 +1472,6 @@ export default function SuperAdminProducts() {
           </SheetContent>
         </Sheet>
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }

@@ -631,6 +631,7 @@
 //   return pageMap[href] || '';
 // }
 
+
 // new code
 'use client';
 
@@ -640,7 +641,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
 import {
   BarChart3,
   Calendar,
@@ -655,27 +656,13 @@ import {
   Tag,
   MessageCircle,
   PieChart,
-  Phone,
   FileText,
-  CreditCard,
   ShoppingCart,
   Star,
   TrendingUp,
-  Activity,
-  Target,
-  Bell,
-  Image,
-  UserPlus,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Menu,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  MapPin,
-  Mail,
   Wrench,
-  Sparkles
+  Sparkles,
+  XCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -832,7 +819,7 @@ const superAdminNavItems = [
   },
   {
     title: 'Finance Report',
-    icon: Wrench,
+    icon: FileText,
     pageKey: 'finance_report',
     children: [
       {
@@ -872,12 +859,6 @@ const superAdminNavItems = [
     href: '/super-admin/feedback',
     icon: Star,
     pageKey: 'feedbacks'
-  },
-  {
-    title: 'Categories',
-    href: '/super-admin/categories',
-    icon: Tag,
-    pageKey: 'categories'
   },
   {
     title: 'Analytics',
@@ -948,17 +929,13 @@ const superAdminNavItems = [
   },
 ];
 
-interface SidebarContentProps extends Omit<SidebarProps, 'isOpen'> {
-  isCollapsed?: boolean;
-}
-
-function SidebarContent({ 
+export function AdminSidebar({ 
   role, 
   onLogout, 
-  onToggle, 
-  isCollapsed = false,
+  isOpen = true, 
+  onToggle,
   allowedPages = []
-}: SidebarContentProps & { isCollapsed?: boolean }) {
+}: SidebarProps) {
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     'catalog': false,
@@ -966,29 +943,24 @@ function SidebarContent({
     'finance_report': false
   });
   
-  // Base navigation items based on role
+  // ✅ Base navigation items based on role
   let baseNavItems = role === 'super_admin' ? superAdminNavItems : branchAdminNavItems;
   
-  // Filter navigation items based on allowedPages
+  // ✅ Filter navigation items based on allowedPages
   let navItems = baseNavItems;
   
   if (role === 'branch_admin' && allowedPages && allowedPages.length > 0) {
     const allowedPagesLower = allowedPages.map(page => page.toLowerCase());
     
     navItems = baseNavItems.filter(item => {
-      if (item.pageKey === 'dashboard') {
-        return allowedPagesLower.includes('dashboard') || allowedPages.length === 0;
-      }
-      
       if (item.pageKey) {
         return allowedPagesLower.includes(item.pageKey.toLowerCase());
       }
-      
       return true;
     });
   }
   
-  // If no items to show (edge case), show a message
+  // ✅ If no items to show
   if (navItems.length === 0) {
     navItems = [{
       title: 'No Access',
@@ -998,7 +970,7 @@ function SidebarContent({
     }];
   }
 
-  // Function to toggle expansion
+  // ✅ Toggle expansion
   const toggleExpand = (pageKey: string) => {
     setExpandedItems(prev => ({
       ...prev,
@@ -1007,183 +979,8 @@ function SidebarContent({
   };
 
   return (
-    <div className="flex  flex-col bg-white border-r border-gray-200 ">
-      {/* Pink Top Border */}
-      <div className=" w-full bg-[#FA9DB7]">
-        
-      </div>
-      
-      {/* Logo - Pink & Gray */}
-      <div className="flex h-20 items-center px-4 lg:px-6 border-b border-gray-100">
-        <div className="flex items-center justify-between w-full">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-[#FA9DB7]/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-[#FA9DB7]" />
-            </div>
-            {!isCollapsed && (
-              <span className="text-lg font-serif font-bold tracking-tighter">
-                <span className="text-[#FA9DB7]">Jam</span>
-                <span className="text-gray-800">Beauty</span>
-              </span>
-            )}
-          </Link>
-        </div>
-      </div>
-
-      {/* Navigation - Pink, Gray, Black */}
-      {/* Navigation - Pink, Gray, Black */}
-      <ScrollArea className="flex-1 px-3 overflow-y-auto">
-        <div className="space-y-1 py-4">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            const isDisabled = item.title === 'No Access';
-            
-            // Check if item has children
-            if ((item as any).children) {
-              const isExpanded = expandedItems[item.pageKey] && !isCollapsed;
-              
-              // Check if any child is active for parent highlight
-              const isChildActive = (item as any).children?.some((child: any) => pathname === child.href);
-              
-              return (
-                <div key={`parent-${item.pageKey || item.title}`} className="space-y-1">
-                  {/* Parent item (Dropdown) - Pink Hover */}
-                  <Button
-                    variant="ghost"
-                    onClick={() => toggleExpand(item.pageKey)}
-                    className={cn(
-                      "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
-                      isCollapsed && "justify-center px-0",
-                      isChildActive
-                        ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium"
-                        : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
-                    )}
-                  >
-                    <item.icon className={cn(
-                      "h-5 w-5",
-                      isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
-                    )} />
-                    {!isCollapsed && (
-                      <>
-                        <span className="text-sm flex-1 text-left">{item.title}</span>
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
-                        )}
-                      </>
-                    )}
-                  </Button>
-                  
-                  {/* Children items - Light Pink Background */}
-                  {isExpanded && (
-                    <div className="ml-6 space-y-1 pl-3 border-l-2 border-[#FA9DB7]/20">
-                      {((item as any).children || []).map((child: any) => {
-                        const isChildActive = pathname === child.href;
-                        return (
-                          <Link 
-                            key={`child-${child.href || child.pageKey}`} 
-                            href={child.href}
-                          >
-                            <Button
-                              variant="ghost"
-                              className={cn(
-                                "w-full justify-start gap-3 h-10 rounded-xl transition-all duration-200",
-                                isChildActive 
-                                  ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium" 
-                                  : "text-gray-500 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
-                              )}
-                            >
-                              <child.icon className={cn(
-                                "h-4 w-4", 
-                                isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
-                              )} />
-                              <span className="text-sm">
-                                {child.title}
-                              </span>
-                            </Button>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            
-            // Normal items (without children)
-            return (
-              <Link 
-                key={item.href || `item-${item.pageKey}`} 
-                href={isDisabled ? '#' : (item.href || '/')}
-                className={isDisabled ? 'pointer-events-none cursor-not-allowed' : ''}
-              >
-                <Button
-                  variant="ghost"
-                  disabled={isDisabled}
-                  className={cn(
-                    "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
-                    isCollapsed && "justify-center px-0",
-                    isActive 
-                      ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium shadow-sm" 
-                      : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5",
-                    isDisabled && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "h-5 w-5", 
-                    isActive ? "text-[#FA9DB7]" : "text-gray-400",
-                    isDisabled && "text-gray-300"
-                  )} />
-                  {!isCollapsed && (
-                    <span className={cn(
-                      "text-sm",
-                      isDisabled && "text-gray-400"
-                    )}>
-                      {item.title}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-            );
-          })}
-        </div>
-      </ScrollArea>
-
-      {/* Logout - Gray/Black */}
-      <div className="p-4 border-t border-gray-100">
-        <div className="bg-pink rounded-xl p-2">
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start gap-3 h-11 rounded-xl text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all duration-200",
-              isCollapsed && "justify-center px-0"
-            )}
-            onClick={onLogout}
-          >
-            <LogOut className="h-5 w-5 text-gray-400 group-hover:text-red-500" />
-            {!isCollapsed && (
-              <span className="text-sm font-medium">Logout</span>
-            )}
-          </Button>
-        </div>
-        
-        
-      </div>
-    </div>
-  );
-}
-
-export function AdminSidebar({ 
-  role, 
-  onLogout, 
-  isOpen = true, 
-  onToggle,
-  allowedPages = []
-}: SidebarProps) {
-  return (
     <>
-      {/* Mobile/Tablet Overlay - Pink Tint */}
+      {/* ✅ Mobile/Tablet Overlay - Only when sidebar is open on mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
@@ -1191,21 +988,170 @@ export function AdminSidebar({
         />
       )}
 
-      {/* Sidebar */}
+      {/* ✅ Sidebar - Single instance */}
       <div className={cn(
         "h-full shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out",
-        "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto lg:translate-x-0",
-        isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
-        "lg:static lg:w-16",
-        isOpen && "lg:w-64"
+        "fixed inset-y-0 left-0 z-50 lg:relative lg:z-auto",
+        isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64 lg:translate-x-0 lg:w-16",
+        "lg:static"
       )}>
-        <SidebarContent 
-          role={role} 
-          onLogout={onLogout} 
-          onToggle={onToggle} 
-          isCollapsed={!isOpen}
-          allowedPages={allowedPages}
-        />
+        <div className="flex flex-col h-full bg-white">
+          {/* Pink Top Border */}
+          <div className="h-1 w-full bg-[#FA9DB7]"></div>
+          
+          {/* Logo */}
+          <div className="flex h-20 items-center px-4 lg:px-6 border-b border-gray-100">
+            <div className="flex items-center justify-between w-full">
+              <Link href="/" className="flex items-center gap-2 group">
+                <div className="w-8 h-8 rounded-lg bg-[#FA9DB7]/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-[#FA9DB7]" />
+                </div>
+                {isOpen && (
+                  <span className="text-lg font-serif font-bold tracking-tighter">
+                    <span className="text-[#FA9DB7]">Jam</span>
+                    <span className="text-gray-800">Beauty</span>
+                  </span>
+                )}
+              </Link>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <ScrollArea className="flex-1 px-3 overflow-y-auto">
+            <div className="space-y-1 py-4">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href;
+                const isDisabled = item.title === 'No Access';
+                
+                // ✅ Check if item has children
+                if ((item as any).children) {
+                  const isExpanded = expandedItems[item.pageKey] && isOpen;
+                  
+                  // ✅ Check if any child is active
+                  const isChildActive = (item as any).children?.some((child: any) => pathname === child.href);
+                  
+                  return (
+                    <div key={`parent-${item.pageKey || item.title}`} className="space-y-1">
+                      {/* Parent item (Dropdown) */}
+                      <Button
+                        variant="ghost"
+                        onClick={() => toggleExpand(item.pageKey)}
+                        className={cn(
+                          "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
+                          !isOpen && "justify-center px-0",
+                          isChildActive
+                            ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium"
+                            : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
+                        )}
+                      >
+                        <item.icon className={cn(
+                          "h-5 w-5",
+                          isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
+                        )} />
+                        {isOpen && (
+                          <>
+                            <span className="text-sm flex-1 text-left">{item.title}</span>
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-400" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-gray-400" />
+                            )}
+                          </>
+                        )}
+                      </Button>
+                      
+                      {/* Children items */}
+                      {isExpanded && isOpen && (
+                        <div className="ml-6 space-y-1 pl-3 border-l-2 border-[#FA9DB7]/20">
+                          {((item as any).children || []).map((child: any) => {
+                            const isChildActive = pathname === child.href;
+                            return (
+                              <Link 
+                                key={`child-${child.href || child.pageKey}`} 
+                                href={child.href}
+                              >
+                                <Button
+                                  variant="ghost"
+                                  className={cn(
+                                    "w-full justify-start gap-3 h-10 rounded-xl transition-all duration-200",
+                                    isChildActive 
+                                      ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium" 
+                                      : "text-gray-500 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5"
+                                  )}
+                                >
+                                  <child.icon className={cn(
+                                    "h-4 w-4", 
+                                    isChildActive ? "text-[#FA9DB7]" : "text-gray-400"
+                                  )} />
+                                  <span className="text-sm">
+                                    {child.title}
+                                  </span>
+                                </Button>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                
+                // ✅ Normal items (without children)
+                return (
+                  <Link 
+                    key={item.href || `item-${item.pageKey}`} 
+                    href={isDisabled ? '#' : (item.href || '/')}
+                    className={isDisabled ? 'pointer-events-none cursor-not-allowed' : ''}
+                  >
+                    <Button
+                      variant="ghost"
+                      disabled={isDisabled}
+                      className={cn(
+                        "w-full justify-start gap-3 h-11 rounded-xl transition-all duration-200",
+                        !isOpen && "justify-center px-0",
+                        isActive 
+                          ? "bg-[#FA9DB7]/10 text-[#B84A68] font-medium shadow-sm" 
+                          : "text-gray-600 hover:text-[#FA9DB7] hover:bg-[#FA9DB7]/5",
+                        isDisabled && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <item.icon className={cn(
+                        "h-5 w-5", 
+                        isActive ? "text-[#FA9DB7]" : "text-gray-400",
+                        isDisabled && "text-gray-300"
+                      )} />
+                      {isOpen && (
+                        <span className={cn(
+                          "text-sm",
+                          isDisabled && "text-gray-400"
+                        )}>
+                          {item.title}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </ScrollArea>
+
+          {/* Logout */}
+          <div className="p-4 border-t border-gray-100">
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full justify-start gap-3 h-11 rounded-xl text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all duration-200",
+                !isOpen && "justify-center px-0"
+              )}
+              onClick={onLogout}
+            >
+              <LogOut className="h-5 w-5 text-gray-400 group-hover:text-red-500" />
+              {isOpen && (
+                <span className="text-sm font-medium">Logout</span>
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -1224,7 +1170,7 @@ export function AdminMobileSidebar({ role, onLogout, isOpen, onToggle, allowedPa
   );
 }
 
-// Helper function to get page key from href
+// ✅ Helper function to get page key from href
 export function getPageKeyFromHref(href: string): string {
   const pageMap: Record<string, string> = {
     '/admin': 'dashboard',
@@ -1244,6 +1190,28 @@ export function getPageKeyFromHref(href: string): string {
     '/admin/messages': 'messages',
     '/admin/custominvoice': 'custom invoice',
     '/admin/settings': 'settings',
+    '/super-admin': 'dashboard',
+    '/super-admin/appointments': 'appointments',
+    '/super-admin/bookingcalender': 'booking calender',
+    '/super-admin/services': 'services',
+    '/super-admin/products': 'products',
+    '/super-admin/categories': 'categories',
+    '/super-admin/report': 'report',
+    '/super-admin/sales': 'sales',
+    '/super-admin/attendance': 'attendance',
+    '/super-admin/clients': 'clients',
+    '/super-admin/staff': 'staff',
+    '/super-admin/feedback': 'feedbacks',
+    '/super-admin/analytics': 'analytics',
+    '/super-admin/expenses': 'expenses',
+    '/super-admin/orders': 'orders',
+    '/super-admin/membership': 'membership',
+    '/super-admin/branches': 'branches',
+    '/super-admin/users': 'users',
+    '/super-admin/blogs': 'blogs',
+    '/super-admin/custom-invoice': 'custom_invoice',
+    '/super-admin/settings': 'settings',
+    '/super-admin/messages': 'messages',
   };
   
   return pageMap[href] || '';

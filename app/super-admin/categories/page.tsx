@@ -405,19 +405,19 @@ export default function SuperAdminCategories() {
   // Render loading state
   if (loading && categories.length === 0) {
     return (
-      <ProtectedRoute>
+      <div>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-secondary" />
             <p className="text-muted-foreground">Loading categories...</p>
           </div>
         </div>
-      </ProtectedRoute>
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute>
+    <div>
       <div className="flex h-screen bg-gray-50">
         <AdminSidebar role="super_admin" onLogout={handleLogout} />
         <AdminMobileSidebar
@@ -1288,6 +1288,6 @@ export default function SuperAdminCategories() {
           </div>
         </SheetContent>
       </Sheet>
-    </ProtectedRoute>
+    </div>
   );
 }

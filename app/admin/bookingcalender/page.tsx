@@ -27,7 +27,7 @@ import { CurrencySwitcher } from "@/components/ui/currency-switcher";
 import { getTemplate, InvoiceData } from "@/components/invoice-templates";
 import { generateInvoiceNumber } from "@/lib/invoice-utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, where, doc, updateDoc, addDoc, serverTimestamp, onSnapshot, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -59,15 +59,21 @@ interface FirebaseProductOrder {
 }
 
 interface FirebaseBooking {
+  serviceDuration: number;
   serviceName: string;
   createdBy: string;
+  servicePrice: number;
+  totalAmount: number;
+  subtotal?: number;
+  taxAmount?: number;
+  serviceCharges?: number;
   id: string;
   firebaseId: string;
   bookingNumber: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  services: string[]; // Array for multiple services
+  services: string[];
   serviceDetails?: Array<{
     id: string;
     name: string;
@@ -94,7 +100,6 @@ interface FirebaseBooking {
   createdAt: Date;
   updatedAt: Date;
   customerId: string;
-  // COMPLETE FIELDS
   cardLast4Digits?: string;
   trnNumber?: string;
   teamMembers?: Array<{name: string, tip: number}>;
@@ -109,7 +114,6 @@ interface FirebaseBooking {
   discount?: number;
   discountType?: 'fixed' | 'percentage';
   serviceTip?: number;
-  serviceCharges?: number;
   tax?: number;
 }
 
@@ -187,11 +191,18 @@ interface FirebaseBranch {
 }
 
 interface Appointment {
+  servicePrice: number;
   id: string | number;
   firebaseId?: string;
+  bookingNumber?: string;
+  subtotal?: number;
+  taxAmount?: number;
+  totalAmount?: number;
+  paymentStatus?: string;
+  paymentMethod?: string;
   customer: string;
   service: string;
-  services?: string[]; // Array for multiple services
+  services?: string[];
   barber: string;
   date: string;
   time: string;
@@ -209,7 +220,6 @@ interface Appointment {
   staffRole?: string;
   serviceCategory?: string;
   pointsAwarded?: boolean;
-  // COMPLETE FIELDS
   cardLast4Digits?: string;
   trnNumber?: string;
   teamMembers?: Array<{name: string, tip: number}>;
@@ -228,13 +238,12 @@ interface Appointment {
   tax?: number;
 }
 
-// UPDATED: Added services array
 interface BookingFormData {
   customer: string;
   phone: string;
   email: string;
   service: string;
-  services: string[]; // Array for multiple services
+  services: string[];
   barber: string;
   teamMembers: Array<{name: string, tip: number}>;
   date: string;
@@ -354,113 +363,103 @@ const fetchProductOrders = async (addNotification: (notification: { type: string
   }
 };
 
-const fetchBookings = async (addNotification: (notification: { type: string; title: string; message: string }) => void): Promise<FirebaseBooking[]> => {
+// ✅ FIXED: fetchBookings with branch filtering and NO orderBy
+const fetchBookings = async (addNotification: any, userBranch?: string): Promise<FirebaseBooking[]> => {
   try {
     const bookingsRef = collection(db, "bookings");
-    const q = query(bookingsRef, orderBy("createdAt", "desc"));
+    
+    // ✅ Create query based on user role - NO orderBy
+    let q;
+    if (userBranch) {
+      // Branch admin - sirf apni branch ke bookings
+      q = query(
+        bookingsRef, 
+        where('branchNames', 'array-contains', userBranch)
+        // ❌ NO orderBy - index avoid karne ke liye
+      );
+      console.log(`🏢 Branch Admin (${userBranch}): Fetching bookings for branch`);
+    } else {
+      // Super admin - sab bookings with orderBy
+      q = query(bookingsRef, orderBy("createdAt", "desc"));
+      console.log('👑 Super Admin: Fetching all bookings');
+    }
+    
     const querySnapshot = await getDocs(q);
     
     const bookings: FirebaseBooking[] = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       
-      // UPDATED: Handle multiple services
-      const serviceName = data.serviceName || "Unknown Service";
-      const services = Array.isArray(data.services) ? data.services : [serviceName];
-      const serviceDetails = Array.isArray(data.servicesDetails) ? data.servicesDetails : [];
-      
-      const branchNames = Array.isArray(data.branchNames) 
-        ? data.branchNames.join(", ") 
-        : "All Branches";
-      
-      const staffName = data.staffName || data.staff || "Not Assigned";
-      const staffId = data.staffId || "";
-      const staffRole = data.staffRole || "hairstylist";
-      
-      const bookingDate = data.date || 
-        (data.createdAt?.toDate ? data.createdAt.toDate().toISOString().split('T')[0] : 
-        new Date().toISOString().split('T')[0]);
-      
-      const bookingTime = data.time || data.timeSlot || "10:00";
-      const serviceDuration = data.serviceDuration || 60;
-      const servicePrice = data.servicePrice || data.totalAmount || 0;
-      const customerEmail = data.customerEmail || "";
-      const customerPhone = data.customerPhone || "";
-      const customerName = data.customerName || "Unknown Customer";
-      
-      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-      const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date();
-      
-      // Parse array data
-      const teamMembers = Array.isArray(data.teamMembers) ? data.teamMembers : [];
-      const products = Array.isArray(data.products) ? data.products : [];
-      const paymentMethods = Array.isArray(data.paymentMethods) ? data.paymentMethods : [];
-      const paymentAmounts = data.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0 };
-      
       const bookingData: FirebaseBooking = {
         id: doc.id,
         firebaseId: doc.id,
-        bookingNumber: data.bookingNumber || `BK-${doc.id.substring(0, 5).toUpperCase()}`,
-        customerName,
-        customerEmail,
-        customerPhone,
-        services, // Array of services
-        serviceDetails,
-        totalDuration: serviceDuration,
-        totalPrice: servicePrice,
+        servicePrice: data.servicePrice || 0,
+        subtotal: data.subtotal || data.servicePrice || 0,
+        totalAmount: data.totalAmount || data.servicePrice || 0,
+        taxAmount: data.taxAmount || 0,
+        serviceCharges: data.serviceCharges || 0,
+        customerName: data.customerName || "Unknown",
+        customerEmail: data.customerEmail || "",
+        customerPhone: data.customerPhone || "",
+        serviceName: data.serviceName || "",
+        serviceDuration: data.serviceDuration || 60,
+        services: Array.isArray(data.services) ? data.services : [data.serviceName || ""],
+        totalDuration: data.serviceDuration || 60,
+        totalPrice: data.totalAmount || data.servicePrice || 0,
         status: data.status || "pending",
-        bookingDate,
-        bookingTime,
+        bookingDate: data.bookingDate || data.date?.split(' ')[0] || "",
+        bookingTime: data.time || data.timeSlot || "",
         paymentMethod: data.paymentMethod || "cash",
         paymentStatus: data.paymentStatus || "pending",
-        branch: branchNames,
-        staff: staffName,
-        staffId,
-        staffRole,
+        branch: Array.isArray(data.branchNames) ? data.branchNames[0] : data.branch || "All Branches",
+        staff: data.staffName || data.staff || "Not Assigned",
+        staffId: data.staffId || "",
+        staffRole: data.staffRole || "",
         notes: data.notes || "",
         serviceCategory: data.serviceCategory || "",
         serviceId: data.serviceId || "",
-        timeSlot: data.timeSlot || bookingTime,
+        timeSlot: data.timeSlot || "",
         pointsAwarded: data.pointsAwarded || false,
-        createdAt,
-        updatedAt,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
         customerId: data.customerId || "",
-        createdBy: data.createdBy || '',
-        // COMPLETE FIELDS
+        createdBy: data.createdBy || "",
         cardLast4Digits: data.cardLast4Digits || "",
         trnNumber: data.trnNumber || "",
-        teamMembers,
-        products,
-        paymentMethods,
-        paymentAmounts,
+        teamMembers: Array.isArray(data.teamMembers) ? data.teamMembers : [],
+        products: Array.isArray(data.products) ? data.products : [],
+        paymentMethods: Array.isArray(data.paymentMethods) ? data.paymentMethods : [],
+        paymentAmounts: data.paymentAmounts || { 
+          cash: data.paymentAmounts?.cash || 0,
+          card: data.paymentAmounts?.card || 0,
+          check: data.paymentAmounts?.check || 0,
+          digital: data.paymentAmounts?.digital || 0,
+          wallet: data.paymentAmounts?.wallet || 0
+        },
         discount: data.discount || 0,
         discountType: data.discountType || 'fixed',
         serviceTip: data.serviceTip || 0,
-        serviceCharges: data.serviceCharges || 0,
         tax: data.tax || 5,
-        serviceName: ''
+        bookingNumber: data.bookingNumber || `BK-${doc.id.substring(0, 8)}`
       };
+      
       bookings.push(bookingData);
     });
     
-    console.log("📊 Firebase Bookings Loaded with Complete Data:", {
-      count: bookings.length,
-      sample: bookings[0] ? {
-        services: bookings[0].services,
-        teamMembers: bookings[0].teamMembers,
-        products: bookings[0].products,
-        paymentMethods: bookings[0].paymentMethods
-      } : 'No bookings'
-    });
+    // ✅ MANUAL SORTING for branch admin - index ki zaroorat nahi
+    if (userBranch) {
+      bookings.sort((a, b) => {
+        const dateA = a.createdAt?.getTime() || 0;
+        const dateB = b.createdAt?.getTime() || 0;
+        return dateB - dateA; // descending
+      });
+    }
+    
+    console.log(`✅ Loaded ${bookings.length} bookings from Firebase for ${userBranch || 'all branches'}`);
     
     return bookings;
   } catch (error) {
-    console.error("Error fetching bookings:", error);
-    addNotification({
-      type: 'error',
-      title: 'Bookings Load Error',
-      message: 'Failed to load bookings from Firebase'
-    });
+    console.error("❌ Error fetching bookings:", error);
     return [];
   }
 };
@@ -669,23 +668,20 @@ const deleteProductOrderInFirebase = async (orderId: string): Promise<boolean> =
   }
 };
 
-// ===================== UPDATED: CREATE BOOKING WITH MULTIPLE SERVICES =====================
 const createBookingInFirebase = async (
   bookingData: BookingFormData, 
-  selectedServices: FirebaseService[], // Array of services
+  selectedServices: FirebaseService[],
   selectedCategory: FirebaseCategory | null,
   selectedBranch: FirebaseBranch | null,
   addNotification: (notification: { type: 'error' | 'success' | 'warning' | 'info'; title: string; message: string }) => void
 ): Promise<{success: boolean, bookingId?: string, booking?: FirebaseBooking}> => {
   try {
-    // Calculate pricing with multiple services
     const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
     const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
     const productsTotal = bookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
     
     let subtotal = servicesPrice + productsTotal + bookingData.serviceCharges;
     
-    // Apply discount
     let discountAmount = 0;
     if (bookingData.discount > 0) {
       if (bookingData.discountType === 'percentage') {
@@ -701,13 +697,9 @@ const createBookingInFirebase = async (
     const totalTips = bookingData.serviceTip + bookingData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
     const totalAmount = subtotal + taxAmount + totalTips;
     
-    // Get staff ID from team members
     const primaryStaff = bookingData.teamMembers.find(tm => tm.name === bookingData.barber);
-    
-    // Create a unique booking number
     const bookingNumber = `ADMIN-${Date.now()}`;
     
-    // Prepare service details array
     const serviceDetails = selectedServices.map(service => ({
       id: service.firebaseId,
       name: service.name,
@@ -716,62 +708,42 @@ const createBookingInFirebase = async (
       category: service.category
     }));
     
-    // Prepare booking data for Firebase
     const firebaseBookingData = {
-      // Customer Information
       customerName: bookingData.customer,
       customerEmail: bookingData.email || "",
       customerPhone: bookingData.phone || "",
       customerId: "",
-      
-      // UPDATED: MULTIPLE SERVICES INFORMATION
       serviceName: bookingData.services[0] || "Multiple Services",
-      services: bookingData.services, // Array of service names
-      servicesDetails: serviceDetails, // Array of service details
+      services: bookingData.services,
+      servicesDetails: serviceDetails,
       serviceCategory: selectedCategory?.name || selectedServices[0]?.category || "Multiple",
       serviceDuration: totalDuration,
       servicePrice: servicesPrice,
       totalAmount: totalAmount,
       totalDuration: totalDuration,
-      
-      // Staff/Barber Information
       staff: bookingData.barber,
       staffName: bookingData.barber,
       staffId: primaryStaff?.name || bookingData.barber,
       staffRole: "hairstylist",
-      
-      // Date & Time
       date: bookingData.date,
       time: bookingData.time,
       timeSlot: bookingData.time,
       bookingDate: bookingData.date,
       bookingTime: bookingData.time,
-      
-      // Status & Payment
       status: bookingData.status || 'pending',
       paymentMethod: bookingData.paymentMethods.length > 0 
         ? bookingData.paymentMethods.join(', ') 
         : 'cash',
       paymentStatus: bookingData.status === 'completed' ? 'paid' : 'pending',
-      
-      // Branch & Location
       branch: selectedBranch?.name || selectedServices[0]?.branchNames?.[0] || "All Branches",
       branchNames: selectedBranch?.name ? [selectedBranch.name] : (selectedServices[0]?.branchNames || ["All Branches"]),
-      
-      // Category
       category: selectedCategory?.name || "",
       categoryId: selectedCategory?.firebaseId || "",
-      
-      // Payment Details
       cardLast4Digits: bookingData.cardLast4Digits || "",
       trnNumber: bookingData.trnNumber || "",
       paymentAmounts: bookingData.paymentAmounts,
-      
-      // Additional Details
       notes: bookingData.notes || '',
       pointsAwarded: false,
-      
-      // Products (if any)
       products: bookingData.products.map(product => ({
         productName: product.name,
         name: product.name,
@@ -780,11 +752,7 @@ const createBookingInFirebase = async (
         quantity: product.quantity,
         total: product.price * product.quantity
       })),
-      
-      // Team Members
       teamMembers: bookingData.teamMembers,
-      
-      // Pricing Details
       subtotal: subtotal,
       tax: bookingData.tax,
       taxAmount: taxAmount,
@@ -795,35 +763,17 @@ const createBookingInFirebase = async (
       serviceCharges: bookingData.serviceCharges,
       totalTips: totalTips,
       productsTotal: productsTotal,
-      
-      // Payment Methods
       paymentMethods: bookingData.paymentMethods,
-      
-      // Source and unique identifiers
       source: 'admin_panel',
       createdBy: 'admin',
       bookingNumber: bookingNumber,
-      
-      // Timestamps
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
-    console.log("📤 Saving to Firebase with Complete Data:", {
-      services: bookingData.services,
-      serviceDetails,
-      paymentMethods: bookingData.paymentMethods,
-      teamMembers: bookingData.teamMembers,
-      products: bookingData.products
-    });
-
-    // Add to Firebase
     const bookingsRef = collection(db, "bookings");
     const docRef = await addDoc(bookingsRef, firebaseBookingData);
     
-    console.log("✅ Booking created in Firebase with ID:", docRef.id);
-    
-    // Create booking object for state
     const newBooking: FirebaseBooking = {
       id: docRef.id,
       firebaseId: docRef.id,
@@ -833,8 +783,11 @@ const createBookingInFirebase = async (
       customerPhone: bookingData.phone || "",
       services: bookingData.services,
       serviceDetails: serviceDetails,
+      serviceDuration: totalDuration,
       totalDuration: totalDuration,
+      servicePrice: totalAmount,
       totalPrice: totalAmount,
+      totalAmount: totalAmount,
       status: bookingData.status || 'pending',
       bookingDate: bookingData.date,
       bookingTime: bookingData.time,
@@ -853,7 +806,6 @@ const createBookingInFirebase = async (
       updatedAt: new Date(),
       customerId: "",
       createdBy: '',
-      // ALL FIELDS
       cardLast4Digits: bookingData.cardLast4Digits || "",
       trnNumber: bookingData.trnNumber || "",
       teamMembers: bookingData.teamMembers,
@@ -881,14 +833,12 @@ const createBookingInFirebase = async (
   }
 };
 
-// ===================== UPDATED: PDF GENERATION WITH MULTIPLE SERVICES =====================
 const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
   try {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     
-    // ============ HEADER SECTION ============
     doc.setFontSize(16);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
@@ -902,7 +852,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     doc.text('Website : www.manofcave.com', 20, 43);
     doc.text('VAT No : 104943305300003', 20, 48);
     
-    // Invoice Title
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.text('TAX INVOICE', pageWidth - 70, 20);
@@ -911,12 +860,10 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     doc.setFont("helvetica", "normal");
     doc.text('(Branch : Marina Mall Branch)', pageWidth - 90, 28);
     
-    // Horizontal Line
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
     doc.line(20, 55, pageWidth - 20, 55);
     
-    // ============ CUSTOMER INFORMATION ============
     const customerY = 65;
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
@@ -925,7 +872,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     
-    // Customer Details
     const customerDetails = [
       ['Customer Name', invoiceData.customer],
       ['Mobile No', invoiceData.phone || '971585389633'],
@@ -943,7 +889,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
       }
     });
     
-    // Invoice Details
     const invoiceY = customerY;
     const invoiceDetails = [
       ['Invoice No', invoiceData.invoiceNumber || '#INV6584'],
@@ -960,19 +905,15 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
       }
     });
     
-    // ============ SERVICES & PRODUCTS TABLE ============
     const tableY = Math.max(customerY + 35, invoiceY + 25);
     
-    // Table Headers
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     
-    // Draw table border
     doc.setDrawColor(0);
     doc.setLineWidth(0.3);
     doc.rect(20, tableY - 5, pageWidth - 40, 100);
     
-    // Table Headers
     const headers = ['Service & Product', 'Provider', 'Rate', 'Dis', 'Qty', 'Total'];
     const colPositions = [25, 95, 135, 160, 180, pageWidth - 50];
     
@@ -980,13 +921,10 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
       doc.text(header, colPositions[index], tableY);
     });
     
-    // Horizontal line under headers
     doc.line(20, tableY + 2, pageWidth - 20, tableY + 2);
     
-    // Table Rows
     let currentY = tableY + 10;
     
-    // UPDATED: Multiple Services
     if (invoiceData.services && Array.isArray(invoiceData.services)) {
       invoiceData.services.forEach((service, index) => {
         doc.setFont("helvetica", "normal");
@@ -1003,7 +941,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
         currentY += 8;
       });
     } else {
-      // Single Service
       if (invoiceData.service) {
         doc.setFont("helvetica", "normal");
         const servicePrice = invoiceData.price || 0;
@@ -1020,7 +957,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
       }
     }
     
-    // Additional Products
     if (invoiceData.items && invoiceData.items.length > 0) {
       invoiceData.items.forEach((item) => {
         doc.text(`Product ${item.name}`, 25, currentY);
@@ -1033,7 +969,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
       });
     }
     
-    // Sample service
     doc.text('Service FOOT MASSAGE 30MINS', 25, currentY);
     doc.text('Devi', 95, currentY);
     doc.text('AED 85.00', 135, currentY);
@@ -1042,20 +977,16 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     doc.text('AED 63.75', pageWidth - 50, currentY);
     currentY += 8;
     
-    // Horizontal line after table
     doc.line(20, currentY + 2, pageWidth - 20, currentY + 2);
     
-    // ============ SUMMARY SECTION ============
     const summaryY = currentY + 10;
     
-    // Calculate totals
     const subtotal = invoiceData.subtotal || 154.00;
     const taxPercent = 5;
     const taxAmount = 7.32;
     const discountAmount = invoiceData.discountAmount || 51.25;
     const total = invoiceData.total || 154.00;
     
-    // Left side summary
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Total Qty : 2`, 20, summaryY);
@@ -1064,7 +995,6 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     doc.text(`Tax Type : Inclusive`, 20, summaryY + 18);
     doc.text(`VAT(5%) : ${taxAmount.toFixed(2)}`, 20, summaryY + 24);
     
-    // Right side summary with box
     const summaryRightX = pageWidth - 80;
     doc.setFillColor(240, 240, 240);
     doc.rect(summaryRightX - 10, summaryY - 5, 70, 60, 'F');
@@ -1075,18 +1005,15 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     doc.text(`Amount Paid : AED ${total.toFixed(2)}`, summaryRightX, summaryY + 16);
     doc.text(`Amount Due : AED 0.00`, summaryRightX, summaryY + 24);
     
-    // Additional info
     doc.setFont("helvetica", "normal");
     doc.text(`Service Charges : AED ${(invoiceData.serviceCharges || 0).toFixed(2)}`, summaryRightX, summaryY + 32);
     doc.text(`Total Tips : AED ${(invoiceData.serviceTip || 0).toFixed(2)}`, summaryRightX, summaryY + 40);
     
-    // ============ FOOTER ============
     const footerY = pageHeight - 20;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text('****THANK YOU. PLEASE VISIT AGAIN****', pageWidth / 2, footerY, { align: 'center' });
     
-    // Save PDF
     doc.save(`Invoice-${invoiceData.invoiceNumber || 'MANOFCAVE'}.pdf`);
     
     return true;
@@ -1094,6 +1021,428 @@ const generatePDFInvoice = (invoiceData: ExtendedInvoiceData) => {
     console.error('Error generating PDF:', error);
     return false;
   }
+};
+
+// ===================== ADDED COMPONENTS: FILTERS & CALENDAR =====================
+
+const MobileFriendlyCalendar = ({ 
+  selectedDate, 
+  onDateSelect,
+  appointments 
+}: { 
+  selectedDate: Date | undefined;
+  onDateSelect: (date: Date | undefined) => void;
+  appointments: Appointment[];
+}) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  const daysInMonth = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+    
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const firstDayOfWeek = firstDay.getDay();
+    
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const date = new Date(year, month - 1, prevMonthLastDay - i);
+      days.push({
+        date,
+        isCurrentMonth: false,
+        appointments: appointments.filter(apt => 
+          apt.date === date.toISOString().split('T')[0]
+        )
+      });
+    }
+    
+    const totalDays = lastDay.getDate();
+    for (let i = 1; i <= totalDays; i++) {
+      const date = new Date(year, month, i);
+      days.push({
+        date,
+        isCurrentMonth: true,
+        appointments: appointments.filter(apt => 
+          apt.date === date.toISOString().split('T')[0]
+        )
+      });
+    }
+    
+    const totalCells = 42;
+    const nextMonthDays = totalCells - days.length;
+    for (let i = 1; i <= nextMonthDays; i++) {
+      const date = new Date(year, month + 1, i);
+      days.push({
+        date,
+        isCurrentMonth: false,
+        appointments: appointments.filter(apt => 
+          apt.date === date.toISOString().split('T')[0]
+        )
+      });
+    }
+    
+    return days;
+  }, [currentMonth, appointments]);
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  };
+
+  const isSelected = (date: Date) => {
+    if (!selectedDate) return false;
+    return date.getDate() === selectedDate.getDate() &&
+           date.getMonth() === selectedDate.getMonth() &&
+           date.getFullYear() === selectedDate.getFullYear();
+  };
+
+  return (
+    <div className="w-full bg-white rounded-lg border shadow-sm">
+      <div className="flex items-center justify-between p-4 border-b">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handlePrevMonth}
+          className="p-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </Button>
+        
+        <div className="text-center">
+          <div className="font-semibold text-lg">
+            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </div>
+        </div>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleNextMonth}
+          className="p-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 p-2 text-xs font-medium text-gray-500">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          <div key={day} className="text-center py-2">{day}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 p-2">
+        {daysInMonth.map((day, index) => {
+          const isTodayDate = isToday(day.date);
+          const isSelectedDate = isSelected(day.date);
+          const hasAppointments = day.appointments.length > 0;
+          
+          return (
+            <button
+              key={index}
+              onClick={() => onDateSelect(day.date)}
+              disabled={!day.isCurrentMonth}
+              className={`
+                relative h-12 sm:h-14 rounded-lg flex flex-col items-center justify-center
+                transition-all duration-200
+                ${!day.isCurrentMonth ? 'text-gray-400' : 'text-gray-900'}
+                ${isTodayDate ? 'bg-orange-50 border-2 border-orange-300' : ''}
+                ${isSelectedDate ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}
+                ${hasAppointments ? 'font-semibold' : ''}
+                focus:outline-none focus:ring-2 focus:ring-blue-500
+              `}
+            >
+              <span className="text-sm">{day.date.getDate()}</span>
+              
+              {hasAppointments && day.isCurrentMonth && !isSelectedDate && (
+                <div className="absolute bottom-1 flex gap-1">
+                  {day.appointments.slice(0, 3).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`
+                        w-1 h-1 rounded-full
+                        ${isTodayDate ? 'bg-orange-500' : 'bg-blue-500'}
+                      `}
+                    />
+                  ))}
+                  {day.appointments.length > 3 && (
+                    <div className={`text-xs ${isTodayDate ? 'text-orange-600' : 'text-blue-600'}`}>
+                      +{day.appointments.length - 3}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {hasAppointments && day.isCurrentMonth && isSelectedDate && (
+                <div className="absolute bottom-1 text-xs text-white bg-blue-800 px-1 rounded">
+                  {day.appointments.length}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="border-t p-3 text-xs text-gray-600">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 bg-blue-600 rounded"></div>
+            <span>Selected</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 bg-orange-300 rounded"></div>
+            <span>Today</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+            <span>Has appointments</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AppointmentSearchFilter = ({ 
+  searchQuery, 
+  setSearchQuery,
+  appointments 
+}: { 
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  appointments: Appointment[];
+}) => {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  useEffect(() => {
+    if (searchQuery.length > 1) {
+      const uniqueSuggestions = Array.from(
+        new Set(
+          appointments.flatMap(apt => [
+            apt.customer.toLowerCase(),
+            apt.service.toLowerCase(),
+            apt.barber.toLowerCase(),
+            apt.email?.toLowerCase(),
+            apt.phone
+          ]).filter(Boolean)
+        )
+      )
+      .filter(suggestion => 
+        suggestion && suggestion.includes(searchQuery.toLowerCase())
+      )
+      .slice(0, 5);
+      
+      setSuggestions(uniqueSuggestions as string[]);
+    } else {
+      setSuggestions([]);
+    }
+  }, [searchQuery, appointments]);
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    setShowSuggestions(false);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  return (
+    <div className="relative w-full">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <Input
+          placeholder="Search by customer, service, barber, phone, or email..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setShowSuggestions(true);
+          }}
+          onFocus={() => setShowSuggestions(true)}
+          className="pl-10 pr-10 h-12 text-base"
+        />
+        {searchQuery && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearSearch}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 h-auto"
+          >
+            <XCircle className="w-5 h-5 text-gray-400" />
+          </Button>
+        )}
+      </div>
+      
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {suggestions.map((suggestion, index) => (
+            <div
+              key={index}
+              onClick={() => handleSuggestionClick(suggestion)}
+              className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-700">{suggestion}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {searchQuery && (
+        <div className="mt-2 text-sm text-gray-600">
+          Found {appointments.filter(apt => 
+            apt.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            apt.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            apt.barber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            apt.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            apt.phone?.includes(searchQuery)
+          ).length} appointments matching "{searchQuery}"
+        </div>
+      )}
+    </div>
+  );
+};
+
+const StatusDropdownFilter = ({ 
+  statusFilter, 
+  setStatusFilter,
+  appointments 
+}: { 
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
+  appointments: Appointment[];
+}) => {
+  const statusCounts = useMemo(() => {
+    const counts: { [key: string]: number } = { all: appointments.length };
+    
+    appointments.forEach(apt => {
+      counts[apt.status] = (counts[apt.status] || 0) + 1;
+    });
+    
+    return counts;
+  }, [appointments]);
+
+  const statusOptions = [
+    { value: 'all', label: 'All Status', color: 'bg-gray-100 text-gray-800' },
+    { value: 'pending', label: 'Pending', color: 'bg-orange-100 text-orange-800' },
+    { value: 'approved', label: 'Approved', color: 'bg-purple-100 text-purple-800' },
+    { value: 'scheduled', label: 'Scheduled', color: 'bg-yellow-100 text-yellow-800' },
+    { value: 'in-progress', label: 'In Progress', color: 'bg-indigo-100 text-indigo-800' },
+    { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' },
+    { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800' },
+  ];
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-sm font-medium text-gray-700">Filter by Status</label>
+        <span className="text-xs text-gray-500">
+          {statusFilter !== 'all' ? `${statusCounts[statusFilter] || 0} appointments` : ''}
+        </span>
+      </div>
+      
+      <div className="relative">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full h-12 border-2">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent className="max-h-80">
+            {statusOptions.map((option) => {
+              const count = statusCounts[option.value] || 0;
+              return (
+                <SelectItem 
+                  key={option.value} 
+                  value={option.value}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${option.color.split(' ')[0]}`}></div>
+                      <span>{option.label}</span>
+                    </div>
+                    <Badge className={option.color}>
+                      {count}
+                    </Badge>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+        
+        {statusFilter !== 'all' && (
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Badge className={`${statusOptions.find(o => o.value === statusFilter)?.color} px-3 py-1`}>
+                {statusOptions.find(o => o.value === statusFilter)?.label}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStatusFilter('all')}
+                  className="ml-2 p-0 h-4 w-4"
+                >
+                  <XCircle className="w-3 h-3" />
+                </Button>
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatusFilter('all')}
+              className="text-sm"
+            >
+              Clear filter
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      <div className="mt-4">
+        <div className="text-xs text-gray-500 mb-2">Status Distribution:</div>
+        <div className="flex flex-wrap gap-1">
+          {statusOptions.slice(1).map(option => {
+            const count = statusCounts[option.value] || 0;
+            if (count === 0) return null;
+            
+            return (
+              <div
+                key={option.value}
+                onClick={() => setStatusFilter(option.value)}
+                className={`
+                  cursor-pointer px-2 py-1 rounded text-xs flex items-center gap-1
+                  ${statusFilter === option.value ? 'ring-2 ring-offset-1' : ''}
+                  ${option.color}
+                `}
+              >
+                <div className="w-2 h-2 rounded-full bg-current opacity-70"></div>
+                <span>{option.label}</span>
+                <span className="font-semibold">({count})</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ===================== MAIN COMPONENT =====================
@@ -1111,20 +1460,18 @@ export default function AdminAppointments() {
     router.push('/login');
   };
 
-  // State management
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [viewMode, setViewMode] = useState<'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders'>('advanced-calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders'>('calendar');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showAppointmentDetails, setShowAppointmentDetails] = useState(false);
-  // State management mein yeh add karein
-const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-const [showEditDialog, setShowEditDialog] = useState(false);
-const [editBookingData, setEditBookingData] = useState<BookingFormData | null>(null);
-const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService[]>([]);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editBookingData, setEditBookingData] = useState<BookingFormData | null>(null);
+  const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService[]>([]);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedAppointmentForInvoice, setSelectedAppointmentForInvoice] = useState<Appointment | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -1149,12 +1496,10 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
   
   const [allowPendingOrders] = useState(true);
 
-  // UPDATED: Multiple Services State
   const [selectedServices, setSelectedServices] = useState<FirebaseService[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<FirebaseCategory | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<FirebaseBranch | null>(null);
 
-  // UPDATED: Booking Form State with Multiple Services
   const [bookingData, setBookingData] = useState<BookingFormData>({
     customer: '',
     phone: '',
@@ -1187,9 +1532,10 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     branch: ''
   });
 
-  // Load data from Firebase
+  // ✅ FIXED: Load data from Firebase with branch filtering and NO orderBy
   useEffect(() => {
     let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
     
     const loadFirebaseData = async () => {
       setLoading({ 
@@ -1213,31 +1559,138 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
           });
         };
 
-        const [ordersData, bookingsData, staffData, servicesData, categoriesData, branchesData] = await Promise.all([
+        const userBranch = user?.role === 'admin' ? user.branchName : undefined;
+        
+        const [ordersData, staffData, servicesData, categoriesData, branchesData] = await Promise.all([
           fetchProductOrders(notificationWrapper),
-          fetchBookings(notificationWrapper),
           fetchStaff(),
           fetchServices(),
           fetchCategories(),
           fetchBranches()
         ]);
         
+        if (!isMounted) return;
+        
+        // ✅ REAL-TIME LISTENER FOR BOOKINGS WITH BRANCH FILTERING - NO orderBy
+        const bookingsRef = collection(db, "bookings");
+        
+        let q;
+        if (userBranch) {
+          // Branch admin - sirf apni branch ke bookings - NO orderBy
+          q = query(
+            bookingsRef, 
+            where('branchNames', 'array-contains', userBranch)
+            // ❌ NO orderBy - index avoid karne ke liye
+          );
+        } else {
+          // Super admin - sab bookings with orderBy
+          q = query(bookingsRef, orderBy("createdAt", "desc"));
+        }
+        
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          if (!isMounted) return;
+          
+          const bookingsData: FirebaseBooking[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            
+            const bookingDate = data.bookingDate || 
+                              (data.date ? data.date.split(' ')[0] : 
+                              (data.createdAt?.toDate ? data.createdAt.toDate().toISOString().split('T')[0] : 
+                              new Date().toISOString().split('T')[0]));
+            
+            const bookingTime = data.time || data.timeSlot || "10:00";
+            const serviceName = data.serviceName || "Unknown Service";
+            const services = Array.isArray(data.services) ? data.services : [serviceName];
+            
+            const bookingData: FirebaseBooking = {
+              id: doc.id,
+              firebaseId: doc.id,
+              bookingNumber: data.bookingNumber || `BK-${doc.id.substring(0, 5).toUpperCase()}`,
+              customerName: data.customerName || "Unknown Customer",
+              customerEmail: data.customerEmail || "",
+              customerPhone: data.customerPhone || "",
+              services,
+              serviceDetails: Array.isArray(data.servicesDetails) ? data.servicesDetails : [],
+              serviceDuration: data.serviceDuration || 60,
+              totalDuration: data.serviceDuration || 60,
+              servicePrice: data.servicePrice || data.totalAmount || 0,
+              totalPrice: data.servicePrice || data.totalAmount || 0,
+              totalAmount: data.servicePrice || data.totalAmount || 0,
+              status: data.status || "pending",
+              bookingDate,
+              bookingTime,
+              paymentMethod: data.paymentMethod || "cash",
+              paymentStatus: data.paymentStatus || "pending",
+              branch: Array.isArray(data.branchNames) 
+                ? (data.branchNames.length > 0 ? data.branchNames[0] : "All Branches") 
+                : data.branch || "All Branches",
+              staff: data.staffName || data.staff || "Not Assigned",
+              staffId: data.staffId || "",
+              staffRole: data.staffRole || "hairstylist",
+              notes: data.notes || "",
+              serviceCategory: data.serviceCategory || "",
+              serviceId: data.serviceId || "",
+              timeSlot: data.timeSlot || bookingTime,
+              pointsAwarded: data.pointsAwarded || false,
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+              updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
+              customerId: data.customerId || "",
+              createdBy: data.createdBy || '',
+              cardLast4Digits: data.cardLast4Digits || "",
+              trnNumber: data.trnNumber || "",
+              teamMembers: Array.isArray(data.teamMembers) ? data.teamMembers : [],
+              products: Array.isArray(data.products) ? data.products : [],
+              paymentMethods: Array.isArray(data.paymentMethods) ? data.paymentMethods : [],
+              paymentAmounts: data.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0 },
+              discount: data.discount || 0,
+              discountType: data.discountType || 'fixed',
+              serviceTip: data.serviceTip || 0,
+              serviceCharges: data.serviceCharges || 0,
+              tax: data.tax || 5,
+              serviceName: ''
+            };
+            bookingsData.push(bookingData);
+          });
+          
+          // ✅ MANUAL SORTING for branch admin - index ki zaroorat nahi
+          if (userBranch) {
+            bookingsData.sort((a, b) => {
+              const dateA = a.createdAt?.getTime() || 0;
+              const dateB = b.createdAt?.getTime() || 0;
+              return dateB - dateA; // descending
+            });
+          }
+          
+          if (isMounted) {
+            setBookings(bookingsData);
+            setLoading(prev => ({ ...prev, bookings: false }));
+            
+            console.log(`📅 Real-time Calendar Data Updated for ${userBranch || 'all branches'}:`, {
+              count: bookingsData.length,
+              todayCount: bookingsData.filter(b => b.bookingDate === new Date().toISOString().split('T')[0]).length
+            });
+          }
+        }, (error) => {
+          if (isMounted) {
+            console.error("Error in real-time bookings listener:", error);
+            setLoading(prev => ({ ...prev, bookings: false }));
+          }
+        });
+        
         if (isMounted) {
           setProductOrders(ordersData);
-          setBookings(bookingsData);
           setStaffMembers(staffData);
           setServices(servicesData);
           setCategories(categoriesData);
           setBranches(branchesData);
-          
-          console.log("🔥 Firebase Data Loaded with All Fields:", {
-            bookings: bookingsData.length,
-            firstBooking: bookingsData[0] ? {
-              services: bookingsData[0].services,
-              teamMembers: bookingsData[0].teamMembers,
-              products: bookingsData[0].products,
-              paymentMethods: bookingsData[0].paymentMethods
-            } : 'No bookings'
+          setLoading({ 
+            orders: false, 
+            bookings: false, 
+            staff: false, 
+            services: false,
+            categories: false,
+            branches: false 
           });
         }
         
@@ -1249,9 +1702,6 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
             title: 'Data Load Error',
             message: 'Failed to load data from Firebase'
           });
-        }
-      } finally {
-        if (isMounted) {
           setLoading({ 
             orders: false, 
             bookings: false, 
@@ -1268,8 +1718,11 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     
     return () => {
       isMounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
-  }, []);
+  }, [user]);
 
   const mapBookingStatus = (firebaseStatus: string): string => {
     const statusMap: { [key: string]: string } = {
@@ -1288,11 +1741,8 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     return statusMap[firebaseStatus] || firebaseStatus;
   };
 
-  // UPDATED: Convert Bookings to Appointments with Complete Data
   const convertedBookings: Appointment[] = bookings.map((booking, index) => {
     const mappedStatus = mapBookingStatus(booking.status);
-    
-    // Use services array if available, otherwise fallback to single service
     const serviceText = Array.isArray(booking.services) && booking.services.length > 0 
       ? booking.services.join(', ') 
       : (booking.serviceName || 'Unknown Service');
@@ -1300,17 +1750,22 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     return {
       id: booking.firebaseId || `booking-${index}`,
       firebaseId: booking.firebaseId,
-      customer: booking.customerName,
+      customer: booking.customerName || "Unknown Customer",
       service: serviceText,
       services: Array.isArray(booking.services) ? booking.services : [],
       barber: booking.staff || "Not Assigned",
-      date: booking.bookingDate,
-      time: booking.bookingTime || booking.timeSlot,
+      date: booking.bookingDate || "",
+      time: booking.bookingTime || booking.timeSlot || "",
       duration: booking.totalDuration ? `${booking.totalDuration} min` : '60 min',
-      price: booking.totalPrice || 0,
+      price: booking.totalAmount || booking.servicePrice || 0,
+      servicePrice: booking.servicePrice || 0,
+      totalAmount: booking.totalAmount || 0,
+      subtotal: booking.subtotal || booking.servicePrice || 0,
+      taxAmount: booking.taxAmount || 0,
+      serviceCharges: booking.serviceCharges || 0,
       status: mappedStatus,
-      phone: booking.customerPhone,
-      email: booking.customerEmail,
+      phone: booking.customerPhone || "",
+      email: booking.customerEmail || "",
       notes: booking.notes || 'Booked via website',
       source: booking.createdBy === 'admin' ? 'admin_panel' : 'website',
       branch: booking.branch || 'All Branches',
@@ -1320,7 +1775,6 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
       staffRole: booking.staffRole,
       serviceCategory: booking.serviceCategory,
       pointsAwarded: booking.pointsAwarded || false,
-      // COMPLETE FIELDS
       cardLast4Digits: booking.cardLast4Digits || '',
       trnNumber: booking.trnNumber || '',
       teamMembers: booking.teamMembers || [],
@@ -1330,15 +1784,14 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
       discount: booking.discount || 0,
       discountType: booking.discountType || 'fixed',
       serviceTip: booking.serviceTip || 0,
-      serviceCharges: booking.serviceCharges || 0,
-      tax: booking.tax || 5
+      tax: booking.tax || 5,
+      paymentMethod: booking.paymentMethod || '',
+      paymentStatus: booking.paymentStatus || '',
+      bookingNumber: booking.bookingNumber || ''
     };
   });
 
-  const mockAppointments: Appointment[] = [
-    
-    
-  ];
+  const mockAppointments: Appointment[] = [];
 
   const allAppointments = [...mockAppointments, ...convertedBookings];
 
@@ -1346,18 +1799,89 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
     const matchesSearch = appointment.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          appointment.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         appointment.barber.toLowerCase().includes(searchQuery.toLowerCase());
+                         appointment.barber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         appointment.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         appointment.phone?.includes(searchQuery);
     const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
     const matchesDate = !selectedDate || appointment.date === dateString;
-    return matchesStatus && matchesSearch && matchesDate;
+    
+    const matchesBranch = user?.role === 'admin' && user?.branchName 
+      ? appointment.branch === user.branchName
+      : true;
+    
+    return matchesStatus && matchesSearch && matchesDate && matchesBranch;
   });
 
   const getAppointmentsForDate = (date: Date): Appointment[] => {
-    const dateString = format(date, 'yyyy-MM-dd');
-    return allAppointments.filter(apt => apt.date === dateString);
+    if (!date || bookings.length === 0) return [];
+    
+    const selectedDateStr = date.toISOString().split('T')[0];
+    
+    const firebaseBookingsForDate = bookings.filter(booking => {
+      if (booking.bookingDate !== selectedDateStr) {
+        return false;
+      }
+      
+      if (user?.role === 'admin' && user?.branchName) {
+        const branchMatch = booking.branch === user.branchName;
+        return branchMatch;
+      }
+      
+      return true;
+    });
+    
+    return firebaseBookingsForDate.map((booking, index) => {
+      const mappedStatus = mapBookingStatus(booking.status);
+      const serviceText = Array.isArray(booking.services) && booking.services.length > 0 
+        ? booking.services.join(', ') 
+        : (booking.serviceName || "Unknown Service");
+      
+      return {
+        id: booking.firebaseId || `booking-${index}`,
+        firebaseId: booking.firebaseId,
+        customer: booking.customerName,
+        service: serviceText,
+        services: Array.isArray(booking.services) ? booking.services : [],
+        barber: booking.staff || "Not Assigned",
+        date: booking.bookingDate || selectedDateStr,
+        time: booking.bookingTime || booking.timeSlot || "10:00 AM",
+        duration: booking.totalDuration ? `${booking.totalDuration} min` : '60 min',
+        price: booking.totalAmount || booking.servicePrice || 0,
+        servicePrice: booking.servicePrice || 0,
+        status: mappedStatus,
+        phone: booking.customerPhone,
+        email: booking.customerEmail,
+        notes: booking.notes || 'Booked via website',
+        source: booking.createdBy === 'admin' ? 'admin_panel' : 
+                booking.createdBy === 'customer_booking' ? 'customer_app' : 'website',
+        branch: booking.branch || 'All Branches',
+        createdAt: booking.createdAt,
+        updatedAt: booking.updatedAt,
+        staffId: booking.staffId,
+        staffRole: booking.staffRole,
+        serviceCategory: booking.serviceCategory,
+        pointsAwarded: booking.pointsAwarded || false,
+        cardLast4Digits: booking.cardLast4Digits || '',
+        trnNumber: booking.trnNumber || '',
+        teamMembers: Array.isArray(booking.teamMembers) ? booking.teamMembers : [],
+        products: Array.isArray(booking.products) ? booking.products : [],
+        paymentMethods: Array.isArray(booking.paymentMethods) ? booking.paymentMethods : [],
+        paymentAmounts: booking.paymentAmounts || { 
+          cash: 0, 
+          card: 0, 
+          check: 0, 
+          digital: 0,
+          wallet: 0
+        },
+        discount: booking.discount || 0,
+        discountType: booking.discountType || 'fixed',
+        serviceTip: booking.serviceTip || 0,
+        serviceCharges: booking.serviceCharges || 0,
+        tax: booking.tax || 0
+      };
+    });
   };
 
-  // UseMemo for filtered data
   const filteredCategories = useMemo(() => {
     if (!bookingData.branch) return [];
     
@@ -1422,7 +1946,6 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     { name: "Hair Brush", category: "Tools", price: 25 }
   ];
 
-  // ===================== UPDATED: Multiple Services Selection Handler =====================
   const handleServiceSelection = (serviceName: string) => {
     const service = services.find(s => s.name === serviceName);
     if (!service) return;
@@ -1432,11 +1955,9 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
     let updatedServicesArray: string[];
 
     if (isAlreadySelected) {
-      // Remove service
       updatedSelectedServices = selectedServices.filter(s => s.name !== serviceName);
       updatedServicesArray = bookingData.services.filter(s => s !== serviceName);
     } else {
-      // Add service
       updatedSelectedServices = [...selectedServices, service];
       updatedServicesArray = [...bookingData.services, serviceName];
     }
@@ -1447,12 +1968,6 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
       services: updatedServicesArray,
       service: updatedServicesArray.length > 0 ? updatedServicesArray[0] : ''
     }));
-
-    console.log("📝 Updated Services:", {
-      selectedCount: updatedSelectedServices.length,
-      services: updatedServicesArray,
-      primary: updatedServicesArray[0]
-    });
   };
 
   const handleCategoryChange = (categoryName: string) => {
@@ -1507,31 +2022,29 @@ const [editSelectedServices, setEditSelectedServices] = useState<FirebaseService
       }
     }));
   };
-  // ===================== EDIT TOTAL CALCULATION =====================
-const calculateEditTotal = (): number => {
-  if (!editBookingData || editSelectedServices.length === 0) return 0;
-  
-  const servicesPrice = editSelectedServices.reduce((sum, s) => sum + s.price, 0);
-  const productsTotal = editBookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
-  let subtotal = servicesPrice + productsTotal + editBookingData.serviceCharges;
-  
-  // Apply discount
-  if (editBookingData.discount > 0) {
-    if (editBookingData.discountType === 'percentage') {
-      subtotal = subtotal * (1 - editBookingData.discount / 100);
-    } else {
-      subtotal = Math.max(0, subtotal - editBookingData.discount);
-    }
-  }
-  
-  const taxAmount = (subtotal * editBookingData.tax) / 100;
-  const totalTips = editBookingData.serviceTip + editBookingData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
-  const totalAmount = subtotal + taxAmount + totalTips;
-  
-  return parseFloat(totalAmount.toFixed(2));
-};
 
-  // ===================== UPDATED: Calculate Total with Multiple Services =====================
+  const calculateEditTotal = (): number => {
+    if (!editBookingData || editSelectedServices.length === 0) return 0;
+    
+    const servicesPrice = editSelectedServices.reduce((sum, s) => sum + s.price, 0);
+    const productsTotal = editBookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+    let subtotal = servicesPrice + productsTotal + editBookingData.serviceCharges;
+    
+    if (editBookingData.discount > 0) {
+      if (editBookingData.discountType === 'percentage') {
+        subtotal = subtotal * (1 - editBookingData.discount / 100);
+      } else {
+        subtotal = Math.max(0, subtotal - editBookingData.discount);
+      }
+    }
+    
+    const taxAmount = (subtotal * editBookingData.tax) / 100;
+    const totalTips = editBookingData.serviceTip + editBookingData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
+    const totalAmount = subtotal + taxAmount + totalTips;
+    
+    return parseFloat(totalAmount.toFixed(2));
+  };
+
   const calculateTotal = (): string => {
     const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
     const productsTotal = bookingData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
@@ -1570,7 +2083,6 @@ const calculateEditTotal = (): number => {
     return ((subtotal * bookingData.tax) / 100).toFixed(2);
   };
 
-  // ===================== UPDATED: Invoice Generation with Multiple Services =====================
   const handleGenerateInvoiceClick = (appointment: Appointment) => {
     if (appointment.status !== 'completed') {
       addNotification({
@@ -1589,17 +2101,14 @@ const calculateEditTotal = (): number => {
     setSelectedAppointmentForInvoice(appointment);
     setIsEditingInvoice(true);
     
-    // Calculate values
     const subtotal = appointment.price;
     const tax = appointment.tax || 5;
     const taxAmount = (subtotal * tax) / 100;
     const discount = appointment.discount || 0;
     const total = subtotal + taxAmount - discount;
     
-    // Prepare items array
     const items: InvoiceItem[] = [];
     
-    // UPDATED: Add multiple services
     if (appointment.services && Array.isArray(appointment.services) && appointment.services.length > 0) {
       appointment.services.forEach((service, index) => {
         items.push({
@@ -1610,7 +2119,6 @@ const calculateEditTotal = (): number => {
         });
       });
     } else {
-      // Single service fallback
       items.push({
         name: appointment.service,
         quantity: 1,
@@ -1619,7 +2127,6 @@ const calculateEditTotal = (): number => {
       });
     }
     
-    // Add products
     if (appointment.products && appointment.products.length > 0) {
       appointment.products.forEach(product => {
         items.push({
@@ -1631,7 +2138,6 @@ const calculateEditTotal = (): number => {
       });
     }
     
-    // Initialize invoice data
     const initialInvoiceData: ExtendedInvoiceData = {
       id: Number(appointment.id) || Date.now(),
       invoiceNumber: newInvoiceNumber,
@@ -1664,8 +2170,6 @@ const calculateEditTotal = (): number => {
     
     setInvoiceData(initialInvoiceData);
     setShowInvoiceModal(true);
-    
-    console.log("✅ Invoice modal opened with complete data:", initialInvoiceData);
   };
 
   const handleInvoiceDataChange = (field: keyof ExtendedInvoiceData, value: any) => {
@@ -1675,7 +2179,6 @@ const calculateEditTotal = (): number => {
         [field]: value
       };
       
-      // Recalculate totals if items change
       if (field === 'items' || field === 'tax' || field === 'discount') {
         const subtotal = updatedData.items?.reduce((sum, item) => sum + item.total, 0) || 0;
         const taxAmount = subtotal * (updatedData.tax || 0) / 100;
@@ -1690,353 +2193,293 @@ const calculateEditTotal = (): number => {
     }
   };
 
-  // Edit Appointment ka handler function
-const handleEditAppointment = (appointment: Appointment) => {
-  console.log("✏️ Editing appointment:", appointment);
-  
-  // Extract services array from appointment
-  const servicesArray = appointment.services && Array.isArray(appointment.services) 
-    ? appointment.services 
-    : [appointment.service];
-  
-  // Create edit booking data
-  const editData: BookingFormData = {
-    customer: appointment.customer,
-    phone: appointment.phone || '',
-    email: appointment.email || '',
-    service: servicesArray[0] || '',
-    services: servicesArray,
-    barber: appointment.barber,
-    teamMembers: appointment.teamMembers || [],
-    date: appointment.date,
-    time: appointment.time,
-    notes: appointment.notes || '',
-    products: appointment.products || [],
-    tax: appointment.tax || 5,
-    serviceCharges: appointment.serviceCharges || 0,
-    discount: appointment.discount || 0,
-    discountType: appointment.discountType || 'fixed',
-    serviceTip: appointment.serviceTip || 0,
-    paymentMethods: appointment.paymentMethods || [],
-    paymentAmounts: appointment.paymentAmounts || {
-      cash: 0,
-      card: 0,
-      check: 0,
-      digital: 0
-    },
-    status: appointment.status,
-    generateInvoice: false,
-    cardLast4Digits: appointment.cardLast4Digits || '',
-    trnNumber: appointment.trnNumber || '',
-    category: appointment.serviceCategory || '',
-    branch: appointment.branch || ''
-  };
-  
-  // Find services from database
-  const matchedServices: FirebaseService[] = [];
-  servicesArray.forEach(serviceName => {
-    const foundService = services.find(s => s.name === serviceName);
-    if (foundService) {
-      matchedServices.push(foundService);
-    }
-  });
-  
-  setEditingAppointment(appointment);
-  setEditBookingData(editData);
-  setEditSelectedServices(matchedServices);
-  setShowEditDialog(true);
-  
-  console.log("📝 Edit data prepared:", {
-    services: servicesArray,
-    matchedServicesCount: matchedServices.length,
-    teamMembers: appointment.teamMembers,
-    products: appointment.products
-  });
-};
-// Firebase mein appointment update karne ka function
-const updateAppointmentInFirebase = async (
-  appointmentId: string,
-  updatedData: BookingFormData,
-  selectedServices: FirebaseService[],
-  selectedCategory: FirebaseCategory | null,
-  selectedBranch: FirebaseBranch | null,
-  originalAppointment: Appointment
-): Promise<boolean> => {
-  try {
-    const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
-    const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
-    const productsTotal = updatedData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+  const handleEditAppointment = (appointment: Appointment) => {
+    const servicesArray = appointment.services && Array.isArray(appointment.services) 
+      ? appointment.services 
+      : [appointment.service];
     
-    let subtotal = servicesPrice + productsTotal + updatedData.serviceCharges;
-    
-    // Apply discount
-    let discountAmount = 0;
-    if (updatedData.discount > 0) {
-      if (updatedData.discountType === 'percentage') {
-        discountAmount = subtotal * (updatedData.discount / 100);
-        subtotal = subtotal * (1 - updatedData.discount / 100);
-      } else {
-        discountAmount = updatedData.discount;
-        subtotal = Math.max(0, subtotal - updatedData.discount);
-      }
-    }
-    
-    const taxAmount = (subtotal * updatedData.tax) / 100;
-    const totalTips = updatedData.serviceTip + updatedData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
-    const totalAmount = subtotal + taxAmount + totalTips;
-    
-    // Prepare service details
-    const serviceDetails = selectedServices.map(service => ({
-      id: service.firebaseId,
-      name: service.name,
-      price: service.price,
-      duration: service.duration,
-      category: service.category
-    }));
-    
-    // Prepare update data
-    const updateData = {
-      // Updated customer information
-      customerName: updatedData.customer,
-      customerEmail: updatedData.email || "",
-      customerPhone: updatedData.phone || "",
-      
-      // Updated services information
-      serviceName: updatedData.services[0] || "Multiple Services",
-      services: updatedData.services,
-      servicesDetails: serviceDetails,
-      serviceCategory: selectedCategory?.name || selectedServices[0]?.category || "Multiple",
-      serviceDuration: totalDuration,
-      servicePrice: servicesPrice,
-      totalAmount: totalAmount,
-      totalDuration: totalDuration,
-      
-      // Updated staff information
-      staff: updatedData.barber,
-      staffName: updatedData.barber,
-      staffId: updatedData.teamMembers.find(tm => tm.name === updatedData.barber)?.name || updatedData.barber,
-      
-      // Updated date & time
-      date: updatedData.date,
-      time: updatedData.time,
-      timeSlot: updatedData.time,
-      bookingDate: updatedData.date,
-      bookingTime: updatedData.time,
-      
-      // Updated status & payment
-      status: updatedData.status,
-      paymentMethod: updatedData.paymentMethods.length > 0 
-        ? updatedData.paymentMethods.join(', ') 
-        : 'cash',
-      paymentStatus: updatedData.status === 'completed' ? 'paid' : 'pending',
-      
-      // Updated branch
-      branch: selectedBranch?.name || selectedServices[0]?.branchNames?.[0] || "All Branches",
-      branchNames: selectedBranch?.name ? [selectedBranch.name] : (selectedServices[0]?.branchNames || ["All Branches"]),
-      
-      // Updated category
-      category: selectedCategory?.name || "",
-      categoryId: selectedCategory?.firebaseId || "",
-      
-      // Updated payment details
-      cardLast4Digits: updatedData.cardLast4Digits || "",
-      trnNumber: updatedData.trnNumber || "",
-      paymentAmounts: updatedData.paymentAmounts,
-      
-      // Updated notes
-      notes: updatedData.notes || '',
-      
-      // Updated products
-      products: updatedData.products.map(product => ({
-        productName: product.name,
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        quantity: product.quantity,
-        total: product.price * product.quantity
-      })),
-      
-      // Updated team members
-      teamMembers: updatedData.teamMembers,
-      
-      // Updated pricing details
-      subtotal: subtotal,
-      tax: updatedData.tax,
-      taxAmount: taxAmount,
-      discount: updatedData.discount,
-      discountType: updatedData.discountType,
-      discountAmount: discountAmount,
-      serviceTip: updatedData.serviceTip,
-      serviceCharges: updatedData.serviceCharges,
-      totalTips: totalTips,
-      productsTotal: productsTotal,
-      
-      // Updated payment methods
-      paymentMethods: updatedData.paymentMethods,
-      
-      // Update timestamp
-      updatedAt: serverTimestamp()
+    const editData: BookingFormData = {
+      customer: appointment.customer,
+      phone: appointment.phone || '',
+      email: appointment.email || '',
+      service: servicesArray[0] || '',
+      services: servicesArray,
+      barber: appointment.barber,
+      teamMembers: appointment.teamMembers || [],
+      date: appointment.date,
+      time: appointment.time,
+      notes: appointment.notes || '',
+      products: appointment.products || [],
+      tax: appointment.tax || 5,
+      serviceCharges: appointment.serviceCharges || 0,
+      discount: appointment.discount || 0,
+      discountType: appointment.discountType || 'fixed',
+      serviceTip: appointment.serviceTip || 0,
+      paymentMethods: appointment.paymentMethods || [],
+      paymentAmounts: appointment.paymentAmounts || {
+        cash: 0,
+        card: 0,
+        check: 0,
+        digital: 0
+      },
+      status: appointment.status,
+      generateInvoice: false,
+      cardLast4Digits: appointment.cardLast4Digits || '',
+      trnNumber: appointment.trnNumber || '',
+      category: appointment.serviceCategory || '',
+      branch: appointment.branch || ''
     };
     
-    console.log("📤 Updating appointment in Firebase:", updateData);
-    
-    // Update in Firebase
-    const bookingRef = doc(db, "bookings", appointmentId);
-    await updateDoc(bookingRef, updateData);
-    
-    return true;
-  } catch (error) {
-    console.error("❌ Error updating appointment:", error);
-    return false;
-  }
-};
-// Edit submit handler
-const handleEditSubmit = async () => {
-  if (!editingAppointment || !editBookingData || !editingAppointment.firebaseId) {
-    addNotification({
-      type: 'error',
-      title: 'Edit Error',
-      message: 'No appointment selected for editing.'
-    });
-    return;
-  }
-  
-  if (!editBookingData.customer || !editBookingData.barber || !editBookingData.date || !editBookingData.time || editSelectedServices.length === 0) {
-    addNotification({
-      type: 'error',
-      title: 'Validation Error',
-      message: 'Please fill in all required fields including at least one service.',
-    });
-    return;
-  }
-  
-  console.log('📤 Updating appointment:', {
-    appointmentId: editingAppointment.firebaseId,
-    services: editBookingData.services,
-   totalPrice: calculateEditTotal(),
-
-  });
-  
-  // Update in Firebase
-  const success = await updateAppointmentInFirebase(
-    editingAppointment.firebaseId,
-    editBookingData,
-    editSelectedServices,
-    selectedCategory,
-    selectedBranch,
-    editingAppointment
-  );
-  
-  if (success) {
-    // Update local state
-    setBookings(prev => prev.map(booking => 
-      booking.firebaseId === editingAppointment.firebaseId ? {
-        ...booking,
-        customerName: editBookingData!.customer,
-        customerEmail: editBookingData!.email,
-        customerPhone: editBookingData!.phone,
-        services: editBookingData!.services,
-        totalDuration: editSelectedServices.reduce((sum, s) => sum + s.duration, 0),
-
-        status: editBookingData!.status,
-        bookingDate: editBookingData!.date,
-        bookingTime: editBookingData!.time,
-        staff: editBookingData!.barber,
-        notes: editBookingData!.notes,
-        // Update all fields
-        cardLast4Digits: editBookingData!.cardLast4Digits,
-        trnNumber: editBookingData!.trnNumber,
-        teamMembers: editBookingData!.teamMembers,
-        products: editBookingData!.products,
-        paymentMethods: editBookingData!.paymentMethods,
-        paymentAmounts: editBookingData!.paymentAmounts,
-        discount: editBookingData!.discount,
-        discountType: editBookingData!.discountType,
-        serviceTip: editBookingData!.serviceTip,
-        serviceCharges: editBookingData!.serviceCharges,
-        tax: editBookingData!.tax
-      } : booking
-    ));
-    
-    addNotification({
-      type: 'success',
-      title: 'Appointment Updated',
-      message: `Appointment for ${editBookingData.customer} has been successfully updated.`
+    const matchedServices: FirebaseService[] = [];
+    servicesArray.forEach(serviceName => {
+      const foundService = services.find(s => s.name === serviceName);
+      if (foundService) {
+        matchedServices.push(foundService);
+      }
     });
     
-    // Close dialogs
-    setShowEditDialog(false);
-    setShowAppointmentDetails(false);
-    setEditingAppointment(null);
-    setEditBookingData(null);
-    setEditSelectedServices([]);
-  } else {
-    addNotification({
-      type: 'error',
-      title: 'Update Failed',
-      message: 'Failed to update appointment in Firebase. Please try again.'
-    });
-  }
-};
-// Firebase functions ke baad, updateStatus functions ke saath yeh add karein:
+    setEditingAppointment(appointment);
+    setEditBookingData(editData);
+    setEditSelectedServices(matchedServices);
+    setShowEditDialog(true);
+  };
 
-const deleteBookingInFirebase = async (bookingId: string): Promise<boolean> => {
-  try {
-    const bookingRef = doc(db, "bookings", bookingId);
-    await updateDoc(bookingRef, {
-      status: "deleted",
-      deletedAt: new Date(),
-      updatedAt: new Date()
-    });
-    return true;
-  } catch (error) {
-    console.error("Error deleting booking:", error);
-    return false;
-  }
-};
+  const updateAppointmentInFirebase = async (
+    appointmentId: string,
+    updatedData: BookingFormData,
+    selectedServices: FirebaseService[],
+    selectedCategory: FirebaseCategory | null,
+    selectedBranch: FirebaseBranch | null,
+    originalAppointment: Appointment
+  ): Promise<boolean> => {
+    try {
+      const servicesPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
+      const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+      const productsTotal = updatedData.products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+      
+      let subtotal = servicesPrice + productsTotal + updatedData.serviceCharges;
+      
+      let discountAmount = 0;
+      if (updatedData.discount > 0) {
+        if (updatedData.discountType === 'percentage') {
+          discountAmount = subtotal * (updatedData.discount / 100);
+          subtotal = subtotal * (1 - updatedData.discount / 100);
+        } else {
+          discountAmount = updatedData.discount;
+          subtotal = Math.max(0, subtotal - updatedData.discount);
+        }
+      }
+      
+      const taxAmount = (subtotal * updatedData.tax) / 100;
+      const totalTips = updatedData.serviceTip + updatedData.teamMembers.reduce((sum, tm) => sum + tm.tip, 0);
+      const totalAmount = subtotal + taxAmount + totalTips;
+      
+      const serviceDetails = selectedServices.map(service => ({
+        id: service.firebaseId,
+        name: service.name,
+        price: service.price,
+        duration: service.duration,
+        category: service.category
+      }));
+      
+      const updateData = {
+        customerName: updatedData.customer,
+        customerEmail: updatedData.email || "",
+        customerPhone: updatedData.phone || "",
+        serviceName: updatedData.services[0] || "Multiple Services",
+        services: updatedData.services,
+        servicesDetails: serviceDetails,
+        serviceCategory: selectedCategory?.name || selectedServices[0]?.category || "Multiple",
+        serviceDuration: totalDuration,
+        servicePrice: servicesPrice,
+        totalAmount: totalAmount,
+        totalDuration: totalDuration,
+        staff: updatedData.barber,
+        staffName: updatedData.barber,
+        staffId: updatedData.teamMembers.find(tm => tm.name === updatedData.barber)?.name || updatedData.barber,
+        date: updatedData.date,
+        time: updatedData.time,
+        timeSlot: updatedData.time,
+        bookingDate: updatedData.date,
+        bookingTime: updatedData.time,
+        status: updatedData.status,
+        paymentMethod: updatedData.paymentMethods.length > 0 
+          ? updatedData.paymentMethods.join(', ') 
+          : 'cash',
+        paymentStatus: updatedData.status === 'completed' ? 'paid' : 'pending',
+        branch: selectedBranch?.name || selectedServices[0]?.branchNames?.[0] || "All Branches",
+        branchNames: selectedBranch?.name ? [selectedBranch.name] : (selectedServices[0]?.branchNames || ["All Branches"]),
+        category: selectedCategory?.name || "",
+        categoryId: selectedCategory?.firebaseId || "",
+        cardLast4Digits: updatedData.cardLast4Digits || "",
+        trnNumber: updatedData.trnNumber || "",
+        paymentAmounts: updatedData.paymentAmounts,
+        notes: updatedData.notes || '',
+        products: updatedData.products.map(product => ({
+          productName: product.name,
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          quantity: product.quantity,
+          total: product.price * product.quantity
+        })),
+        teamMembers: updatedData.teamMembers,
+        subtotal: subtotal,
+        tax: updatedData.tax,
+        taxAmount: taxAmount,
+        discount: updatedData.discount,
+        discountType: updatedData.discountType,
+        discountAmount: discountAmount,
+        serviceTip: updatedData.serviceTip,
+        serviceCharges: updatedData.serviceCharges,
+        totalTips: totalTips,
+        productsTotal: productsTotal,
+        paymentMethods: updatedData.paymentMethods,
+        updatedAt: serverTimestamp()
+      };
+      
+      const bookingRef = doc(db, "bookings", appointmentId);
+      await updateDoc(bookingRef, updateData);
+      
+      return true;
+    } catch (error) {
+      console.error("❌ Error updating appointment:", error);
+      return false;
+    }
+  };
 
-const handleDeleteBooking = async (appointment: Appointment) => {
-  if (!appointment.firebaseId) {
-    addNotification({
-      type: 'error',
-      title: 'Delete Failed',
-      message: 'Cannot delete appointment without Firebase ID'
-    });
-    return;
-  }
-
-  if (!confirm(`Are you sure you want to delete booking for ${appointment.customer}? This action cannot be undone.`)) {
-    return;
-  }
-
-  try {
-    const success = await deleteBookingInFirebase(appointment.firebaseId);
+  const handleEditSubmit = async () => {
+    if (!editingAppointment || !editBookingData || !editingAppointment.firebaseId) {
+      addNotification({
+        type: 'error',
+        title: 'Edit Error',
+        message: 'No appointment selected for editing.'
+      });
+      return;
+    }
+    
+    if (!editBookingData.customer || !editBookingData.barber || !editBookingData.date || !editBookingData.time || editSelectedServices.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields including at least one service.',
+      });
+      return;
+    }
+    
+    const success = await updateAppointmentInFirebase(
+      editingAppointment.firebaseId,
+      editBookingData,
+      editSelectedServices,
+      selectedCategory,
+      selectedBranch,
+      editingAppointment
+    );
     
     if (success) {
-      // Update local state
-      setBookings(prev => prev.filter(b => b.firebaseId !== appointment.firebaseId));
+      setBookings(prev => prev.map(booking => 
+        booking.firebaseId === editingAppointment.firebaseId ? {
+          ...booking,
+          customerName: editBookingData!.customer,
+          customerEmail: editBookingData!.email,
+          customerPhone: editBookingData!.phone,
+          services: editBookingData!.services,
+          totalDuration: editSelectedServices.reduce((sum, s) => sum + s.duration, 0),
+          status: editBookingData!.status,
+          bookingDate: editBookingData!.date,
+          bookingTime: editBookingData!.time,
+          staff: editBookingData!.barber,
+          notes: editBookingData!.notes,
+          cardLast4Digits: editBookingData!.cardLast4Digits,
+          trnNumber: editBookingData!.trnNumber,
+          teamMembers: editBookingData!.teamMembers,
+          products: editBookingData!.products,
+          paymentMethods: editBookingData!.paymentMethods,
+          paymentAmounts: editBookingData!.paymentAmounts,
+          discount: editBookingData!.discount,
+          discountType: editBookingData!.discountType,
+          serviceTip: editBookingData!.serviceTip,
+          serviceCharges: editBookingData!.serviceCharges,
+          tax: editBookingData!.tax
+        } : booking
+      ));
       
       addNotification({
         type: 'success',
-        title: 'Booking Deleted',
-        message: `Booking for ${appointment.customer} has been deleted successfully`
+        title: 'Appointment Updated',
+        message: `Appointment for ${editBookingData.customer} has been successfully updated.`
       });
+      
+      setShowEditDialog(false);
+      setShowAppointmentDetails(false);
+      setEditingAppointment(null);
+      setEditBookingData(null);
+      setEditSelectedServices([]);
     } else {
       addNotification({
         type: 'error',
-        title: 'Delete Failed',
-        message: 'Failed to delete booking from Firebase'
+        title: 'Update Failed',
+        message: 'Failed to update appointment in Firebase. Please try again.'
       });
     }
-  } catch (error) {
-    console.error("Error deleting booking:", error);
-    addNotification({
-      type: 'error',
-      title: 'Error',
-      message: 'Failed to delete booking'
-    });
-  }
-};
+  };
+
+  const deleteBookingInFirebase = async (bookingId: string): Promise<boolean> => {
+    try {
+      const bookingRef = doc(db, "bookings", bookingId);
+      await updateDoc(bookingRef, {
+        status: "deleted",
+        deletedAt: new Date(),
+        updatedAt: new Date()
+      });
+      return true;
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      return false;
+    }
+  };
+
+  const handleDeleteBooking = async (appointment: Appointment) => {
+    if (!appointment.firebaseId) {
+      addNotification({
+        type: 'error',
+        title: 'Delete Failed',
+        message: 'Cannot delete appointment without Firebase ID'
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete booking for ${appointment.customer}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const success = await deleteBookingInFirebase(appointment.firebaseId);
+      
+      if (success) {
+        setBookings(prev => prev.filter(b => b.firebaseId !== appointment.firebaseId));
+        
+        addNotification({
+          type: 'success',
+          title: 'Booking Deleted',
+          message: `Booking for ${appointment.customer} has been deleted successfully`
+        });
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Delete Failed',
+          message: 'Failed to delete booking from Firebase'
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to delete booking'
+      });
+    }
+  };
 
   const handleAddInvoiceItem = () => {
     if (invoiceData) {
@@ -2098,8 +2541,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
     }
   };
 
-  // ===================== EVENT HANDLERS =====================
-
   const handleCreateBooking = (barber: string, date: string, time: string) => {
     setBookingData({
       customer: '',
@@ -2138,7 +2579,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
     setShowBookingDialog(true);
   };
 
-  // UPDATED: Handle Submit Booking with Multiple Services
   const handleSubmitBooking = async () => {
     if (!bookingData.customer || !bookingData.barber || !bookingData.date || !bookingData.time || selectedServices.length === 0) {
       addNotification({
@@ -2149,16 +2589,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
       return;
     }
 
-    console.log('📤 Creating booking with complete data:', {
-      customer: bookingData.customer,
-      services: bookingData.services,
-      selectedServicesCount: selectedServices.length,
-      teamMembers: bookingData.teamMembers,
-      products: bookingData.products,
-      paymentMethods: bookingData.paymentMethods
-    });
-
-    // Save to Firebase
     const result = await createBookingInFirebase(bookingData, selectedServices, selectedCategory, selectedBranch, addNotification);
     
     if (result.success && result.booking) {
@@ -2172,7 +2602,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
 
       setShowBookingDialog(false);
       
-      // Reset form
       setBookingData({
         customer: '',
         phone: '',
@@ -2211,9 +2640,30 @@ const handleDeleteBooking = async (appointment: Appointment) => {
     }
   };
 
-  const handleAppointmentClick = (appointment: Appointment) => {
+  const handleAppointmentClick = async (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setShowAppointmentDetails(true);
+    
+    if (appointment.firebaseId) {
+      try {
+        const bookingRef = doc(db, "bookings", appointment.firebaseId);
+        const bookingSnap = await getDoc(bookingRef);
+        
+        if (bookingSnap.exists()) {
+          const firebaseData = bookingSnap.data();
+          
+          setSelectedAppointment(prev => ({
+            ...prev!,
+            servicePrice: firebaseData.servicePrice || 0,
+            subtotal: firebaseData.subtotal || 0,
+            totalAmount: firebaseData.totalAmount || 0,
+            price: firebaseData.totalAmount || firebaseData.servicePrice || 0
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching fresh data:", error);
+      }
+    }
   };
 
   const handleStatusChange = async (appointmentId: string, newStatus: string) => {
@@ -2451,12 +2901,15 @@ const handleDeleteBooking = async (appointment: Appointment) => {
   };
 
   const pendingAppointments: Appointment[] = bookings
-    .filter(booking => 
-      booking.status === 'pending' || 
-      booking.status === 'approved' || 
-      booking.status === 'rejected' ||
-      booking.status === 'upcoming'
-    )
+    .filter(booking => {
+      if (user?.role === 'admin' && user?.branchName) {
+        return (booking.status === 'pending' || booking.status === 'approved' || 
+                booking.status === 'rejected' || booking.status === 'upcoming') &&
+               booking.branch === user.branchName;
+      }
+      return booking.status === 'pending' || booking.status === 'approved' || 
+             booking.status === 'rejected' || booking.status === 'upcoming';
+    })
     .map((booking, index) => ({
       id: booking.firebaseId || `pending-${index}`,
       firebaseId: booking.firebaseId,
@@ -2468,6 +2921,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
       time: booking.bookingTime,
       duration: booking.totalDuration ? `${booking.totalDuration} min` : '60 min',
       price: booking.totalPrice,
+      servicePrice: booking.servicePrice || 0,
       status: booking.status,
       phone: booking.customerPhone,
       email: booking.customerEmail,
@@ -2476,13 +2930,20 @@ const handleDeleteBooking = async (appointment: Appointment) => {
       branch: booking.branch || 'All Branches',
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
-      // Complete fields
       cardLast4Digits: booking.cardLast4Digits || '',
       trnNumber: booking.trnNumber || '',
       teamMembers: booking.teamMembers || [],
       products: booking.products || [],
       paymentMethods: booking.paymentMethods || [],
-      paymentAmounts: booking.paymentAmounts || { cash: 0, card: 0, check: 0, digital: 0 },
+      paymentAmounts: booking.paymentAmounts 
+        ? { 
+            cash: booking.paymentAmounts?.cash || 0, 
+            card: booking.paymentAmounts?.card || 0, 
+            check: booking.paymentAmounts?.check || 0, 
+            digital: booking.paymentAmounts?.digital || 0,
+            wallet: 0
+          } 
+        : { cash: 0, card: 0, check: 0, digital: 0, wallet: 0 },
       discount: booking.discount || 0,
       discountType: booking.discountType || 'fixed',
       serviceTip: booking.serviceTip || 0,
@@ -2548,7 +3009,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
     }
   };
 
-  // Get confirmed bookings from store
   const confirmedBookings = getConfirmedBookings();
   
   const additionalConvertedBookings: Appointment[] = confirmedBookings.map((booking: any, index: number) => ({
@@ -2573,6 +3033,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
         }, 0) + ' min'
       : '60 min',
     price: booking.totalPrice || 0,
+    servicePrice: booking.totalPrice || 0,
     status: 'scheduled',
     phone: booking.customerPhone || '',
     email: booking.customerEmail || '',
@@ -2580,7 +3041,19 @@ const handleDeleteBooking = async (appointment: Appointment) => {
     source: 'website',
     branch: 'All Branches',
     createdAt: booking.createdAt || new Date(),
-    updatedAt: booking.createdAt || new Date()
+    updatedAt: booking.createdAt || new Date(),
+    cardLast4Digits: '',
+    trnNumber: '',
+    teamMembers: [],
+    products: [],
+    paymentMethods: [],
+    paymentAmounts: { cash: 0, card: 0, check: 0, digital: 0, wallet: 0 },
+    discount: 0,
+    discountType: 'fixed',
+    serviceTip: 0,
+    serviceCharges: 0,
+    tax: 0,
+    pointsAwarded: false
   }));
 
   const finalAppointments = [...mockAppointments, ...convertedBookings, ...additionalConvertedBookings];
@@ -2589,38 +3062,44 @@ const handleDeleteBooking = async (appointment: Appointment) => {
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="flex h-screen ">
-        {/* Sidebar */}
         <AdminSidebar
-          role="branch_admin"
+          role={user?.role === 'admin' ? 'branch_admin' : 'super_admin'}
           onLogout={handleLogout}
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
           key="admin-appointments-sidebar"
         />
 
-        {/* Main Content */}
         <div className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out min-h-0",
           sidebarOpen ? "lg:ml-0" : "lg:ml-1"
         )}>
-          {/* Header */}
           <header className="bg-white shadow-sm border-b shrink-0">
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
                 <AdminMobileSidebar
-                  role="branch_admin"
+                  role={user?.role === 'admin' ? 'branch_admin' : 'super_admin'}
                   onLogout={handleLogout}
                   isOpen={sidebarOpen}
                   onToggle={() => setSidebarOpen(!sidebarOpen)}
                 />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Appointment Calendar</h1>
-                  <p className="text-sm text-gray-600">Manage all bookings from website and mobile</p>
+                  <p className="text-sm text-gray-600">
+                    {user?.role === 'admin' 
+                      ? `Managing appointments for ${user?.branchName || 'your branch'}`
+                      : 'Manage all bookings from website and mobile'
+                    }
+                  </p>
+                  {user?.role === 'admin' && user?.branchName && (
+                    <p className="text-xs text-green-600 font-medium mt-1">
+                      🏢 Branch: {user.branchName}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <CurrencySwitcher />
-                {/* Notifications */}
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="relative">
@@ -2692,7 +3171,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
             </div>
           </header>
 
-          {/* Content */}
           <div className="flex-1 overflow-auto min-h-0">
             <div className="h-full p-4 lg:p-8">
               <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'calendar' | 'advanced-calendar' | 'list' | 'approvals' | 'product-orders')}>
@@ -2700,175 +3178,226 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   <TabsList>
                     <TabsTrigger value="calendar">Calendar View</TabsTrigger>
                     <TabsTrigger value="advanced-calendar">Advanced Calendar</TabsTrigger>
-                    <TabsTrigger value="list">List View</TabsTrigger>
                     <TabsTrigger value="approvals">Booking Approvals</TabsTrigger>
-                    <TabsTrigger value="product-orders">Product Orders</TabsTrigger>
                   </TabsList>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 max-w-sm">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          placeholder="Search appointments..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Filter by status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="scheduled">Scheduled</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
 
-                {/* Calendar View Tab */}
                 <TabsContent value="calendar" className="space-y-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <div></div>
-                    {/* <Button onClick={() => setShowBookingDialog(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90">
-                      <Plus className="w-4 h-4" />
-                      Create Booking
-                    </Button> */}
-                  </div>
-                 
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
-                    {/* Calendar */}
-                    <div className="lg:col-span-2">
-                      <Card className="border-2 shadow-lg bg-white/50 backdrop-blur-sm">
-                        <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 to-secondary/5">
-                          <CardTitle className="flex items-center gap-3 text-xl">
-                            <Calendar className="w-6 h-6 text-primary" />
-                            Booking Calendar
-                          </CardTitle>
-                          <CardDescription className="text-base">
-                            Click on a date to view appointments. Appointments from both website and mobile are shown.
-                          </CardDescription>
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="lg:col-span-1 space-y-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Filters</CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-6">
-                          <CalendarComponent
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={setSelectedDate}
-                            className="rounded-lg border-2 shadow-sm w-full bg-white"
-                            modifiers={{
-                              hasAppointments: (date) => getAppointmentsForDate(date).length > 0
-                            }}
-                            modifiersStyles={{
-                              hasAppointments: {
-                                backgroundColor: 'rgb(59 130 246 / 0.15)',
-                                color: 'rgb(59 130 246)',
-                                fontWeight: '600',
-                                borderRadius: '8px',
-                                border: '2px solid rgb(59 130 246 / 0.3)'
-                              },
-                              today: {
-                                backgroundColor: 'rgb(251 146 60 / 0.1)',
-                                color: 'rgb(251 146 60)',
-                                fontWeight: '600',
-                                border: '2px solid rgb(251 146 60 / 0.3)'
-                              }
-                            }}
-                          />
+                        <CardContent className="space-y-6">
+                          <div className="lg:hidden">
+                            <MobileFriendlyCalendar
+                              selectedDate={selectedDate}
+                              onDateSelect={setSelectedDate}
+                              appointments={filteredAppointments}
+                            />
+                          </div>
+                          
+                          <div>
+                            <AppointmentSearchFilter
+                              searchQuery={searchQuery}
+                              setSearchQuery={setSearchQuery}
+                              appointments={allAppointments}
+                            />
+                          </div>
+                          
+                          <div>
+                            <StatusDropdownFilter
+                              statusFilter={statusFilter}
+                              setStatusFilter={setStatusFilter}
+                              appointments={allAppointments}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Filter by Branch</label>
+                            <Select 
+                              onValueChange={(value) => {}}
+                              disabled={user?.role === 'admin'}
+                            >
+                              <SelectTrigger className="h-11">
+                                <SelectValue placeholder="All Branches" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Branches</SelectItem>
+                                {branches.map(branch => (
+                                  <SelectItem key={branch.id} value={branch.name}>
+                                    {branch.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Total Appointments:</span>
+                              <span className="font-semibold">
+                                {user?.role === 'admin' 
+                                  ? bookings.filter(b => b.branch === user.branchName).length
+                                  : allAppointments.length
+                                }
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Filtered:</span>
+                              <span className="font-semibold">{filteredAppointments.length}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Today's Appointments:</span>
+                              <span className="font-semibold">
+                                {allAppointments.filter(apt => 
+                                  apt.date === new Date().toISOString().split('T')[0] &&
+                                  (user?.role !== 'admin' || apt.branch === user.branchName)
+                                ).length}
+                              </span>
+                            </div>
+                            {user?.role === 'admin' && user?.branchName && (
+                              <div className="flex items-center justify-between text-green-600">
+                                <span className="text-gray-600">Your Branch:</span>
+                                <span className="font-semibold">{user.branchName}</span>
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     </div>
-
-                    {/* Selected Date Appointments Sidebar */}
-                    <div className="lg:col-span-2">
-                      <Card className="border-2 shadow-lg bg-white/50 backdrop-blur-sm h-fit sticky top-6">
-                        <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 to-secondary/5">
-                          <CardTitle className="text-lg lg:text-xl flex items-center gap-3">
-                            <Clock className="w-6 h-6 text-primary" />
-                            {selectedDate ? selectedDate.toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            }) : 'Select a date'}
-                          </CardTitle>
-                          <CardDescription className="text-base font-medium">
-                            {selectedDate ? (
-                              <div className="flex items-center gap-3">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-primary/10 text-primary border border-primary/20">
-                                  {getAppointmentsForDate(selectedDate).length} appointment(s)
+                    
+                    <div className="lg:col-span-3 space-y-6">
+                      <div className="hidden lg:block">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Calendar View</CardTitle>
+                            <CardDescription>
+                              {user?.role === 'admin' 
+                                ? `Showing appointments for ${user.branchName}`
+                                : 'Select a date to view appointments. Showing appointments from all sources.'
+                              }
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <MobileFriendlyCalendar
+                              selectedDate={selectedDate}
+                              onDateSelect={setSelectedDate}
+                              appointments={filteredAppointments}
+                            />
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                          <div>
+                            <CardTitle>Appointments</CardTitle>
+                            <CardDescription>
+                              {selectedDate 
+                                ? `Appointments for ${selectedDate.toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                  })}`
+                                : 'All appointments'}
+                              {user?.role === 'admin' && user?.branchName && (
+                                <span className="ml-2 text-green-600">
+                                  • {user.branchName}
                                 </span>
-                              </div>
-                            ) : 'Choose a date from the calendar'}
-                          </CardDescription>
+                              )}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedDate(undefined)}
+                            >
+                              Clear Date Filter
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedDate(new Date())}
+                            >
+                              Today
+                            </Button>
+                          </div>
                         </CardHeader>
-                        <CardContent className="pt-6 px-6">
-                          {selectedDate && (
+                        <CardContent>
+                          {loading.bookings ? (
+                            <div className="text-center py-12">
+                              <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                              <p className="text-gray-600">Loading appointments...</p>
+                            </div>
+                          ) : filteredAppointments.length === 0 ? (
+                            <div className="text-center py-12">
+                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Calendar className="w-8 h-8 text-gray-400" />
+                              </div>
+                              <h3 className="text-lg font-semibold text-gray-600 mb-2">No appointments found</h3>
+                              <p className="text-gray-500">
+                                {searchQuery || statusFilter !== 'all' || selectedDate
+                                  ? 'Try changing your filters or search query'
+                                  : user?.role === 'admin'
+                                  ? `No appointments scheduled yet for ${user.branchName}`
+                                  : 'No appointments scheduled yet'}
+                              </p>
+                            </div>
+                          ) : (
                             <div className="space-y-4">
-                              {getAppointmentsForDate(selectedDate).map((appointment) => (
+                              {filteredAppointments.map((appointment) => (
                                 <div
                                   key={appointment.id.toString()}
-                                  className="group p-5 border-2 border-gray-100 rounded-2xl cursor-pointer hover:border-primary/30 hover:shadow-xl transition-all duration-300 bg-white hover:bg-gradient-to-r hover:from-primary/5 hover:to-secondary/5"
+                                  className="p-4 border rounded-lg hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
                                   onClick={() => handleAppointmentClick(appointment)}
                                 >
-                                  <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                                        <User className="w-6 h-6 text-primary" />
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                        <div className={`w-3 h-3 rounded-full ${getStatusColor(appointment.status).split(' ')[0]}`}></div>
+                                        <h3 className="font-semibold">{appointment.customer}</h3>
+                                        <Badge className={getStatusColor(appointment.status)}>
+                                          {appointment.status}
+                                        </Badge>
+                                        {user?.role !== 'admin' && appointment.branch && (
+                                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                            <Building className="w-3 h-3 mr-1" />
+                                            {appointment.branch}
+                                          </Badge>
+                                        )}
                                       </div>
-                                      <div>
-                                        <span className="font-semibold text-base text-gray-900 group-hover:text-primary transition-colors">{appointment.time}</span>
-                                        <div className={`flex items-center gap-2 mt-1 ${getSourceColor(appointment.source)}`}>
-                                          {getSourceIcon(appointment.source)}
-                                          <span className="text-xs font-medium capitalize px-2 py-1 rounded-full bg-current/10">{appointment.source}</span>
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                                        <div className="flex items-center gap-1">
+                                          <Scissors className="w-3 h-3" />
+                                          {appointment.service}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <User className="w-3 h-3" />
+                                          {appointment.barber}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="w-3 h-3" />
+                                          {appointment.time} ({appointment.duration})
                                         </div>
                                       </div>
                                     </div>
-                                    <Badge className={`${getStatusColor(appointment.status)} border-2 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm`}>
-                                      {appointment.status}
-                                    </Badge>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <div>
-                                      <p className="font-bold text-gray-900 text-lg group-hover:text-primary transition-colors">{appointment.customer}</p>
-                                      <p className="text-gray-700 text-sm font-medium">{appointment.service}</p>
+                                    <div className="text-right">
+                                      <div className="text-xs text-gray-500">{appointment.date}</div>
                                     </div>
-                                    <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                                      <p className="text-gray-600 text-sm flex items-center gap-2">
-                                        <Scissors className="w-4 h-4 text-secondary" />
-                                        with {appointment.barber}
-                                      </p>
-                                      <span className="text-lg font-bold text-primary">{formatCurrency(appointment.price)}</span>
-                                    </div>
-                                    {appointment.notes && (
-                                      <div className="bg-gray-50 rounded-lg p-3 mt-3">
-                                        <p className="text-xs text-gray-600 italic">"{appointment.notes}"</p>
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
                               ))}
-                              {getAppointmentsForDate(selectedDate).length === 0 && (
-                                <div className="text-center py-16 px-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl border-2 border-dashed border-gray-200">
-                                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                                    <Calendar className="w-10 h-10 text-gray-400" />
-                                  </div>
-                                  <h3 className="text-xl font-bold text-gray-600 mb-2">No appointments</h3>
-                                  <p className="text-gray-500 text-sm mb-6 max-w-xs mx-auto">No appointments scheduled for this date.</p>
-                                  <Button 
-                                    onClick={() => setShowBookingDialog(true)}
-                                    className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-full"
-                                  >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Create Booking
-                                  </Button>
-                                </div>
-                              )}
                             </div>
                           )}
                         </CardContent>
@@ -2877,34 +3406,32 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </TabsContent>
 
-                {/* Advanced Calendar Tab */}
                 <TabsContent value="advanced-calendar" className="space-y-6">
                   <AdvancedCalendar
-                    appointments={finalAppointments.map((apt: any) => {
-                      // Normalize paymentAmounts to ensure all properties exist
-                      const paymentAmounts = {
-                        cash: apt.paymentAmounts?.cash ?? 0,
-                        card: apt.paymentAmounts?.card ?? 0,
-                        check: apt.paymentAmounts?.check ?? 0,
-                        digital: apt.paymentAmounts?.digital ?? 0,
-                        wallet: apt.paymentAmounts?.wallet ?? 0
-                      };
-                      
-                      return {
-                        ...apt,
-                        // Pass all fields
-                        teamMembers: apt.teamMembers || [],
-                        products: apt.products || [],
-                        cardLast4Digits: apt.cardLast4Digits || '',
-                        trnNumber: apt.trnNumber || '',
-                        paymentMethods: apt.paymentMethods || [],
-                        paymentAmounts: paymentAmounts,
-                        discount: apt.discount || 0,
-                        discountType: apt.discountType || 'fixed',
-                        serviceTip: apt.serviceTip || 0,
-                        serviceCharges: apt.serviceCharges || 0,
-                        tax: apt.tax || 5
-                      };
+                    appointments={finalAppointments.map(apt => ({
+                      ...apt,
+                      teamMembers: apt.teamMembers || [],
+                      products: apt.products || [],
+                      cardLast4Digits: apt.cardLast4Digits || '',
+                      trnNumber: apt.trnNumber || '',
+                      paymentMethods: apt.paymentMethods || [],
+                      paymentAmounts: {
+                        cash: (apt.paymentAmounts as any)?.cash || 0,
+                        card: (apt.paymentAmounts as any)?.card || 0,
+                        check: (apt.paymentAmounts as any)?.check || 0,
+                        digital: (apt.paymentAmounts as any)?.digital || 0,
+                        wallet: (apt.paymentAmounts as any)?.wallet || 0
+                      },
+                      discount: apt.discount || 0,
+                      discountType: apt.discountType || 'fixed',
+                      serviceTip: apt.serviceTip || 0,
+                      serviceCharges: apt.serviceCharges || 0,
+                      tax: apt.tax || 5
+                    })).filter(apt => {
+                      if (user?.role === 'admin' && user?.branchName) {
+                        return apt.branch === user.branchName;
+                      }
+                      return true;
                     })}
                     onAppointmentClick={(appointment: any) => {
                       const fullAppointment = allAppointments.find(apt => apt.id === appointment.id);
@@ -2920,258 +3447,9 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                     onCreateBooking={handleCreateBooking}
                     staff={staffMembers}
                     showFullDetails={true}
-                  
                   />
                 </TabsContent>
 
-                {/* List View Tab */}
-                <TabsContent value="list" className="space-y-8">
-                  <div className="space-y-6">
-                    {filteredAppointments.map((appointment) => (
-                      <Card key={appointment.id.toString()} className="border-2 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-                        <CardHeader className="pb-4 border-b bg-linear-to-r from-gray-50/50 to-white">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-6">
-                              <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                                <User className="w-7 h-7 text-primary" />
-                              </div>
-                              <div className="space-y-2">
-                                <CardTitle className="text-xl text-primary flex items-center gap-3">
-                                  {appointment.customer}
-                                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${getSourceColor(appointment.source)} bg-current/10`}>
-                                    {getSourceIcon(appointment.source)}
-                                    <span className="capitalize">{appointment.source}</span>
-                                  </div>
-                                </CardTitle>
-                                <CardDescription className="flex items-center gap-3 text-base">
-                                  <span className="font-medium text-gray-700">{appointment.service}</span>
-                                  <span className="text-gray-400">•</span>
-                                  <span className="text-gray-600">{appointment.barber}</span>
-                                  <span className="text-gray-400">•</span>
-                                  <span className="text-gray-600">{appointment.branch}</span>
-                                  {appointment.services && appointment.services.length > 1 && (
-                                    <Badge className="bg-purple-500 text-white">
-                                      {appointment.services.length} services
-                                    </Badge>
-                                  )}
-                                </CardDescription>
-                              </div>
-                            </div>
-                            <Badge className={`${getStatusColor(appointment.status)} border-2 flex items-center gap-2 px-4 py-2 text-sm font-semibold`}>
-                              {getStatusIcon(appointment.status)}
-                              <span className="capitalize">{appointment.status}</span>
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-                            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                              <Calendar className="w-5 h-5 text-blue-600" />
-                              <div>
-                                <p className="text-sm font-medium text-blue-900">{appointment.date}</p>
-                                <p className="text-xs text-blue-700">at {appointment.time}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
-                              <Clock className="w-5 h-5 text-green-600" />
-                              <div>
-                                <p className="text-sm font-medium text-green-900">{appointment.duration}</p>
-                                <p className="text-xs text-green-700">Duration</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
-                              <DollarSign className="w-5 h-5 text-purple-600" />
-                              <div>
-                                <p className="text-sm font-medium text-purple-900">{formatCurrency(appointment.price)}</p>
-                                <p className="text-xs text-purple-700">Total Price</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
-                              <Phone className="w-5 h-5 text-orange-600" />
-                              <div>
-                                <p className="text-sm font-medium text-orange-900">{appointment.phone}</p>
-                                <p className="text-xs text-orange-700">Contact</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Additional Fields Display */}
-                          {(appointment.cardLast4Digits || appointment.trnNumber || appointment.teamMembers?.length  || appointment.products?.length ) && (
-                            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <CreditCard className="w-5 h-5 text-blue-600 mt-0.5" />
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-blue-900 mb-2">Additional Details</p>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                    {appointment.cardLast4Digits && (
-                                      <div>
-                                        <span className="text-blue-700">Card: </span>
-                                        <span className="font-medium">****{appointment.cardLast4Digits}</span>
-                                      </div>
-                                    )}
-                                    {appointment.trnNumber && (
-                                      <div>
-                                        <span className="text-blue-700">TRN: </span>
-                                        <span className="font-medium">{appointment.trnNumber}</span>
-                                      </div>
-                                    )}
-                                    {appointment.teamMembers && appointment.teamMembers.length > 0 && (
-                                      <div>
-                                        <span className="text-blue-700">Team: </span>
-                                        <span className="font-medium">{appointment.teamMembers.length} members</span>
-                                      </div>
-                                    )}
-                                    {appointment.products && appointment.products.length > 0 && (
-                                      <div>
-                                        <span className="text-blue-700">Products: </span>
-                                        <span className="font-medium">{appointment.products.length} items</span>
-                                      </div>
-                                    )}
-                                    {appointment.services && appointment.services.length > 1 && (
-                                      <div>
-                                        <span className="text-blue-700">Services: </span>
-                                        <span className="font-medium">{appointment.services.length} services</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {appointment.notes && (
-                            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <FileText className="w-5 h-5 text-yellow-600 mt-0.5" />
-                                <div>
-                                  <p className="text-sm font-medium text-yellow-900 mb-1">Notes</p>
-                                  <p className="text-sm text-yellow-800">{appointment.notes}</p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between pt-4 border-t">
-                            <div className="flex items-center gap-6 text-sm text-gray-500">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                                <span>Created: {new Date(appointment.createdAt).toLocaleDateString()}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                <span>Updated: {new Date(appointment.updatedAt).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                            <div className="flex gap-3 flex-wrap">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleAppointmentClick(appointment)}
-                                className="flex items-center gap-2 border-2 hover:bg-primary hover:text-white transition-colors"
-                              >
-                                <Eye className="w-4 h-4" />
-                                View Details
-                              </Button>
-                             
-<Button
-  size="sm"
-  variant="outline"
-  onClick={() => handleDeleteBooking(appointment)}
-  className="flex items-center gap-2 text-red-600 hover:text-white hover:bg-red-600 border-red-300 border-2 transition-colors"
->
-  <Trash2 className="w-4 h-4" />
-  Delete
-</Button>
-
-                              {appointment.status === 'pending' && appointment.firebaseId && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleApproveBooking(appointment.firebaseId as string)}
-                                    className="flex items-center gap-2 text-green-600 hover:text-white hover:bg-green-600 border-green-300 border-2 transition-colors"
-                                  >
-                                    <CheckCircle className="w-4 h-4" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleRejectBooking(appointment.firebaseId as string)}
-                                    className="flex items-center gap-2 text-red-600 hover:text-white hover:bg-red-600 border-red-300 border-2 transition-colors"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-
-                              {(appointment.status === 'approved' || appointment.status === 'scheduled') && appointment.firebaseId && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleStatusChange(appointment.firebaseId as string, 'in-progress') }
-                                    className="flex items-center gap-2 text-blue-600 hover:text-white hover:bg-blue-600 border-blue-300 border-2 transition-colors"
-                                  >
-                                    <Play className="w-4 h-4" />
-                                    Start Service
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleStatusChange(appointment.firebaseId as string, 'cancelled')}
-                                    className="flex items-center gap-2 text-red-600 hover:text-white hover:bg-red-600 border-red-300 border-2 transition-colors"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                    Cancel
-                                  </Button>
-                                </>
-                              )}
-
-                              {appointment.status === 'in-progress' && appointment.firebaseId && (
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700 flex items-center gap-2 border-2 border-green-500 text-white shadow-sm"
-                                  onClick={() => handleStatusChange(appointment.firebaseId as string, 'completed')}
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  Mark Complete
-                                </Button>
-                              )}
-
-                              {appointment.status === 'completed' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleGenerateInvoiceClick(appointment)}
-                                    className="flex items-center gap-2 text-blue-600 hover:text-white hover:bg-blue-600 border-blue-300 border-2 transition-colors"
-                                  >
-                                    <Receipt className="w-4 h-4" />
-                                    Generate Invoice
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {filteredAppointments.length === 0 && (
-                    <div className="text-center py-16 px-8">
-                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Calendar className="w-10 h-10 text-gray-400" />
-                      </div>
-                      <h3 className="text-2xl font-semibold text-gray-600 mb-3">No appointments found</h3>
-                      <p className="text-gray-500 text-lg">Try adjusting your filters or search query</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Booking Approvals Tab */}
                 <TabsContent value="approvals" className="space-y-6">
                   <div className="space-y-4">
                     {loading.bookings ? (
@@ -3185,14 +3463,18 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                           <CheckCircle className="w-10 h-10 text-green-500" />
                         </div>
                         <h3 className="text-2xl font-semibold text-gray-600 mb-3">All caught up!</h3>
-                        <p className="text-gray-500 text-lg">No pending approvals at the moment</p>
+                        <p className="text-gray-500 text-lg">
+                          {user?.role === 'admin' 
+                            ? `No pending approvals for ${user.branchName}`
+                            : 'No pending approvals at the moment'
+                          }
+                        </p>
                       </div>
                     ) : (
                       pendingAppointments.map((appointment) => (
                         <Card key={appointment.id.toString()} className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all">
                           <CardContent className="p-4">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                              {/* Customer & Service Info */}
                               <div className="md:col-span-3">
                                 <div className="flex items-center gap-3 mb-2">
                                   <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
@@ -3201,11 +3483,16 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                   <div className="min-w-0">
                                     <p className="font-semibold text-gray-900 text-sm">{appointment.customer}</p>
                                     <p className="text-xs text-gray-600 truncate">{appointment.service}</p>
+                                    {user?.role !== 'admin' && appointment.branch && (
+                                      <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                        <Building className="w-3 h-3" />
+                                        {appointment.branch}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Date & Time */}
                               <div className="md:col-span-2">
                                 <div className="flex items-center gap-2 text-sm">
                                   <Calendar className="w-4 h-4 text-blue-600" />
@@ -3216,7 +3503,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                 </div>
                               </div>
 
-                              {/* Duration */}
                               <div className="md:col-span-1">
                                 <div className="flex items-center gap-2 text-sm">
                                   <Clock className="w-4 h-4 text-green-600" />
@@ -3224,7 +3510,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                 </div>
                               </div>
 
-                              {/* Price */}
                               <div className="md:col-span-1">
                                 <div className="flex items-center gap-2 text-sm">
                                   <DollarSign className="w-4 h-4 text-purple-600" />
@@ -3232,7 +3517,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                 </div>
                               </div>
 
-                              {/* Status Badge */}
                               <div className="md:col-span-2">
                                 <Badge className={`${getStatusColor(appointment.status)} border flex items-center justify-center gap-1 px-2 py-1 text-xs font-semibold w-full`}>
                                   {getStatusIcon(appointment.status)}
@@ -3240,7 +3524,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                 </Badge>
                               </div>
 
-                              {/* Action Buttons */}
                               <div className="md:col-span-3 flex gap-2 flex-wrap">
                                 {appointment.status === 'pending' && appointment.firebaseId && (
                                   <>
@@ -3283,43 +3566,14 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                                     </Button>
                                     <Button
                                       size="sm"
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1 text-xs h-9"
-                                      onClick={() => handleStatusChange(appointment.firebaseId as string, 'delivered')}
+                                      className="bg-red-600 hover:bg-red-700 text-white flex-1 text-xs h-9 flex items-center justify-center gap-1"
+                                      onClick={() => handleRejectBooking(appointment.firebaseId as string)}
                                     >
-                                      <Package className="w-3 h-3 mr-1" />
-                                      Mark Delivered
+                                      <XCircle className="w-3 h-3" />
+                                      Reject
                                     </Button>
                                   </div>
                                 )}
-
-                                {appointment.status === 'approved' && appointment.firebaseId && (
-                                  <Button
-                                    size="sm"
-                                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1 text-xs h-9 flex items-center justify-center gap-1"
-                                    onClick={() => handleReschedule(appointment.id)}
-                                  >
-                                    <RefreshCw className="w-3 h-3" />
-                                    Reschedule
-                                  </Button>
-                                )}
-                                {appointment.status === 'rejected' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-2 border-red-300 text-red-600 flex-1 text-xs h-9 cursor-not-allowed opacity-60"
-                                    disabled
-                                  >
-                                    Rejected
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-2 flex-1 text-xs h-9"
-                                  onClick={() => handleAppointmentClick(appointment)}
-                                >
-                                  <Eye className="w-3 h-3" />
-                                </Button>
                               </div>
                             </div>
                           </CardContent>
@@ -3328,589 +3582,205 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                     )}
                   </div>
                 </TabsContent>
-
-                {/* Product Orders Tab */}
-                <TabsContent value="product-orders" className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">Product Orders</h2>
-                      <p className="text-gray-600 mt-1">Manage product sales and inventory from Firebase</p>
-                    </div>
-                    <Button className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Order
-                    </Button>
-                  </div>
-
-                  {/* Product Orders Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <Package className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Total Orders</p>
-                          <p className="text-2xl font-bold text-gray-900">{productOrders.length}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Revenue</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {formatCurrency(productOrders.reduce((sum, order) => sum + (order.total || 0), 0))}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <Package className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Delivered</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {productOrders.filter(order => order.status === 'delivered').length}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <Calendar className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Upcoming</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {productOrders.filter(order => order.status === 'upcoming').length}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <AlertCircle className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">Pending</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {productOrders.filter(order => order.status === 'pending').length}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Product Orders Table */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Recent Orders from Firebase</CardTitle>
-                      <CardDescription>Track all product orders and sales - Status updates sync with Firebase</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {loading.orders ? (
-                          <div className="text-center py-8">
-                            <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                            <p className="text-gray-600">Loading orders from Firebase...</p>
-                          </div>
-                        ) : productOrders.length === 0 ? (
-                          <div className="text-center py-16 px-8">
-                            <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-600 mb-2">No orders found</h3>
-                            <p className="text-gray-500">No product orders available in Firebase</p>
-                          </div>
-                        ) : (
-                          productOrders.map((order, index) => (
-                            <div key={order.firebaseId || order.id || `order-${index}`} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <Package className="w-5 h-5 text-blue-600" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="font-semibold text-gray-900">{order.orderNumber || `Order #${order.firebaseId?.substring(0, 8)}`}</p>
-                                    <p className="text-sm text-gray-600">{order.customer}</p>
-                                    <p className="text-xs text-gray-500">Firebase ID: {order.firebaseId?.substring(0, 8)}...</p>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex-1 text-center">
-                                <p className="text-sm text-gray-600">Products</p>
-                                <p className="font-semibold text-gray-900 text-sm">
-                                  {Array.isArray(order.products) ? order.products.slice(0, 2).join(', ') : order.products}
-                                  {Array.isArray(order.products) && order.products.length > 2 && '...'}
-                                </p>
-                              </div>
-                              <div className="flex-1 text-center">
-                                <p className="text-sm text-gray-600">Qty</p>
-                                <p className="font-semibold text-gray-900">{order.quantity}</p>
-                              </div>
-                              <div className="flex-1 text-center">
-                                <p className="text-sm text-gray-600">Total</p>
-                                <p className="font-semibold text-lg text-gray-900">{formatCurrency(order.total)}</p>
-                              </div>
-                              <div className="flex-1 text-center">
-                                <Badge className={cn(
-                                  order.status === 'delivered' && 'bg-emerald-100 text-emerald-800',
-                                  order.status === 'completed' && 'bg-green-100 text-green-800',
-                                  order.status === 'upcoming' && 'bg-blue-100 text-blue-800',
-                                  order.status === 'approved' && 'bg-purple-100 text-purple-800',
-                                  order.status === 'rejected' && 'bg-red-100 text-red-800',
-                                  order.status === 'pending' && 'bg-yellow-100 text-yellow-800',
-                                  'border'
-                                )}>
-                                  {order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Pending'}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {/* COMPLETED BUTTON */}
-                                {(order.status === 'upcoming' || order.status === 'pending' || order.status === 'approved') && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    title="Mark as Completed"
-                                    onClick={() => handleOrderStatusChange(order.firebaseId, 'completed')}
-                                    className="hover:bg-green-100 hover:text-green-700"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                  </Button>
-                                )}
-                                
-                                {/* DELIVERED BUTTON */}
-                                {(order.status === 'upcoming' || order.status === 'pending' || order.status === 'approved' || order.status === 'completed') && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    title="Mark as Delivered"
-                                    onClick={() => handleOrderStatusChange(order.firebaseId, 'delivered')}
-                                    className="hover:bg-emerald-100 hover:text-emerald-700"
-                                  >
-                                    <Package className="w-4 h-4 text-emerald-600" />
-                                  </Button>
-                                )}
-                                
-                                {/* UPCOMING BUTTON */}
-                                {order.status !== 'upcoming' && order.status !== 'delivered' && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    title="Mark as Upcoming"
-                                    onClick={() => handleOrderStatusChange(order.firebaseId, 'upcoming')}
-                                    className="hover:bg-blue-100 hover:text-blue-700"
-                                  >
-                                    <Calendar className="w-4 h-4 text-blue-600" />
-                                  </Button>
-                                )}
-                                
-                                {/* REJECT BUTTON */}
-                                {order.status !== 'rejected' && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    title="Reject Order"
-                                    onClick={() => handleOrderStatusChange(order.firebaseId, 'rejected')}
-                                    className="hover:bg-red-100 hover:text-red-700"
-                                  >
-                                    <XCircle className="w-4 h-4 text-red-600" />
-                                  </Button>
-                                )}
-                                
-                                {/* PENDING BUTTON (if allowed) */}
-                                {allowPendingOrders && order.status !== 'pending' && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    title="Mark as Pending"
-                                    onClick={() => handleOrderStatusChange(order.firebaseId, 'pending')}
-                                    className="hover:bg-yellow-100 hover:text-yellow-700"
-                                  >
-                                    <AlertCircle className="w-4 h-4 text-yellow-600" />
-                                  </Button>
-                                )}
-                                
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem>
-                                      <Eye className="w-4 h-4 mr-2" />
-                                      View Details
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                      <Edit className="w-4 h-4 mr-2" />
-                                      Edit Order
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                      <Download className="w-4 h-4 mr-2" />
-                                      Download Invoice
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      onClick={() => handleDeleteOrder(order.firebaseId)}
-                                      className="text-red-600"
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      Delete Order
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
               </Tabs>
             </div>
           </div>
         </div>
       </div>
 
-      {/* COMPLETE: Appointment Details Sheet with ALL FIELDS */}
       <Sheet open={showAppointmentDetails} onOpenChange={setShowAppointmentDetails}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          <SheetHeader className="border-b-2 pb-6 mb-8 bg-linear-to-r from-primary/5 to-secondary/5 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg">
+          <SheetHeader className="border-b pb-4 mb-6">
             <SheetTitle className="flex items-center gap-3 text-2xl">
               <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-primary" />
               </div>
               Appointment Details
-              {selectedAppointment && (
-                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${getSourceColor(selectedAppointment.source)} bg-current/10`}>
-                  {getSourceIcon(selectedAppointment.source)}
-                  <span className="capitalize">{selectedAppointment.source}</span>
-                </div>
-              )}
             </SheetTitle>
-            <SheetDescription className="text-base mt-2">
-              Complete appointment information and management options
+            <SheetDescription>
+              Complete booking information from Firebase
             </SheetDescription>
           </SheetHeader>
 
           {selectedAppointment && (
-            <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-              {/* Status Overview */}
-              <div className="p-6 bg-linear-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    Appointment Status
-                  </h3>
-                  <Badge className={`${getStatusColor(selectedAppointment.status)} border-2 px-4 py-2 text-sm font-semibold flex items-center gap-2`}>
-                    {getStatusIcon(selectedAppointment.status)}
-                    <span className="capitalize">{selectedAppointment.status}</span>
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span>Created: {new Date(selectedAppointment.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-blue-800">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span>Updated: {new Date(selectedAppointment.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* UPDATED: Multiple Services Display */}
-              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Scissors className="w-5 h-5 text-purple-600" />
-                  </div>
-                  Service Information
-                  {selectedAppointment.services && selectedAppointment.services.length > 1 && (
-                    <Badge className="bg-purple-500 text-white ml-2">
-                      {selectedAppointment.services.length} Services
+            <div className="space-y-6">
+              <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-blue-900">Booking Status</h3>
+                    <Badge className={`${getStatusColor(selectedAppointment.status)} mt-2 px-4 py-2 text-base`}>
+                      {getStatusIcon(selectedAppointment.status)}
+                      <span className="ml-2 capitalize">{selectedAppointment.status}</span>
                     </Badge>
-                  )}
-                </h3>
-                
-                {/* Single Service Display */}
-                {(!selectedAppointment.services || selectedAppointment.services.length <= 1) && (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <div>
-                        <p className="font-bold text-gray-900 text-lg">{selectedAppointment.service}</p>
-                        <p className="text-sm text-purple-600">Primary Service</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-primary text-xl">{formatCurrency(selectedAppointment.price)}</p>
-                        <p className="text-sm text-gray-500">{selectedAppointment.duration}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Multiple Services Display */}
-                {selectedAppointment.services && selectedAppointment.services.length > 1 && (
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600">Multiple services booked:</p>
-                    <div className="space-y-3">
-                      {selectedAppointment.services.map((service, index) => (
-                        <div key={index} className="flex justify-between items-center p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                              <span className="font-bold text-purple-700">{index + 1}</span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{service}</p>
-                              <p className="text-xs text-purple-600">Service {index + 1}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-  <p className="font-bold text-gray-900">
-    {formatCurrency(
-      selectedAppointment.price / 
-      (selectedAppointment.services?.length || 1)
-    )}
-  </p>
-  <p className="text-xs text-gray-500">Approx. price</p>
-</div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="pt-4 border-t border-purple-200">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Total Services:</p>
-                          <p className="text-lg font-bold text-purple-700">{selectedAppointment.services.length} services</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-700">Total Price:</p>
-                          <p className="text-2xl font-bold text-green-600">{formatCurrency(selectedAppointment.price)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Barber/Staff Information */}
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <User className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium text-gray-900">Assigned Barber</p>
-                        <p className="text-sm text-blue-700">{selectedAppointment.barber}</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-blue-500 text-white">
-                      {selectedAppointment.staffRole || 'Hairstylist'}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer Information - WITH ALL FIELDS */}
-              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-green-600" />
-                  </div>
-                  Customer Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Basic Customer Info */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700">Full Name</label>
-                      <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border">
-                        {selectedAppointment.customer}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700">Email Address</label>
-                      <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border break-all">
-                        {selectedAppointment.email}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700">Phone Number</label>
-                      <p className="text-base font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg border">
-                        {selectedAppointment.phone}
-                      </p>
-                    </div>
-                    
-                    {/* Card & TRN Details */}
-                    <div className="grid grid-cols-2 gap-4">
-                      {selectedAppointment.cardLast4Digits && (
-                        <div>
-                          <label className="text-sm font-semibold text-gray-700">Card Last 4</label>
-                          <p className="text-base font-medium text-gray-900 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
-                            ****{selectedAppointment.cardLast4Digits}
-                          </p>
-                        </div>
-                      )}
-                      {selectedAppointment.trnNumber && (
-                        <div>
-                          <label className="text-sm font-semibold text-gray-700">TRN Number</label>
-                          <p className="text-base font-medium text-gray-900 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
-                            {selectedAppointment.trnNumber}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Team Members - COMPLETE DISPLAY */}
-              {selectedAppointment.teamMembers && selectedAppointment.teamMembers.length > 0 && (
-                <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
-                  <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-orange-600" />
-                    </div>
-                    Team Members & Tips
-                    <Badge className="bg-orange-500 text-white">
-                      {selectedAppointment.teamMembers.length} members
-                    </Badge>
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {selectedAppointment.teamMembers.map((member, index) => (
-                      <div key={index} className="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                            <User className="w-5 h-5 text-orange-500" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{member.name}</p>
-                            <p className="text-sm text-orange-600">
-                              {member.name === selectedAppointment.barber ? 'Primary Barber' : 'Assistant'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-green-600">{formatCurrency(member.tip)}</p>
-                          <p className="text-xs text-gray-500">Tip Amount</p>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {selectedAppointment.serviceTip && selectedAppointment.serviceTip > 0 && (
-                      <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200">
-                        <div className="flex items-center gap-3">
-                          <DollarSign className="w-5 h-5 text-green-500" />
-                          <div>
-                            <p className="font-medium">Additional Service Tip</p>
-                            <p className="text-sm text-green-600">For exceptional service</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-green-600">{formatCurrency(selectedAppointment.serviceTip)}</p>
-                        </div>
+                    {selectedAppointment.branch && (
+                      <div className="mt-2 flex items-center gap-1 text-sm text-blue-700">
+                        <Building className="w-4 h-4" />
+                        <span>Branch: {selectedAppointment.branch}</span>
                       </div>
                     )}
-                    
-                    <div className="pt-4 border-t border-orange-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-700">Total Team Tips:</span>
-                       <span className="font-bold text-green-600">
-  {formatCurrency(
-    (selectedAppointment.serviceTip || 0) + 
-    (selectedAppointment.teamMembers?.reduce((sum, tm) => sum + tm.tip, 0) || 0)
-  )}
-</span>
-                      </div>
-                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-blue-700">Booking Reference</p>
+                    <p className="text-xl font-bold text-blue-900">
+                      {selectedAppointment.bookingNumber || `BK-${selectedAppointment.id}`}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">ID: {selectedAppointment.firebaseId}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Products - COMPLETE DISPLAY */}
-              {selectedAppointment.products && selectedAppointment.products.length > 0 && (
-                <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
-                  <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Package className="w-5 h-5 text-blue-600" />
-                    </div>
-                    Products Purchased
-                    <Badge className="bg-blue-500 text-white">
-                      {selectedAppointment.products.length} items
-                    </Badge>
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    {selectedAppointment.products.map((product, index) => (
-                      <div key={index} className="flex justify-between items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="p-6 bg-white border-2 border-gray-200 rounded-xl">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                  <Scissors className="w-6 h-6 text-purple-600" />
+                  Service Information
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Scissors className="w-5 h-5 text-purple-600" />
                         <div>
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-blue-600">{product.category}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">{formatCurrency(product.price)} each</p>
-                          <p className="text-sm text-gray-500">
-                            x{product.quantity} = {formatCurrency(product.price * product.quantity)}
+                          <p className="text-sm font-semibold text-gray-700">Service Name</p>
+                          <p className="text-lg font-medium text-gray-900">
+                            {selectedAppointment.service || "No service specified"}
                           </p>
                         </div>
                       </div>
-                    ))}
-                    
-                    <div className="pt-4 border-t border-blue-200">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-700">Total Products Value:</span>
-                        <span className="font-bold text-blue-600">
-                          {formatCurrency(
-                            selectedAppointment.products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
-                          )}
-                        </span>
+                      <Badge className="bg-purple-500 text-white">Service</Badge>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                          <DollarSign className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">Service Price</p>
+                          <p className="text-3xl font-bold text-green-700">
+                            {formatCurrency(selectedAppointment.servicePrice || 0)}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Direct from Firebase • Verified
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge className="bg-green-500 text-white mb-2 px-3 py-1">Firebase Value</Badge>
+                        <div className="text-sm text-green-700">
+                          <div className="flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>servicePrice: {selectedAppointment.servicePrice || 0}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Payment Information - COMPLETE DISPLAY */}
-              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-indigo-600" />
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Calculator className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">Subtotal</p>
+                          <p className="text-2xl font-bold text-blue-700">
+                            {formatCurrency(selectedAppointment.subtotal || selectedAppointment.servicePrice || 0)}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {selectedAppointment.subtotal ? "From Firebase subtotal field" : "Calculated from servicePrice"}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className="bg-blue-500 text-white">Subtotal</Badge>
+                    </div>
                   </div>
-                  Payment Information
+
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">Duration</p>
+                          <p className="text-lg font-medium text-gray-900">
+                            {selectedAppointment.duration || "60 min"}
+                          </p>
+                        </div>
+                      </div>
+                      <Clock className="w-5 h-5 text-blue-600" />
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <User className="w-5 h-5 text-indigo-600" />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">Assigned Staff</p>
+                          <p className="text-lg font-medium text-gray-900">{selectedAppointment.barber}</p>
+                          {selectedAppointment.staffRole && (
+                            <p className="text-sm text-indigo-600">{selectedAppointment.staffRole}</p>
+                          )}
+                        </div>
+                      </div>
+                      {selectedAppointment.staffId && (
+                        <Badge className="bg-indigo-500 text-white">
+                          ID: {selectedAppointment.staffId}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-white border-2 border-gray-200 rounded-xl">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                  <CreditCard className="w-6 h-6 text-indigo-600" />
+                  Payment Details
                 </h3>
                 
                 <div className="space-y-6">
-                  {/* Payment Methods */}
-                  {selectedAppointment.paymentMethods && selectedAppointment.paymentMethods.length > 0 && (
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 mb-2 block">Payment Methods Used</label>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedAppointment.paymentMethods.map((method, index) => (
-                          <Badge key={index} className="bg-indigo-100 text-indigo-800 px-3 py-1.5 border border-indigo-300">
-                            {method.charAt(0).toUpperCase() + method.slice(1)}
-                          </Badge>
-                        ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="w-5 h-5 text-gray-600" />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">Payment Status</p>
+                          <p className="text-lg font-medium text-gray-900">
+                            {selectedAppointment.paymentStatus || "Pending"}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Payment Distribution */}
+                    
+                    <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">Payment Method</p>
+                        <p className="text-lg font-medium text-gray-900">
+                          {selectedAppointment.paymentMethod || 'Cash'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {selectedAppointment.paymentAmounts && (
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 mb-3 block">Payment Distribution</label>
+                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+                      <h4 className="font-bold text-gray-900 mb-3">Payment Distribution</h4>
                       <div className="space-y-3">
                         {Object.entries(selectedAppointment.paymentAmounts).map(([method, amount]) => {
                           if (amount > 0) {
                             return (
-                              <div key={method} className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                              <div key={method} className="flex justify-between items-center p-3 bg-white rounded-lg border">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                                    <CreditCard className="w-4 h-4 text-indigo-600" />
+                                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                    <CreditCard className="w-4 h-4 text-green-600" />
                                   </div>
                                   <span className="font-medium capitalize">{method}:</span>
                                 </div>
-                                <span className="font-bold text-indigo-700">{formatCurrency(amount)}</span>
+                                <span className="font-bold text-green-700">{formatCurrency(amount)}</span>
                               </div>
                             );
                           }
@@ -3919,253 +3789,226 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                       </div>
                     </div>
                   )}
-                  
-                  {/* Pricing Details */}
-                  <div className="grid grid-cols-2 gap-6">
-                    {/* Discount */}
-                    {selectedAppointment.discount && selectedAppointment.discount > 0 && (
-                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                        <label className="text-sm font-semibold text-gray-700">Discount Applied</label>
-                        <p className="text-lg font-bold text-green-600 mt-1">
-                          {selectedAppointment.discountType === 'percentage' 
-                            ? `${selectedAppointment.discount}%` 
-                            : formatCurrency(selectedAppointment.discount)}
-                        </p>
-                        <p className="text-xs text-green-600 mt-1">
-                          Type: {selectedAppointment.discountType}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Service Charges */}
-                    {selectedAppointment.serviceCharges && selectedAppointment.serviceCharges > 0 && (
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <label className="text-sm font-semibold text-gray-700">Service Charges</label>
-                        <p className="text-lg font-bold text-blue-600 mt-1">
-                          {formatCurrency(selectedAppointment.serviceCharges)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Tax */}
-                    {selectedAppointment.tax && (
-                      <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                        <label className="text-sm font-semibold text-gray-700">Tax Applied</label>
-                        <p className="text-lg font-bold text-purple-600 mt-1">{selectedAppointment.tax}%</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Total Price Summary */}
-                  <div className="p-5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-300">
-                    <h4 className="font-bold text-gray-900 mb-4 text-lg">Price Breakdown</h4>
+
+                  <div className="p-5 bg-gradient-to-r from-primary/10 to-secondary/10 border-2 border-primary/20 rounded-xl">
+                    <h4 className="font-bold text-gray-900 mb-4 text-lg">Price Summary</h4>
                     
                     <div className="space-y-3">
-                      {/* Services Total */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Services:</span>
-                        <span className="font-medium">
-                          {formatCurrency(
-                            selectedAppointment.price - 
-                            (selectedAppointment.products?.reduce((sum, p) => sum + (p.price * p.quantity), 0) || 0)
-                          )}
+                      <div className="flex justify-between items-center py-2">
+                        <div className="flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-primary" />
+                          <span className="font-medium">Service Price:</span>
+                        </div>
+                        <span className="font-bold text-primary">
+                          {formatCurrency(selectedAppointment.servicePrice || 0)}
                         </span>
                       </div>
-                      
-                      {/* Products Total */}
-                      {selectedAppointment.products && selectedAppointment.products.length > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-700">Products:</span>
-                          <span className="font-medium">
-                            {formatCurrency(
-                              selectedAppointment.products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
-                            )}
+
+                      <div className="flex justify-between items-center py-2">
+                        <div className="flex items-center gap-2">
+                          <Calculator className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium">Subtotal:</span>
+                        </div>
+                        <span className="font-bold text-blue-700">
+                          {formatCurrency(selectedAppointment.subtotal || selectedAppointment.servicePrice || 0)}
+                        </span>
+                      </div>
+
+                      {selectedAppointment.taxAmount && selectedAppointment.taxAmount > 0 ? (
+                        <div className="flex justify-between items-center py-2">
+                          <div className="flex items-center gap-2">
+                            <Receipt className="w-4 h-4 text-red-600" />
+                            <span className="font-medium">Tax ({selectedAppointment.tax || 0}%):</span>
+                          </div>
+                          <span className="font-bold text-red-700">
+                            {formatCurrency(selectedAppointment.taxAmount)}
                           </span>
                         </div>
+                      ) : (
+                        <div className="flex justify-between items-center py-2">
+                          <div className="flex items-center gap-2">
+                            <Receipt className="w-4 h-4 text-gray-600" />
+                            <span className="font-medium text-gray-500">Tax:</span>
+                          </div>
+                          <span className="text-gray-500">No tax applied</span>
+                        </div>
                       )}
-                      
-                      {/* Service Charges */}
+
                       {selectedAppointment.serviceCharges && selectedAppointment.serviceCharges > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-700">Service Charges:</span>
-                          <span className="font-medium">{formatCurrency(selectedAppointment.serviceCharges)}</span>
-                        </div>
-                      )}
-                      
-                      {/* Discount */}
-                      {selectedAppointment.discount && selectedAppointment.discount > 0 && (
-                        <div className="flex justify-between items-center text-green-600">
-                          <span>Discount:</span>
-                          <span className="font-medium">
-                            -{formatCurrency(
-                              selectedAppointment.discountType === 'percentage'
-                                ? (selectedAppointment.price * selectedAppointment.discount) / 100
-                                : selectedAppointment.discount
-                            )}
+                        <div className="flex justify-between items-center py-2">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-purple-600" />
+                            <span className="font-medium">Service Charges:</span>
+                          </div>
+                          <span className="font-bold text-purple-700">
+                            {formatCurrency(selectedAppointment.serviceCharges)}
                           </span>
                         </div>
                       )}
-                      
-                      {/* Tax */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Tax ({selectedAppointment.tax || 5}%):</span>
-                        <span className="font-medium">
-                          {formatCurrency(
-                            (selectedAppointment.price * (selectedAppointment.tax || 5)) / 100
-                          )}
-                        </span>
-                      </div>
-                      
-                      {/* Tips */}
-                      {(selectedAppointment.serviceTip || (selectedAppointment.teamMembers && selectedAppointment.teamMembers.length > 0)) && (
-                        <div className="flex justify-between items-center text-blue-600">
-                          <span>Tips:</span>
-                          <span className="font-medium">
-                            {formatCurrency(
-                              (selectedAppointment.serviceTip || 0) + 
-                              (selectedAppointment.teamMembers?.reduce((sum, tm) => sum + tm.tip, 0) || 0)
-                            )}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Divider */}
-                      <div className="border-t pt-3 mt-3">
+
+                      <div className="border-t pt-4 mt-2">
                         <div className="flex justify-between items-center text-xl font-bold">
-                          <span className="text-gray-900">Total Amount:</span>
-                          <span className="text-green-600">{formatCurrency(selectedAppointment.price)}</span>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="w-5 h-5 text-primary" />
+                            <span className="text-gray-900">Total Amount:</span>
+                          </div>
+                          <span className="text-2xl text-primary">
+                            {formatCurrency(
+                              selectedAppointment.totalAmount ||
+                              selectedAppointment.price ||
+                              selectedAppointment.servicePrice ||
+                              0
+                            )}
+                          </span>
                         </div>
+                        <p className="text-xs text-gray-500 mt-1 text-right">
+                          {selectedAppointment.totalAmount 
+                            ? "From Firebase totalAmount field"
+                            : selectedAppointment.price 
+                            ? "From price field" 
+                            : "From servicePrice field"}
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Additional Information */}
-              <div className="space-y-6 p-6 bg-white border-2 border-gray-200 rounded-xl shadow-sm">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-yellow-600" />
-                  </div>
-                  Additional Information
+              <div className="p-6 bg-white border-2 border-gray-200 rounded-xl">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                  <User className="w-6 h-6 text-green-600" />
+                  Customer Information
                 </h3>
                 
-                <div className="space-y-6">
-                  {/* Notes */}
-                  {selectedAppointment.notes && (
-                    <div className="space-y-3">
-                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Special Notes & Instructions
-                      </label>
-                      <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
-                        <p className="text-gray-800 italic">{selectedAppointment.notes}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Full Name</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-lg font-medium text-gray-900">
+                          {selectedAppointment.customer}
+                        </p>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Branch Location */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Branch Location
-                    </label>
-                    <div className="p-3 bg-gray-50 rounded-lg border">
-                      <p className="font-medium text-gray-900">{selectedAppointment.branch}</p>
+                    
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Email Address</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border break-all">
+                        <p className="text-lg font-medium text-gray-900">
+                          {selectedAppointment.email || "Not provided"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Timestamps */}
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Created</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {new Date(selectedAppointment.createdAt).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(selectedAppointment.createdAt).toLocaleTimeString()}
-                      </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Phone Number</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-lg font-medium text-gray-900">
+                          {selectedAppointment.phone || "Not provided"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-center p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Last Updated</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {new Date(selectedAppointment.updatedAt).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(selectedAppointment.updatedAt).toLocaleTimeString()}
-                      </p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedAppointment.cardLast4Digits && (
+                        <div>
+                          <label className="text-sm font-semibold text-gray-700 block mb-2">Card Last 4</label>
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-lg font-medium text-gray-900">
+                              ****{selectedAppointment.cardLast4Digits}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedAppointment.trnNumber && (
+                        <div>
+                          <label className="text-sm font-semibold text-gray-700 block mb-2">TRN Number</label>
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-lg font-medium text-gray-900">
+                              {selectedAppointment.trnNumber}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              <div className="p-6 bg-white border-2 border-gray-200 rounded-xl">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                  <Calendar className="w-6 h-6 text-orange-600" />
+                  Booking Details
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Booking Date</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-lg font-medium text-gray-900">{selectedAppointment.date}</p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Booking Time</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-lg font-medium text-gray-900">{selectedAppointment.time}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Branch</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-lg font-medium text-gray-900">
+                          {selectedAppointment.branch || "Not specified"}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Service Category</label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-lg font-medium text-gray-900">
+                          {selectedAppointment.serviceCategory || "General"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {selectedAppointment.notes && (
+                  <div className="mt-6">
+                    <label className="text-sm font-semibold text-gray-700 block mb-2">Special Notes</label>
+                    <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                      <p className="text-gray-800 italic">{selectedAppointment.notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-4 p-6 bg-gray-50 border-2 border-gray-200 rounded-xl">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <CheckCircle className="w-5 h-5" />
                   Quick Actions
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Generate Invoice Button */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {selectedAppointment.status === 'completed' && (
                     <Button
                       variant="outline"
-                      className="h-12 flex items-center justify-center gap-3 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors"
+                      className="h-12 flex items-center justify-center gap-3 border-2 border-blue-300 text-blue-700 hover:bg-blue-50"
                       onClick={() => handleGenerateInvoiceClick(selectedAppointment)}
                     >
                       <Receipt className="w-5 h-5" />
                       Generate Invoice
                     </Button>
                   )}
-                  
-                  {/* Status-based actions */}
-                  {selectedAppointment.status === 'pending' && selectedAppointment.firebaseId && (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        className="h-12 flex items-center justify-center gap-3 border-2 border-green-300 text-green-700 hover:bg-green-50 transition-colors"
-                        onClick={() => handleApproveBooking(selectedAppointment.firebaseId as string)}
-                      >
-                        <CheckCircle className="w-5 h-5" />
-                        Approve
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="h-12 flex items-center justify-center gap-3 border-2 border-red-300 text-red-700 hover:bg-red-50 transition-colors"
-                        onClick={() => handleRejectBooking(selectedAppointment.firebaseId as string)}
-                      >
-                        <XCircle className="w-5 h-5" />
-                        Reject
-                      </Button>
-                    </>
-                  )}
-                  
-                  {/* View Invoice Button for PDF */}
-                  <Button
-                    variant="outline"
-                    className="h-12 flex items-center justify-center gap-3 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 transition-colors"
-                    onClick={() => {
-                      handleGenerateInvoiceClick(selectedAppointment);
-                      setShowAppointmentDetails(false);
-                    }}
-                  >
-                    <FileText className="w-5 h-5" />
-                    View/Download PDF
-                  </Button>
-                 {/* Edit Appointment Button - ADD THIS IN ACTION BUTTONS SECTION */}
-<Button
-  variant="outline"
-  className="h-12 flex items-center justify-center gap-3 border-2 border-green-300 text-green-700 hover:bg-green-50 transition-colors"
-  onClick={() => {
-    if (selectedAppointment) {
-      handleEditAppointment(selectedAppointment);
-    }
-  }}
->
-  <Edit className="w-5 h-5" />
-  Edit Appointment
-</Button>
                 </div>
               </div>
             </div>
@@ -4173,7 +4016,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
         </SheetContent>
       </Sheet>
 
-      {/* UPDATED: Booking Creation Dialog with Multiple Services */}
       <Sheet open={showBookingDialog} onOpenChange={setShowBookingDialog}>
         <SheetContent className="sm:max-w-[900px] w-full z-[60] overflow-y-auto">
           <SheetHeader className="border-b pb-4 mb-6">
@@ -4184,7 +4026,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
           </SheetHeader>
 
           <div className="space-y-6 pb-6">
-            {/* Customer Information */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
@@ -4224,7 +4065,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
 
-                {/* Card Last 4 Digits & TRN Number */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -4255,7 +4095,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* Category & Branch Selection */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Tag className="w-5 h-5 text-primary" />
@@ -4349,152 +4188,148 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            
-            {/* UPDATED: Multiple Services Selection - DROPDOWN VERSION */}
-<div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-    <Scissors className="w-5 h-5 text-primary" />
-    Select Services (Choose Multiple)
-    {selectedServices.length > 0 && (
-      <Badge className="bg-green-500 text-white ml-2">
-        {selectedServices.length} Selected
-      </Badge>
-    )}
-  </h3>
+            <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-primary" />
+                Select Services (Choose Multiple)
+                {selectedServices.length > 0 && (
+                  <Badge className="bg-green-500 text-white ml-2">
+                    {selectedServices.length} Selected
+                  </Badge>
+                )}
+              </h3>
 
-  <div className="space-y-4">
-    {/* Service Selection DROPDOWN */}
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-700">
-        Select Services from Dropdown
-      </label>
-      <Select 
-        value="" 
-        onValueChange={(serviceName) => handleServiceSelection(serviceName)}
-        disabled={!bookingData.branch}
-      >
-        <SelectTrigger className="h-11">
-          <SelectValue placeholder={bookingData.branch ? "Select services from dropdown..." : "First select a branch"} />
-        </SelectTrigger>
-        <SelectContent className="max-h-60">
-          {loading.services ? (
-            <div className="text-center py-2">
-              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
-              <p className="text-xs text-gray-600 mt-1">Loading services...</p>
-            </div>
-          ) : filteredServices.length === 0 && bookingData.branch ? (
-            <div className="text-center py-2">
-              <AlertCircle className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
-              <p className="text-sm text-gray-600">No services available for {bookingData.branch}</p>
-            </div>
-          ) : (
-            filteredServices.map((service) => {
-              const isSelected = selectedServices.some(s => s.name === service.name);
-              return (
-                <SelectItem 
-                  key={service.firebaseId} 
-                  value={service.name}
-                  className={`flex items-center justify-between py-3 ${isSelected ? 'bg-blue-50' : ''}`}
-                >
-                  <div className="flex items-center gap-2">
-                    {isSelected && (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    )}
-                    <div className="text-left">
-                      <span className={isSelected ? 'font-medium' : ''}>
-                        {service.name}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Select Services from Dropdown
+                  </label>
+                  <Select 
+                    value="" 
+                    onValueChange={(serviceName) => handleServiceSelection(serviceName)}
+                    disabled={!bookingData.branch}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder={bookingData.branch ? "Select services from dropdown..." : "First select a branch"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {loading.services ? (
+                        <div className="text-center py-2">
+                          <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                          <p className="text-xs text-gray-600 mt-1">Loading services...</p>
+                        </div>
+                      ) : filteredServices.length === 0 && bookingData.branch ? (
+                        <div className="text-center py-2">
+                          <AlertCircle className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
+                          <p className="text-sm text-gray-600">No services available for {bookingData.branch}</p>
+                        </div>
+                      ) : (
+                        filteredServices.map((service) => {
+                          const isSelected = selectedServices.some(s => s.name === service.name);
+                          return (
+                            <SelectItem 
+                              key={service.firebaseId} 
+                              value={service.name}
+                              className={`flex items-center justify-between py-3 ${isSelected ? 'bg-blue-50' : ''}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {isSelected && (
+                                  <CheckCircle className="w-4 h-4 text-green-500" />
+                                )}
+                                <div className="text-left">
+                                  <span className={isSelected ? 'font-medium' : ''}>
+                                    {service.name}
+                                  </span>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                    <span>{service.category}</span>
+                                    <span>•</span>
+                                    <span>{service.duration}min</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="text-sm font-medium text-primary">
+                                {formatCurrency(service.price)}
+                              </span>
+                            </SelectItem>
+                          );
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Use dropdown to select services. Select multiple times to add multiple services.
+                  </p>
+                </div>
+                
+                {selectedServices.length > 0 ? (
+                  <div className="mt-4 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
+                    <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Selected Services Summary
+                      <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                        {selectedServices.length} service(s)
                       </span>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                        <span>{service.category}</span>
-                        <span>•</span>
-                        <span>{service.duration}min</span>
+                    </h4>
+                    
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                      {selectedServices.map((service, index) => (
+                        <div 
+                          key={service.id} 
+                          className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-100"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                              <span className="font-bold text-green-700">{index + 1}</span>
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{service.name}</p>
+                              <p className="text-xs text-gray-500">{service.category} • {service.duration} min</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-gray-900">{formatCurrency(service.price)}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleServiceSelection(service.name)}
+                              className="h-7 w-7 p-0 hover:bg-red-50"
+                            >
+                              <XCircle className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="pt-4 mt-4 border-t border-green-200">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-green-800 mb-1">Total Duration:</p>
+                          <p className="text-lg font-bold text-green-900">
+                            {selectedServices.reduce((sum, s) => sum + s.duration, 0)} minutes
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-green-800 mb-1">Total Services Price:</p>
+                          <p className="text-2xl font-bold text-green-700">
+                            {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <span className="text-sm font-medium text-primary">
-                    {formatCurrency(service.price)}
-                  </span>
-                </SelectItem>
-              );
-            })
-          )}
-        </SelectContent>
-      </Select>
-      <p className="text-xs text-gray-500">
-        Use dropdown to select services. Select multiple times to add multiple services.
-      </p>
-    </div>
-    
-    {/* Selected Services Summary */}
-    {selectedServices.length > 0 ? (
-      <div className="mt-4 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-        <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
-          <CheckCircle className="w-5 h-5" />
-          Selected Services Summary
-          <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-            {selectedServices.length} service(s)
-          </span>
-        </h4>
-        
-        <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-          {selectedServices.map((service, index) => (
-            <div 
-              key={service.id} 
-              className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-100"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="font-bold text-green-700">{index + 1}</span>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{service.name}</p>
-                  <p className="text-xs text-gray-500">{service.category} • {service.duration} min</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-gray-900">{formatCurrency(service.price)}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleServiceSelection(service.name)}
-                  className="h-7 w-7 p-0 hover:bg-red-50"
-                >
-                  <XCircle className="w-4 h-4 text-red-500" />
-                </Button>
+                ) : (
+                  <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg">
+                    <Scissors className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">No services selected yet</p>
+                    <p className="text-xs text-gray-500">Select services from dropdown above</p>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-        
-        <div className="pt-4 mt-4 border-t border-green-200">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-green-800 mb-1">Total Duration:</p>
-              <p className="text-lg font-bold text-green-900">
-                {selectedServices.reduce((sum, s) => sum + s.duration, 0)} minutes
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-green-800 mb-1">Total Services Price:</p>
-              <p className="text-2xl font-bold text-green-700">
-                {formatCurrency(selectedServices.reduce((sum, s) => sum + s.price, 0))}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    ) : (
-      <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg">
-        <Scissors className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-        <p className="text-sm text-gray-600">No services selected yet</p>
-        <p className="text-xs text-gray-500">Select services from dropdown above</p>
-      </div>
-    )}
-  </div>
-</div>
-            {/* Service Staff Selection */}
+
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
@@ -4550,7 +4385,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </Select>
                 </div>
 
-                {/* Additional Team Members */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Additional Team Members</label>
                   <Select 
@@ -4585,7 +4419,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </Select>
                 </div>
 
-                {/* Team Members List with Tips */}
                 {bookingData.teamMembers.length > 0 && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Team Members & Their Tips</label>
@@ -4632,7 +4465,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* Products */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Package className="w-5 h-5 text-primary" />
@@ -4685,7 +4517,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
 
-                {/* Selected Products List */}
                 {bookingData.products.length > 0 && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Selected Products</label>
@@ -4721,7 +4552,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* UPDATED: Pricing with Multiple Services */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-primary" />
@@ -4795,7 +4625,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                 </div>
               </div>
 
-              {/* Payment Methods */}
               <div className="space-y-4 mt-6">
                 <label className="text-sm font-medium text-gray-700">Payment Methods</label>
                 <div className="grid grid-cols-2 gap-4">
@@ -4845,7 +4674,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                           <div key={method} className="flex justify-between text-sm">
                             <span className="capitalize">{method}:</span>
                             <span className="font-medium">{formatCurrency(amount)}</span>
-                          </div>
+                        </div>
                         ) : null;
                       })}
                       <div className="border-t pt-1 mt-1 font-medium">
@@ -4865,7 +4694,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                 )}
               </div>
 
-              {/* UPDATED: Price Summary with Multiple Services */}
               <div className="mt-6 p-5 bg-white rounded-xl border-2 border-blue-200 shadow-sm">
                 <h4 className="font-bold text-gray-900 mb-4 text-lg flex items-center gap-2">
                   <Calculator className="w-5 h-5 text-blue-600" />
@@ -4873,7 +4701,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                 </h4>
                 
                 <div className="space-y-3">
-                  {/* Services Breakdown */}
                   {selectedServices.length > 0 && (
                     <div className="mb-4">
                       <p className="text-sm font-medium text-gray-700 mb-2">Services:</p>
@@ -4958,7 +4785,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* Status */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-primary" />
@@ -4985,7 +4811,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* Date & Time */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />
@@ -5014,7 +4839,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* Invoice Generation */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-primary" />
@@ -5065,7 +4889,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
               </div>
             </div>
 
-            {/* Notes */}
             <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
@@ -5094,625 +4917,610 @@ const handleDeleteBooking = async (appointment: Appointment) => {
         </SheetContent>
       </Sheet>
 
+      <Sheet open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <SheetContent className="sm:max-w-[900px] w-full z-[70] ">
+          <SheetHeader className="border-b pb-4 mb-6">
+            <SheetTitle className="text-xl font-semibold flex items-center gap-2">
+              <Edit className="w-5 h-5 text-primary" />
+              Edit Appointment
+              {editingAppointment && (
+                <Badge className="bg-blue-500 text-white ml-2">
+                  {editingAppointment.customer}
+                </Badge>
+              )}
+            </SheetTitle>
+            <SheetDescription className="text-base">
+              Update appointment details and save changes.
+            </SheetDescription>
+          </SheetHeader>
 
-      {/* EDIT APPOINTMENT DIALOG - COMPLETE FUNCTIONAL */}
-<Sheet open={showEditDialog} onOpenChange={setShowEditDialog}>
-  <SheetContent className="sm:max-w-[900px] w-full z-[70] overflow-y-auto">
-    <SheetHeader className="border-b pb-4 mb-6">
-      <SheetTitle className="text-xl font-semibold flex items-center gap-2">
-        <Edit className="w-5 h-5 text-primary" />
-        Edit Appointment
-        {editingAppointment && (
-          <Badge className="bg-blue-500 text-white ml-2">
-            {editingAppointment.customer}
-          </Badge>
-        )}
-      </SheetTitle>
-      <SheetDescription className="text-base">
-        Update appointment details and save changes.
-      </SheetDescription>
-    </SheetHeader>
+          {editBookingData && (
+            <div className="space-y-6 pb-6">
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <User className="w-5 h-5 text-primary" />
+                  Customer Information
+                </h3>
 
-    {editBookingData && (
-      <div className="space-y-6 pb-6">
-        {/* Customer Information */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <User className="w-5 h-5 text-primary" />
-            Customer Information
-          </h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Customer Name *</label>
+                    <Input
+                      placeholder="Enter customer name"
+                      value={editBookingData.customer}
+                      onChange={(e) => setEditBookingData({...editBookingData, customer: e.target.value})}
+                      className="h-11"
+                    />
+                  </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Customer Name *</label>
-              <Input
-                placeholder="Enter customer name"
-                value={editBookingData.customer}
-                onChange={(e) => setEditBookingData({...editBookingData, customer: e.target.value})}
-                className="h-11"
-              />
-            </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Phone</label>
+                      <Input
+                        placeholder="(555) 123-4567"
+                        value={editBookingData.phone}
+                        onChange={(e) => setEditBookingData({...editBookingData, phone: e.target.value})}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Email</label>
+                      <Input
+                        type="email"
+                        placeholder="customer@email.com"
+                        value={editBookingData.email}
+                        onChange={(e) => setEditBookingData({...editBookingData, email: e.target.value})}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Phone</label>
-                <Input
-                  placeholder="(555) 123-4567"
-                  value={editBookingData.phone}
-                  onChange={(e) => setEditBookingData({...editBookingData, phone: e.target.value})}
-                  className="h-11"
-                />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-gray-500" />
+                        Card Last 4 Digits
+                      </label>
+                      <Input
+                        placeholder="1234"
+                        value={editBookingData.cardLast4Digits}
+                        onChange={(e) => setEditBookingData({...editBookingData, cardLast4Digits: e.target.value})}
+                        className="h-11"
+                        maxLength={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Hash className="w-4 h-4 text-gray-500" />
+                        TRN Number
+                      </label>
+                      <Input
+                        placeholder="Enter TRN number"
+                        value={editBookingData.trnNumber}
+                        onChange={(e) => setEditBookingData({...editBookingData, trnNumber: e.target.value})}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Email</label>
-                <Input
-                  type="email"
-                  placeholder="customer@email.com"
-                  value={editBookingData.email}
-                  onChange={(e) => setEditBookingData({...editBookingData, email: e.target.value})}
-                  className="h-11"
-                />
+
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-primary" />
+                  Category & Branch
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Category
+                    </label>
+                    <Select 
+                      value={editBookingData.category} 
+                      onValueChange={(value) => {
+                        const category = categories.find(c => c.name === value);
+                        setSelectedCategory(category || null);
+                        setEditBookingData({...editBookingData, category: value});
+                      }}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories
+                          .filter(c => c.isActive && c.type === 'service')
+                          .map((category) => (
+                            <SelectItem key={category.firebaseId} value={category.name}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{category.name}</span>
+                                <span className="text-xs text-gray-500">
+                                  {category.branchName || 'No branch'}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Building className="w-4 h-4" />
+                      Branch
+                    </label>
+                    <Select 
+                      value={editBookingData.branch} 
+                      onValueChange={(value) => {
+                        const branch = branches.find(b => b.name === value);
+                        setSelectedBranch(branch || null);
+                        setEditBookingData({...editBookingData, branch: value});
+                      }}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches
+                          .filter(branch => branch.status === 'active')
+                          .map((branch) => (
+                            <SelectItem key={branch.firebaseId} value={branch.name}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{branch.name}</span>
+                                <span className="text-xs text-gray-500">{branch.city}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-gray-500" />
-                  Card Last 4 Digits
-                </label>
-                <Input
-                  placeholder="1234"
-                  value={editBookingData.cardLast4Digits}
-                  onChange={(e) => setEditBookingData({...editBookingData, cardLast4Digits: e.target.value})}
-                  className="h-11"
-                  maxLength={4}
-                />
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Scissors className="w-5 h-5 text-primary" />
+                  Services
+                  <Badge className="bg-blue-500 text-white">
+                    {editSelectedServices.length} selected
+                  </Badge>
+                </h3>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {services
+                      .filter(service => service.status === 'active')
+                      .map((service) => {
+                        const isSelected = editSelectedServices.some(s => s.name === service.name);
+                        return (
+                          <div
+                            key={service.firebaseId}
+                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                              isSelected 
+                                ? 'bg-blue-50 border-blue-300 shadow-sm' 
+                                : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50'
+                            }`}
+                            onClick={() => {
+                              if (isSelected) {
+                                setEditSelectedServices(prev => prev.filter(s => s.name !== service.name));
+                                setEditBookingData(prev => ({
+                                  ...prev!,
+                                  services: prev!.services.filter(s => s !== service.name),
+                                  service: prev!.services.length > 1 ? prev!.services[0] : ''
+                                }));
+                              } else {
+                                setEditSelectedServices(prev => [...prev, service]);
+                                setEditBookingData(prev => ({
+                                  ...prev!,
+                                  services: [...prev!.services, service.name],
+                                  service: prev!.services.length === 0 ? service.name : prev!.service
+                                }));
+                              }
+                            }}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-medium text-gray-900">{service.name}</h4>
+                                  {isSelected && (
+                                    <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">
+                                      ✓ Selected
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <div className="flex items-center gap-3">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {service.duration} min
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Tag className="w-3 h-3" />
+                                      {service.category}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-bold text-primary text-base">
+                                      {formatCurrency(service.price)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Hash className="w-4 h-4 text-gray-500" />
-                  TRN Number
-                </label>
-                <Input
-                  placeholder="Enter TRN number"
-                  value={editBookingData.trnNumber}
-                  onChange={(e) => setEditBookingData({...editBookingData, trnNumber: e.target.value})}
-                  className="h-11"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Category & Branch Selection */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Tag className="w-5 h-5 text-primary" />
-            Category & Branch
-          </h3>
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <User className="w-5 h-5 text-primary" />
+                  Service Staff
+                </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Tag className="w-4 h-4" />
-                Category
-              </label>
-              <Select 
-                value={editBookingData.category} 
-                onValueChange={(value) => {
-                  const category = categories.find(c => c.name === value);
-                  setSelectedCategory(category || null);
-                  setEditBookingData({...editBookingData, category: value});
-                }}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories
-                    .filter(c => c.isActive && c.type === 'service')
-                    .map((category) => (
-                      <SelectItem key={category.firebaseId} value={category.name}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{category.name}</span>
-                          <span className="text-xs text-gray-500">
-                            {category.branchName || 'No branch'}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Building className="w-4 h-4" />
-                Branch
-              </label>
-              <Select 
-                value={editBookingData.branch} 
-                onValueChange={(value) => {
-                  const branch = branches.find(b => b.name === value);
-                  setSelectedBranch(branch || null);
-                  setEditBookingData({...editBookingData, branch: value});
-                }}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select a branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches
-                    .filter(branch => branch.status === 'active')
-                    .map((branch) => (
-                      <SelectItem key={branch.firebaseId} value={branch.name}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{branch.name}</span>
-                          <span className="text-xs text-gray-500">{branch.city}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Services Selection for Edit */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Scissors className="w-5 h-5 text-primary" />
-            Services
-            <Badge className="bg-blue-500 text-white">
-              {editSelectedServices.length} selected
-            </Badge>
-          </h3>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {services
-                .filter(service => service.status === 'active')
-                .map((service) => {
-                  const isSelected = editSelectedServices.some(s => s.name === service.name);
-                  return (
-                    <div
-                      key={service.firebaseId}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                        isSelected 
-                          ? 'bg-blue-50 border-blue-300 shadow-sm' 
-                          : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50'
-                      }`}
-                      onClick={() => {
-                        if (isSelected) {
-                          setEditSelectedServices(prev => prev.filter(s => s.name !== service.name));
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Primary Team Member *</label>
+                    <Select 
+                      value={editBookingData.barber} 
+                      onValueChange={(value) => {
+                        setEditBookingData({...editBookingData, barber: value});
+                        if (!editBookingData.teamMembers.some(tm => tm.name === value)) {
                           setEditBookingData(prev => ({
                             ...prev!,
-                            services: prev!.services.filter(s => s !== service.name),
-                            service: prev!.services.length > 1 ? prev!.services[0] : ''
-                          }));
-                        } else {
-                          setEditSelectedServices(prev => [...prev, service]);
-                          setEditBookingData(prev => ({
-                            ...prev!,
-                            services: [...prev!.services, service.name],
-                            service: prev!.services.length === 0 ? service.name : prev!.service
+                            teamMembers: [...prev!.teamMembers, {name: value, tip: 0}]
                           }));
                         }
                       }}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-gray-900">{service.name}</h4>
-                            {isSelected && (
-                              <Badge className="bg-green-500 text-white text-xs px-2 py-0.5">
-                                ✓ Selected
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <div className="flex items-center gap-3">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {service.duration} min
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Tag className="w-3 h-3" />
-                                {service.category}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-primary text-base">
-                                {formatCurrency(service.price)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-
-        {/* Staff Selection */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <User className="w-5 h-5 text-primary" />
-            Service Staff
-          </h3>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Primary Team Member *</label>
-              <Select 
-                value={editBookingData.barber} 
-                onValueChange={(value) => {
-                  setEditBookingData({...editBookingData, barber: value});
-                  if (!editBookingData.teamMembers.some(tm => tm.name === value)) {
-                    setEditBookingData(prev => ({
-                      ...prev!,
-                      teamMembers: [...prev!.teamMembers, {name: value, tip: 0}]
-                    }));
-                  }
-                }}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select a team member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {staffMembers
-                    .filter(staff => staff.status === 'active')
-                    .map(staff => (
-                      <SelectItem key={staff.id} value={staff.name}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{staff.name}</span>
-                          <span className="text-xs text-gray-500">{staff.role}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Team Members List */}
-            {editBookingData.teamMembers.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Team Members & Tips</label>
-                <div className="space-y-2">
-                  {editBookingData.teamMembers.map((member, index) => (
-                    <div key={index} className="flex items-center gap-2 p-3 bg-white rounded border">
-                      <User className="w-4 h-4 text-gray-500" />
-                      <span className="flex-1 text-sm font-medium">{member.name}</span>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-gray-600">Tip:</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={member.tip}
-                          onChange={(e) => {
-                            const newMembers = [...editBookingData.teamMembers];
-                            newMembers[index].tip = parseFloat(e.target.value) || 0;
-                            setEditBookingData({...editBookingData, teamMembers: newMembers});
-                          }}
-                          placeholder="$0.00"
-                          className="h-9 w-24 text-right"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const newMembers = editBookingData.teamMembers.filter((_, i) => i !== index);
-                          setEditBookingData({
-                            ...editBookingData,
-                            teamMembers: newMembers,
-                            barber: index === 0 && newMembers.length > 0 ? newMembers[0].name : editBookingData.barber
-                          });
-                        }}
-                      >
-                        <XCircle className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Products for Edit */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Package className="w-5 h-5 text-primary" />
-            Products
-          </h3>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Product</label>
-                <Select onValueChange={(value) => {
-                  const product = mockProducts.find(p => p.name === value);
-                  if (product) {
-                    setEditBookingData(prev => ({
-                      ...prev!,
-                      products: [...prev!.products, { ...product, quantity: 1 }]
-                    }));
-                  }
-                }}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Add product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockProducts.map((product) => (
-                      <SelectItem key={product.name} value={product.name}>
-                        {product.name} - {formatCurrency(product.price)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Selected Products List */}
-            {editBookingData.products.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Selected Products</label>
-                <div className="space-y-2">
-                  {editBookingData.products.map((product, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-white rounded border">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{product.name}</div>
-                        <div className="text-xs text-gray-500">{product.category}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={product.quantity}
-                          onChange={(e) => {
-                            const newProducts = [...editBookingData.products];
-                            newProducts[index].quantity = parseInt(e.target.value) || 1;
-                            setEditBookingData({...editBookingData, products: newProducts});
-                          }}
-                          className="h-8 w-16"
-                        />
-                        <span className="text-sm font-medium">{formatCurrency(product.price)}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditBookingData({
-                              ...editBookingData,
-                              products: editBookingData.products.filter((_, i) => i !== index)
-                            });
-                          }}
-                        >
-                          <XCircle className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Pricing for Edit */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-primary" />
-            Pricing & Charges
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Discount Amount</label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={editBookingData.discount}
-                  onChange={(e) => setEditBookingData({...editBookingData, discount: parseFloat(e.target.value) || 0})}
-                  placeholder="0.00"
-                  className="h-11 flex-1"
-                />
-                <Select value={editBookingData.discountType} onValueChange={(value) => setEditBookingData({...editBookingData, discountType: value as 'fixed' | 'percentage'})}>
-                  <SelectTrigger className="h-11 w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">$ Fixed</SelectItem>
-                    <SelectItem value="percentage">% Percent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Service Tips ($)</label>
-              <Input
-                type="number"
-                min="0"
-                step="0.1"
-                value={editBookingData.serviceTip}
-                onChange={(e) => setEditBookingData({...editBookingData, serviceTip: parseFloat(e.target.value) || 0})}
-                placeholder="0.00"
-                className="h-11"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Tax (%)</label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={editBookingData.tax}
-                onChange={(e) => setEditBookingData({...editBookingData, tax: parseFloat(e.target.value) || 0})}
-                className="h-11"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Service Charges ($)</label>
-              <Input
-                type="number"
-                min="0"
-                step="0.1"
-                value={editBookingData.serviceCharges}
-                onChange={(e) => setEditBookingData({...editBookingData, serviceCharges: parseFloat(e.target.value) || 0})}
-                className="h-11"
-              />
-            </div>
-          </div>
-
-          {/* Payment Methods for Edit */}
-          <div className="space-y-4 mt-6">
-            <label className="text-sm font-medium text-gray-700">Payment Methods</label>
-            <div className="grid grid-cols-2 gap-4">
-              {['cash', 'card', 'check', 'digital'].map((method) => {
-                const isSelected = editBookingData.paymentMethods.includes(method as any);
-                return (
-                  <div key={method} className="space-y-2">
-                    <div 
-                      className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all ${isSelected ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'}`}
-                      onClick={() => {
-                        const newMethods = isSelected 
-                          ? editBookingData.paymentMethods.filter(m => m !== method)
-                          : [...editBookingData.paymentMethods, method as any];
-                        setEditBookingData({...editBookingData, paymentMethods: newMethods});
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <label className="text-sm font-medium cursor-pointer capitalize flex-1">
-                        {method}
-                      </label>
-                    </div>
-                    {isSelected && (
-                      <div className="pl-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder={`Amount in ${method}`}
-                          value={editBookingData.paymentAmounts[method as 'cash' | 'card' | 'check' | 'digital'] || ''}
-                          onChange={(e) => {
-                            const newAmounts = {...editBookingData.paymentAmounts};
-                            newAmounts[method as 'cash' | 'card' | 'check' | 'digital'] = parseFloat(e.target.value) || 0;
-                            setEditBookingData({...editBookingData, paymentAmounts: newAmounts});
-                          }}
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                    )}
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {staffMembers
+                          .filter(staff => staff.status === 'active')
+                          .map(staff => (
+                            <SelectItem key={staff.id} value={staff.name}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{staff.name}</span>
+                                <span className="text-xs text-gray-500">{staff.role}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                );
-              })}
+
+                  {editBookingData.teamMembers.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Team Members & Tips</label>
+                      <div className="space-y-2">
+                        {editBookingData.teamMembers.map((member, index) => (
+                          <div key={index} className="flex items-center gap-2 p-3 bg-white rounded border">
+                            <User className="w-4 h-4 text-gray-500" />
+                            <span className="flex-1 text-sm font-medium">{member.name}</span>
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-gray-600">Tip:</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={member.tip}
+                                onChange={(e) => {
+                                  const newMembers = [...editBookingData.teamMembers];
+                                  newMembers[index].tip = parseFloat(e.target.value) || 0;
+                                  setEditBookingData({...editBookingData, teamMembers: newMembers});
+                                }}
+                                placeholder="$0.00"
+                                className="h-9 w-24 text-right"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newMembers = editBookingData.teamMembers.filter((_, i) => i !== index);
+                                setEditBookingData({
+                                  ...editBookingData,
+                                  teamMembers: newMembers,
+                                  barber: index === 0 && newMembers.length > 0 ? newMembers[0].name : editBookingData.barber
+                                });
+                              }}
+                            >
+                              <XCircle className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  Products
+                </h3>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Product</label>
+                      <Select onValueChange={(value) => {
+                        const product = mockProducts.find(p => p.name === value);
+                        if (product) {
+                          setEditBookingData(prev => ({
+                            ...prev!,
+                            products: [...prev!.products, { ...product, quantity: 1 }]
+                          }));
+                        }
+                      }}>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Add product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mockProducts.map((product) => (
+                            <SelectItem key={product.name} value={product.name}>
+                              {product.name} - {formatCurrency(product.price)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {editBookingData.products.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Selected Products</label>
+                      <div className="space-y-2">
+                        {editBookingData.products.map((product, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-white rounded border">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{product.name}</div>
+                              <div className="text-xs text-gray-500">{product.category}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={product.quantity}
+                                onChange={(e) => {
+                                  const newProducts = [...editBookingData.products];
+                                  newProducts[index].quantity = parseInt(e.target.value) || 1;
+                                  setEditBookingData({...editBookingData, products: newProducts});
+                                }}
+                                className="h-8 w-16"
+                              />
+                              <span className="text-sm font-medium">{formatCurrency(product.price)}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditBookingData({
+                                    ...editBookingData,
+                                    products: editBookingData.products.filter((_, i) => i !== index)
+                                  });
+                                }}
+                              >
+                                <XCircle className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  Pricing & Charges
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Discount Amount</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={editBookingData.discount}
+                        onChange={(e) => setEditBookingData({...editBookingData, discount: parseFloat(e.target.value) || 0})}
+                        placeholder="0.00"
+                        className="h-11 flex-1"
+                      />
+                      <Select value={editBookingData.discountType} onValueChange={(value) => setEditBookingData({...editBookingData, discountType: value as 'fixed' | 'percentage'})}>
+                        <SelectTrigger className="h-11 w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fixed">$ Fixed</SelectItem>
+                          <SelectItem value="percentage">% Percent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Tips ($)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={editBookingData.serviceTip}
+                      onChange={(e) => setEditBookingData({...editBookingData, serviceTip: parseFloat(e.target.value) || 0})}
+                      placeholder="0.00"
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Tax (%)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={editBookingData.tax}
+                      onChange={(e) => setEditBookingData({...editBookingData, tax: parseFloat(e.target.value) || 0})}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Charges ($)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={editBookingData.serviceCharges}
+                      onChange={(e) => setEditBookingData({...editBookingData, serviceCharges: parseFloat(e.target.value) || 0})}
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4 mt-6">
+                  <label className="text-sm font-medium text-gray-700">Payment Methods</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['cash', 'card', 'check', 'digital'].map((method) => {
+                      const isSelected = editBookingData.paymentMethods.includes(method as any);
+                      return (
+                        <div key={method} className="space-y-2">
+                          <div 
+                            className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-all ${isSelected ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'}`}
+                            onClick={() => {
+                              const newMethods = isSelected 
+                                ? editBookingData.paymentMethods.filter(m => m !== method)
+                                : [...editBookingData.paymentMethods, method as any];
+                              setEditBookingData({...editBookingData, paymentMethods: newMethods});
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <label className="text-sm font-medium cursor-pointer capitalize flex-1">
+                              {method}
+                            </label>
+                          </div>
+                          {isSelected && (
+                            <div className="pl-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder={`Amount in ${method}`}
+                                value={editBookingData.paymentAmounts[method as 'cash' | 'card' | 'check' | 'digital'] || ''}
+                                onChange={(e) => {
+                                  const newAmounts = {...editBookingData.paymentAmounts};
+                                  newAmounts[method as 'cash' | 'card' | 'check' | 'digital'] = parseFloat(e.target.value) || 0;
+                                  setEditBookingData({...editBookingData, paymentAmounts: newAmounts});
+                                }}
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Date & Time
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Date *</label>
+                    <Input
+                      type="date"
+                      value={editBookingData.date}
+                      onChange={(e) => setEditBookingData({...editBookingData, date: e.target.value})}
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Time *</label>
+                    <Input
+                      type="time"
+                      value={editBookingData.time}
+                      onChange={(e) => setEditBookingData({...editBookingData, time: e.target.value})}
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  Booking Status
+                </h3>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <Select value={editBookingData.status} onValueChange={(value) => setEditBookingData({...editBookingData, status: value})}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Additional Notes
+                </h3>
+
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Any special requests or notes..."
+                    value={editBookingData.notes}
+                    onChange={(e) => setEditBookingData({...editBookingData, notes: e.target.value})}
+                    className="min-h-[100px] resize-none"
+                  />
+                </div>
+              </div>
             </div>
+          )}
+
+          <div className="flex justify-end gap-4 pt-8 border-t bg-white px-6 py-4 -mx-6 -mb-6">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} className="px-6 h-11">
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit} className="px-6 h-11 bg-primary hover:bg-primary/90">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Update Appointment
+            </Button>
           </div>
-        </div>
+        </SheetContent>
+      </Sheet>
 
-        {/* Date & Time for Edit */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
-            Date & Time
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Date *</label>
-              <Input
-                type="date"
-                value={editBookingData.date}
-                onChange={(e) => setEditBookingData({...editBookingData, date: e.target.value})}
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Time *</label>
-              <Input
-                type="time"
-                value={editBookingData.time}
-                onChange={(e) => setEditBookingData({...editBookingData, time: e.target.value})}
-                className="h-11"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Status for Edit */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-primary" />
-            Booking Status
-          </h3>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Status</label>
-            <Select value={editBookingData.status} onValueChange={(value) => setEditBookingData({...editBookingData, status: value})}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Notes for Edit */}
-        <div className="space-y-6 p-6 bg-gray-50/50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            Additional Notes
-          </h3>
-
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Any special requests or notes..."
-              value={editBookingData.notes}
-              onChange={(e) => setEditBookingData({...editBookingData, notes: e.target.value})}
-              className="min-h-[100px] resize-none"
-            />
-          </div>
-        </div>
-      </div>
-    )}
-
-    <div className="flex justify-end gap-4 pt-8 border-t bg-white px-6 py-4 -mx-6 -mb-6">
-      <Button variant="outline" onClick={() => setShowEditDialog(false)} className="px-6 h-11">
-        Cancel
-      </Button>
-      <Button onClick={handleEditSubmit} className="px-6 h-11 bg-primary hover:bg-primary/90">
-        <CheckCircle className="w-4 h-4 mr-2" />
-        Update Appointment
-      </Button>
-    </div>
-  </SheetContent>
-</Sheet>
-
-      {/* UPDATED: Editable Invoice Popup with Multiple Services */}
       <Sheet open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
         <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader className="border-b pb-4 mb-6">
@@ -5730,7 +5538,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
 
           {invoiceData && selectedAppointmentForInvoice && (
             <div className="space-y-6">
-              {/* Invoice Preview Header */}
               <div className="bg-gradient-to-r from-primary/5 to-secondary/5 p-6 rounded-lg border">
                 <div className="flex justify-between items-center">
                   <div>
@@ -5744,9 +5551,7 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                 </div>
               </div>
 
-              {/* Editable Invoice Form */}
               <div className="space-y-6 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
-                {/* Services Section - MULTIPLE SERVICES */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <Scissors className="w-5 h-5 text-primary" />
@@ -5754,7 +5559,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </h4>
                   
                   <div className="space-y-3">
-                    {/* Display Multiple Services */}
                     {invoiceData.services && Array.isArray(invoiceData.services) ? (
                       invoiceData.services.map((service, index) => (
                         <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
@@ -5772,25 +5576,25 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                               className="h-9"
                             />
                           </div>
-                         <div className="w-32">
-  <Input
-    type="number"
-    value={
-      invoiceData.services && invoiceData.services.length > 0
-        ? invoiceData.price / invoiceData.services.length
-        : invoiceData.price
-    }
-    onChange={(e) => {
-      const newItems = [...(invoiceData.items || [])];
-      if (newItems[index]) {
-        newItems[index].price = parseFloat(e.target.value) || 0;
-        newItems[index].total = newItems[index].quantity * newItems[index].price;
-        handleInvoiceDataChange('items', newItems);
-      }
-    }}
-    className="h-9 text-right"
-  />
-</div>
+                          <div className="w-32">
+                            <Input
+                              type="number"
+                              value={
+                                invoiceData.services && invoiceData.services.length > 0
+                                  ? invoiceData.price / invoiceData.services.length
+                                  : invoiceData.price
+                              }
+                              onChange={(e) => {
+                                const newItems = [...(invoiceData.items || [])];
+                                if (newItems[index]) {
+                                  newItems[index].price = parseFloat(e.target.value) || 0;
+                                  newItems[index].total = newItems[index].quantity * newItems[index].price;
+                                  handleInvoiceDataChange('items', newItems);
+                                }
+                              }}
+                              className="h-9 text-right"
+                            />
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -5810,7 +5614,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
                 
-                {/* Customer Information */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <User className="w-5 h-5 text-primary" />
@@ -5873,7 +5676,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
 
-                {/* Service Details */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <Scissors className="w-5 h-5 text-primary" />
@@ -5916,7 +5718,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
 
-                {/* Invoice Items */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-primary" />
@@ -5989,7 +5790,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
 
-                {/* Team Members Tips */}
                 {invoiceData.teamMembers && invoiceData.teamMembers.length > 0 && (
                   <div className="space-y-4 p-4 bg-white border rounded-lg">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -6020,7 +5820,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 )}
 
-                {/* Pricing Summary */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <Calculator className="w-5 h-5 text-primary" />
@@ -6086,7 +5885,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </div>
                 </div>
 
-                {/* Payment Method */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-primary" />
@@ -6111,7 +5909,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                   </Select>
                 </div>
 
-                {/* Notes */}
                 <div className="space-y-4 p-4 bg-white border rounded-lg">
                   <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary" />
@@ -6127,7 +5924,6 @@ const handleDeleteBooking = async (appointment: Appointment) => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-3 justify-end pt-6 border-t sticky bottom-0 bg-white">
                 <Button
                   variant="outline"

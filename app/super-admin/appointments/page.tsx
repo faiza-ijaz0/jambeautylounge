@@ -591,7 +591,7 @@ export default function SuperAdminAppointments() {
   };
 
   return (
-    <ProtectedRoute requiredRole="super_admin">
+    <div role="super_admin">
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar */}
         <div className={cn(
@@ -984,6 +984,6 @@ export default function SuperAdminAppointments() {
           booking={selectedBooking}
         />
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }

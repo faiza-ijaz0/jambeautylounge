@@ -132,13 +132,21 @@ export const AVAILABLE_PAGES: Page[] = [
     icon: Layers,
     category: "management",
   },
+
   {
-    id: "orders",
-    name: "Orders",
-    path: "/admin/orders",
-    icon: ShoppingCart,
+    id: "services",
+    name: "services",
+    path: "/admin/services",
+    icon: Layers,
     category: "management",
   },
+  // {
+  //   id: "orders",
+  //   name: "Orders",
+  //   path: "/admin/orders",
+  //   icon: ShoppingCart,
+  //   category: "management",
+  // },
   {
     id: "appointments",
     name: "Appointments",

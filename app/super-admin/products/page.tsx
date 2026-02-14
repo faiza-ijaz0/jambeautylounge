@@ -615,7 +615,7 @@ export default function SuperAdminProducts() {
   };
 
   return (
-    <ProtectedRoute requiredRole="super_admin">
+    <div role="super_admin">
       <div className="flex h-screen bg-gray-50">
         <AdminSidebar role="super_admin" onLogout={handleLogout} />
         <AdminMobileSidebar
@@ -1302,6 +1302,6 @@ export default function SuperAdminProducts() {
           </SheetContent>
         </Sheet>
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }
