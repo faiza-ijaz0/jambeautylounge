@@ -39,7 +39,7 @@ import {
   getDocs, 
   query, 
   orderBy,
-  where, // ✅ ADDED for branch filtering
+  where,
   updateDoc,
   doc,
   Timestamp,
@@ -118,7 +118,7 @@ interface BookingsStore {
   isLoading: boolean;
   error: string | null;
   
-  fetchBookings: (userBranch?: string) => Promise<void>; // ✅ ADDED userBranch param
+  fetchBookings: (userBranch?: string) => Promise<void>;
   updateBookingStatus: (bookingId: string, newStatus: string) => Promise<void>;
 }
 
@@ -127,23 +127,19 @@ const useBookingsStore = create<BookingsStore>((set, get) => ({
   isLoading: false,
   error: null,
 
-  // ✅ FIXED: Branch filtering exactly like code 1
   fetchBookings: async (userBranch?: string) => {
     try {
       set({ isLoading: true, error: null });
       const bookingsRef = collection(db, 'bookings');
       
-      // ✅ Create query based on user role - exactly like code 1
       let q;
       if (userBranch) {
-        // Branch admin - sirf apni branch ke bookings
         q = query(
           bookingsRef, 
           where('branchNames', 'array-contains', userBranch)
         );
         console.log(`🏢 Branch Admin (${userBranch}): Filtering bookings by branchNames array`);
       } else {
-        // Super admin - sab bookings
         q = query(bookingsRef, orderBy('createdAt', 'desc'));
         console.log('👑 Super Admin: All bookings');
       }
@@ -210,7 +206,6 @@ const useBookingsStore = create<BookingsStore>((set, get) => ({
         });
       });
 
-      // ✅ Manual sorting for branch admin (same as code 1)
       if (userBranch) {
         bookingsData.sort((a, b) => {
           const dateA = new Date(a.bookingDate || a.date);
@@ -290,8 +285,8 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
               </div>
               <Badge className={cn(
                 booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                booking.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
+                booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
                 booking.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-gray-100'
               )}>
                 {booking.status}
@@ -487,16 +482,17 @@ const calculateStats = (bookings: Booking[], dateFilter: string) => {
     .filter(b => b.status === 'completed')
     .reduce((sum, booking) => sum + (booking.servicePrice || 0), 0);
   
+  // ✅ UPDATED: Pending hata diya, Upcoming aur Rejected rakha
   const completedStatus = filteredBookings.filter(b => b.status === 'completed').length;
-  const pendingStatus = filteredBookings.filter(b => b.status === 'pending').length;
-  const rejectedStatus = filteredBookings.filter(b => b.status === 'cancelled' || b.status === 'no-show').length;
+  const upcomingStatus = filteredBookings.filter(b => b.status === 'upcoming').length;
+  const rejectedStatus = filteredBookings.filter(b => b.status === 'rejected').length;
 
   return {
     totalAppointments,
     todayAppointments,
     totalRevenue,
     completedStatus,
-    pendingStatus,
+    upcomingStatus,
     rejectedStatus,
     filteredBookings
   };
@@ -571,20 +567,20 @@ export default function SuperAdminAppointments() {
   const branches = Array.from(new Set(bookings.map(b => b.branch || 'Unknown Branch')));
 
   const statusConfig = {
-    pending: { 
-      label: 'Pending', 
-      color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      icon: AlertCircle
-    },
-    confirmed: { 
-      label: 'Confirmed', 
+    upcoming: { 
+      label: 'Upcoming', 
       color: 'bg-blue-100 text-blue-800 border-blue-200',
-      icon: CheckCircle
+      icon: CalendarDays
     },
     completed: { 
       label: 'Completed', 
       color: 'bg-green-100 text-green-800 border-green-200',
       icon: Check
+    },
+    rejected: { 
+      label: 'Rejected', 
+      color: 'bg-red-100 text-red-800 border-red-200',
+      icon: XCircle
     },
     cancelled: { 
       label: 'Cancelled', 
@@ -599,9 +595,9 @@ export default function SuperAdminAppointments() {
   };
 
   const statusOptions = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'upcoming', label: 'Upcoming' },
     { value: 'completed', label: 'Completed' },
+    { value: 'rejected', label: 'Rejected' },
     { value: 'cancelled', label: 'Cancelled' },
     { value: 'no-show', label: 'No Show' }
   ];
@@ -679,8 +675,8 @@ export default function SuperAdminAppointments() {
               </Button>
             </div>
 
-            {/* STATS CARDS - As requested */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+            {/* STATS CARDS - UPDATED: Pending removed, Upcoming added */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
               {/* Total Appointments */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -695,8 +691,7 @@ export default function SuperAdminAppointments() {
                 </CardContent>
               </Card>
 
-              {/* Today's Appointments */}
-              
+            
               {/* Total Revenue */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -725,16 +720,16 @@ export default function SuperAdminAppointments() {
                 </CardContent>
               </Card>
 
-              {/* Pending Status */}
+              {/* ✅ UPDATED: Upcoming Status (replaced Pending) */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
+                  <CalendarDays className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{stats.pendingStatus}</div>
+                  <div className="text-2xl font-bold text-blue-600">{stats.upcomingStatus}</div>
                   <p className="text-xs text-muted-foreground">
-                    Awaiting confirmation
+                    Scheduled & confirmed
                   </p>
                 </CardContent>
               </Card>
@@ -748,7 +743,7 @@ export default function SuperAdminAppointments() {
                 <CardContent>
                   <div className="text-2xl font-bold text-red-600">{stats.rejectedStatus}</div>
                   <p className="text-xs text-muted-foreground">
-                    Cancelled + No Show
+                    Cancelled + Rejected
                   </p>
                 </CardContent>
               </Card>
@@ -769,7 +764,7 @@ export default function SuperAdminAppointments() {
                     />
                   </div>
                   
-                  {/* Status Filter */}
+                  {/* Status Filter - UPDATED options */}
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by Status" />
@@ -784,7 +779,7 @@ export default function SuperAdminAppointments() {
                     </SelectContent>
                   </Select>
                   
-                  {/* ✅ FIXED: Branch Filter - Disabled for branch admin */}
+                  {/* Branch Filter */}
                   <Select 
                     value={branchFilter} 
                     onValueChange={setBranchFilter}
@@ -829,7 +824,7 @@ export default function SuperAdminAppointments() {
                 <div className="flex flex-wrap gap-2 mt-4">
                   {statusFilter !== 'all' && (
                     <Badge variant="outline" className="gap-2">
-                      Status: {statusConfig[statusFilter as keyof typeof statusConfig]?.label}
+                      Status: {statusConfig[statusFilter as keyof typeof statusConfig]?.label || statusFilter}
                       <button onClick={() => setStatusFilter('all')} className="text-gray-400 hover:text-gray-600">
                         ×
                       </button>
@@ -894,7 +889,7 @@ export default function SuperAdminAppointments() {
               </CardContent>
             </Card>
 
-            {/* SIMPLE TABLE - As requested */}
+            {/* SIMPLE TABLE - UPDATED status config */}
             <div className="overflow-x-auto bg-white rounded-lg border shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -912,8 +907,13 @@ export default function SuperAdminAppointments() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredBookings.map((booking) => {
-                    const status = statusConfig[booking.status as keyof typeof statusConfig];
-                    const StatusIcon = status?.icon || AlertCircle;
+                    // Get status config, default to a generic one if not found
+                    const status = statusConfig[booking.status as keyof typeof statusConfig] || {
+                      label: booking.status,
+                      color: 'bg-gray-100 text-gray-800 border-gray-200',
+                      icon: AlertCircle
+                    };
+                    const StatusIcon = status.icon;
                     
                     return (
                       <tr key={booking.id} className="hover:bg-gray-50">
