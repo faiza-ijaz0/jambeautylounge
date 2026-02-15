@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, Calendar, Users, TrendingUp, Download, RefreshCw } from "lucide-react";
+import { DollarSign, Calendar, Users, TrendingUp, Download, RefreshCw, ChevronLeft, ChevronRight, Clock, Filter, BarChart3, PieChart, LineChart } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { AdminSidebar, AdminMobileSidebar } from "@/components/admin/AdminSidebar";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import * as XLSX from 'xlsx'; // Excel export ke liye
+import * as XLSX from 'xlsx';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 
 // Interfaces for data types
 interface Service {
@@ -94,6 +95,22 @@ interface AnalyticsData {
     percentage: number;
     bookings: number;
   }>;
+  dailyData: Array<{
+    date: string;
+    revenue: number;
+    bookings: number;
+    orders: number;
+  }>;
+}
+
+interface CalendarDay {
+  date: Date;
+  dayOfMonth: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  revenue: number;
+  bookings: number;
+  orders: number;
 }
 
 // Custom Loading Component
@@ -125,46 +142,22 @@ const LoadingRow = () => (
   </div>
 );
 
-// Helper function to get date range based on timeRange
-const getDateRange = (timeRange: string) => {
-  const now = new Date();
-  const startDate = new Date();
-
-  switch (timeRange) {
-    case '7d':
-      startDate.setDate(now.getDate() - 7);
-      break;
-    case '30d':
-      startDate.setDate(now.getDate() - 30);
-      break;
-    case '90d':
-      startDate.setDate(now.getDate() - 90);
-      break;
-    case '1y':
-      startDate.setFullYear(now.getFullYear() - 1);
-      break;
-    default:
-      startDate.setDate(now.getDate() - 30);
-  }
-
-  return { startDate, endDate: now };
-};
-
-// Helper function to check if date is within range
-const isWithinDateRange = (date: Date, startDate: Date, endDate: Date) => {
-  return date >= startDate && date <= endDate;
-};
-
-// Helper function to get month name from date
-const getMonthName = (date: Date) => {
-  return date.toLocaleString('default', { month: 'short' });
-};
-
 export default function SuperAdminAnalytics() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true); // By default open
-  const [timeRange, setTimeRange] = useState('30d');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // 🔥 NEW: Calendar state
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedView, setSelectedView] = useState<'calendar' | 'monthly' | 'yearly'>('calendar');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
+  const [selectedMonthData, setSelectedMonthData] = useState<{
+    revenue: number;
+    bookings: number;
+    orders: number;
+  } | null>(null);
+  
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -179,27 +172,129 @@ export default function SuperAdminAnalytics() {
     router.push('/login');
   };
 
+  // 🔥 NEW: Generate calendar days for current month
+  useEffect(() => {
+    if (analytics?.dailyData) {
+      generateCalendarDays(currentDate, analytics.dailyData);
+    }
+  }, [currentDate, analytics]);
+
+  // 🔥 NEW: Generate calendar days function
+  const generateCalendarDays = (date: Date, dailyData: Array<{ date: string; revenue: number; bookings: number; orders: number }>) => {
+    const start = startOfMonth(date);
+    const end = endOfMonth(date);
+    const days = eachDayOfInterval({ start, end });
+    
+    // Get first day of month (0 = Sunday, 1 = Monday, etc.)
+    const firstDayOfMonth = start.getDay();
+    
+    // Create array with empty cells for days before month starts
+    const calendarDaysArray: CalendarDay[] = [];
+    
+    // Add empty cells for previous month
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      const prevDate = new Date(start);
+      prevDate.setDate(start.getDate() - (firstDayOfMonth - i));
+      calendarDaysArray.push({
+        date: prevDate,
+        dayOfMonth: prevDate.getDate(),
+        isCurrentMonth: false,
+        isToday: isSameDay(prevDate, new Date()),
+        revenue: 0,
+        bookings: 0,
+        orders: 0
+      });
+    }
+    
+    // Add current month days
+    days.forEach(day => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayData = dailyData.find(d => d.date === dateStr) || { revenue: 0, bookings: 0, orders: 0 };
+      
+      calendarDaysArray.push({
+        date: day,
+        dayOfMonth: day.getDate(),
+        isCurrentMonth: true,
+        isToday: isSameDay(day, new Date()),
+        revenue: dayData.revenue,
+        bookings: dayData.bookings,
+        orders: dayData.orders
+      });
+    });
+    
+    // Calculate total cells needed for 6 rows (42 cells)
+    const totalCells = 42;
+    const remainingCells = totalCells - calendarDaysArray.length;
+    
+    // Add next month days
+    for (let i = 1; i <= remainingCells; i++) {
+      const nextDate = new Date(end);
+      nextDate.setDate(end.getDate() + i);
+      calendarDaysArray.push({
+        date: nextDate,
+        dayOfMonth: nextDate.getDate(),
+        isCurrentMonth: false,
+        isToday: isSameDay(nextDate, new Date()),
+        revenue: 0,
+        bookings: 0,
+        orders: 0
+      });
+    }
+    
+    setCalendarDays(calendarDaysArray);
+  };
+
+  // 🔥 NEW: Handle month change
+  const handlePrevMonth = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() - 1);
+    setCurrentDate(newDate);
+    setSelectedDate(null);
+  };
+
+  const handleNextMonth = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(currentDate.getMonth() + 1);
+    setCurrentDate(newDate);
+    setSelectedDate(null);
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDate(null);
+  };
+
+  // 🔥 NEW: Handle date selection
+  const handleDateSelect = (day: CalendarDay) => {
+    setSelectedDate(day.date);
+    // Calculate total for selected date
+    const dateStr = format(day.date, 'yyyy-MM-dd');
+    const dayData = analytics?.dailyData?.find(d => d.date === dateStr);
+    if (dayData) {
+      setSelectedMonthData({
+        revenue: dayData.revenue,
+        bookings: dayData.bookings,
+        orders: dayData.orders
+      });
+    } else {
+      setSelectedMonthData(null);
+    }
+  };
+
   // Function to fetch data from Firebase
-  const fetchAnalyticsData = async (range: string = timeRange) => {
+  const fetchAnalyticsData = async () => {
     setIsLoading(true);
     try {
-      // Get current and previous date ranges
-      const { startDate: currentStart, endDate: currentEnd } = getDateRange(range);
-      const previousRange = getPreviousDateRange(range);
-      const { startDate: previousStart, endDate: previousEnd } = getDateRange(previousRange);
-
-      // Fetch services
+      // Fetch all data without date filtering
       const servicesSnapshot = await getDocs(collection(db, "services"));
       const services: Service[] = servicesSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as Service));
 
-      // Fetch bookings
       const bookingsSnapshot = await getDocs(collection(db, "bookings"));
       const allBookings: Booking[] = bookingsSnapshot.docs.map(doc => {
         const data = doc.data();
-        // Convert date to Date object
         let bookingDate = new Date();
         if (data.date) {
           bookingDate = new Date(data.date);
@@ -216,7 +311,6 @@ export default function SuperAdminAnalytics() {
         } as unknown as Booking;
       });
 
-      // Fetch orders
       const ordersSnapshot = await getDocs(collection(db, "orders"));
       const allOrders: Order[] = ordersSnapshot.docs.map(doc => {
         const data = doc.data();
@@ -241,30 +335,8 @@ export default function SuperAdminAnalytics() {
         orders: allOrders
       });
 
-      // Filter data for current period
-      const currentBookings = allBookings.filter(booking => 
-        isWithinDateRange(booking.bookingDate, currentStart, currentEnd)
-      );
-      const currentOrders = allOrders.filter(order => 
-        isWithinDateRange(order.orderDate, currentStart, currentEnd)
-      );
-
-      // Filter data for previous period
-      const previousBookings = allBookings.filter(booking => 
-        isWithinDateRange(booking.bookingDate, previousStart, previousEnd)
-      );
-      const previousOrders = allOrders.filter(order => 
-        isWithinDateRange(order.orderDate, previousStart, previousEnd)
-      );
-
-      // Calculate current period analytics
-      const currentAnalytics = calculateAnalytics(services, currentBookings, currentOrders);
-      
-      // Calculate previous period analytics
-      const previousAnalytics = calculateAnalytics(services, previousBookings, previousOrders);
-      
-      // Calculate growth percentages
-      const calculatedAnalytics = calculateGrowth(currentAnalytics, previousAnalytics);
+      // Calculate analytics for all time
+      const calculatedAnalytics = calculateAnalytics(services, allBookings, allOrders);
       
       setAnalytics(calculatedAnalytics);
       setLastUpdated(new Date());
@@ -275,23 +347,7 @@ export default function SuperAdminAnalytics() {
     }
   };
 
-  // Helper function to get previous date range
-  const getPreviousDateRange = (range: string) => {
-    switch (range) {
-      case '7d':
-        return '7d';
-      case '30d':
-        return '30d';
-      case '90d':
-        return '90d';
-      case '1y':
-        return '1y';
-      default:
-        return '30d';
-    }
-  };
-
-  // Calculate analytics from data
+  // Calculate analytics from all data
   const calculateAnalytics = (
     services: Service[],
     bookings: Booking[],
@@ -393,8 +449,14 @@ export default function SuperAdminAnalytics() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    // Monthly trends calculation
+    // Monthly trends calculation - ALL 12 MONTHS
     const monthlyMap = new Map<string, { revenue: number; bookings: number; orders: number }>();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    // Initialize all months with 0
+    months.forEach(month => {
+      monthlyMap.set(month, { revenue: 0, bookings: 0, orders: 0 });
+    });
     
     // Process bookings for monthly trends
     bookings.forEach(booking => {
@@ -414,14 +476,9 @@ export default function SuperAdminAnalytics() {
       monthlyMap.set(monthKey, existing);
     });
 
-    // Get last 6 months
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const currentMonth = new Date().getMonth();
-    const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
-      const monthIndex = (currentMonth - 5 + i + 12) % 12;
-      const monthName = months[monthIndex];
+    // Create array for all 12 months
+    const monthlyTrends = months.map(monthName => {
       const monthData = monthlyMap.get(monthName) || { revenue: 0, bookings: 0, orders: 0 };
-      
       return {
         month: monthName,
         revenue: monthData.revenue,
@@ -439,6 +496,35 @@ export default function SuperAdminAnalytics() {
       bookings: branch.bookings
     }));
 
+    // 🔥 NEW: Daily data for calendar
+    const dailyDataMap = new Map<string, { revenue: number; bookings: number; orders: number }>();
+    
+    // Process bookings for daily data
+    bookings.forEach(booking => {
+      const dateStr = format(booking.bookingDate, 'yyyy-MM-dd');
+      const existing = dailyDataMap.get(dateStr) || { revenue: 0, bookings: 0, orders: 0 };
+      existing.revenue += booking.totalAmount || 0;
+      existing.bookings += 1;
+      dailyDataMap.set(dateStr, existing);
+    });
+
+    // Process orders for daily data
+    orders.forEach(order => {
+      const dateStr = format(order.orderDate, 'yyyy-MM-dd');
+      const existing = dailyDataMap.get(dateStr) || { revenue: 0, bookings: 0, orders: 0 };
+      existing.revenue += order.totalAmount || 0;
+      existing.orders += 1;
+      dailyDataMap.set(dateStr, existing);
+    });
+
+    // Convert to array
+    const dailyData = Array.from(dailyDataMap.entries()).map(([date, data]) => ({
+      date,
+      revenue: data.revenue,
+      bookings: data.bookings,
+      orders: data.orders
+    }));
+
     return {
       overview: {
         totalRevenue,
@@ -453,100 +539,69 @@ export default function SuperAdminAnalytics() {
       branchPerformance: branchPerformance.sort((a, b) => b.revenue - a.revenue),
       topServices,
       monthlyTrends,
-      revenueByBranch: revenueByBranch.sort((a, b) => b.revenue - a.revenue)
+      revenueByBranch: revenueByBranch.sort((a, b) => b.revenue - a.revenue),
+      dailyData
     };
   };
 
-  // Calculate growth percentages between current and previous period
-  const calculateGrowth = (current: AnalyticsData, previous: AnalyticsData): AnalyticsData => {
-    const calculatePercentageChange = (currentVal: number, previousVal: number) => {
-      if (previousVal === 0) return currentVal > 0 ? 100 : 0;
-      return ((currentVal - previousVal) / previousVal) * 100;
-    };
-
-    // Calculate growth for overview
-    const overview = {
-      ...current.overview,
-      revenueChange: calculatePercentageChange(current.overview.totalRevenue, previous.overview.totalRevenue),
-      bookingsChange: calculatePercentageChange(current.overview.totalBookings, previous.overview.totalBookings),
-      ordersChange: calculatePercentageChange(current.overview.totalOrders, previous.overview.totalOrders)
-    };
-
-    // Calculate growth for branch performance
-    const branchPerformance = current.branchPerformance.map(branch => {
-      const previousBranch = previous.branchPerformance.find(b => b.name === branch.name);
-      const previousRevenue = previousBranch?.revenue || 0;
-      const growth = calculatePercentageChange(branch.revenue, previousRevenue);
-      
-      return {
-        ...branch,
-        growth
-      };
-    });
-
-    return {
-      ...current,
-      overview,
-      branchPerformance
-    };
+  // Helper function to get month name from date
+  const getMonthName = (date: Date) => {
+    return date.toLocaleString('default', { month: 'short' });
   };
 
-  // Export to Excel function
-  const exportToExcel = () => {
+  // 🔥 FIXED: Export to Excel function
+  const handleExport = () => {
     if (!analytics || !rawData) return;
 
     try {
-      // Create a new workbook
       const wb = XLSX.utils.book_new();
       
-      // 1. Overview Sheet
+      // Overview Sheet
       const overviewData = [
         ['Analytics Overview Report'],
         ['Generated on:', new Date().toLocaleString()],
-        ['Time Range:', timeRange],
         [],
-        ['Metric', 'Value', 'Growth %'],
-        ['Total Revenue', `$${analytics.overview.totalRevenue.toLocaleString()}`, `${analytics.overview.revenueChange.toFixed(1)}%`],
-        ['Total Bookings', analytics.overview.totalBookings, `${analytics.overview.bookingsChange.toFixed(1)}%`],
-        ['Total Customers', analytics.overview.totalCustomers, `${analytics.overview.bookingsChange.toFixed(1)}%`],
-        ['Total Orders', analytics.overview.totalOrders, `${analytics.overview.ordersChange.toFixed(1)}%`],
-        ['Average Order Value', `$${analytics.overview.avgOrderValue.toFixed(2)}`, ''],
+        ['Metric', 'Value'],
+        ['Total Revenue', `${formatCurrency(analytics.overview.totalRevenue)}`],
+        ['Total Bookings', analytics.overview.totalBookings.toString()],
+        ['Total Customers', analytics.overview.totalCustomers.toString()],
+        ['Total Orders', analytics.overview.totalOrders.toString()],
+        ['Average Order Value', `${formatCurrency(analytics.overview.avgOrderValue)}`],
       ];
       const overviewWs = XLSX.utils.aoa_to_sheet(overviewData);
       XLSX.utils.book_append_sheet(wb, overviewWs, 'Overview');
 
-      // 2. Branch Performance Sheet
+      // Branch Performance Sheet
       const branchData = [
         ['Branch Performance Report'],
         [],
-        ['Branch Name', 'Revenue', 'Bookings', 'Customers', 'Orders', 'Growth %']
+        ['Branch Name', 'Revenue (AED)', 'Bookings', 'Customers', 'Orders']
       ];
       
       analytics.branchPerformance.forEach(branch => {
         branchData.push([
           branch.name,
-          branch.revenue.toString(),
+          branch.revenue.toFixed(2),
           branch.bookings.toString(),
           branch.customers.toString(),
-          branch.orders.toString(),
-          `${branch.growth.toFixed(1)}%`
+          branch.orders.toString()
         ]);
       });
       
       const branchWs = XLSX.utils.aoa_to_sheet(branchData);
       XLSX.utils.book_append_sheet(wb, branchWs, 'Branch Performance');
 
-      // 3. Monthly Trends Sheet
+      // Monthly Trends Sheet - ALL 12 MONTHS
       const monthlyData = [
-        ['Monthly Trends Report'],
+        ['Monthly Trends Report - Full Year'],
         [],
-        ['Month', 'Revenue', 'Bookings', 'Orders']
+        ['Month', 'Revenue (AED)', 'Bookings', 'Orders']
       ];
       
       analytics.monthlyTrends.forEach(month => {
         monthlyData.push([
           month.month,
-          month.revenue.toString(),
+          month.revenue.toFixed(2),
           month.bookings.toString(),
           month.orders.toString()
         ]);
@@ -555,43 +610,23 @@ export default function SuperAdminAnalytics() {
       const monthlyWs = XLSX.utils.aoa_to_sheet(monthlyData);
       XLSX.utils.book_append_sheet(wb, monthlyWs, 'Monthly Trends');
 
-      // 4. Top Services Sheet
-      const servicesData = [
-        ['Top Services Report'],
-        [],
-        ['Rank', 'Service Name', 'Revenue', 'Bookings', 'Average Price']
-      ];
-      
-      analytics.topServices.forEach((service, index) => {
-        servicesData.push([
-          (index + 1).toString(),
-          service.name,
-          service.revenue.toString(),
-          service.bookings.toString(),
-          service.avgPrice.toString()
-        ]);
-      });
-      
-      const servicesWs = XLSX.utils.aoa_to_sheet(servicesData);
-      XLSX.utils.book_append_sheet(wb, servicesWs, 'Top Services');
-
-      // 5. Raw Bookings Data Sheet
+      // Raw Bookings Data
       if (rawData.bookings && rawData.bookings.length > 0) {
         const bookingsData = [
           ['Raw Bookings Data'],
           [],
-          ['Booking ID', 'Customer', 'Service', 'Branch', 'Amount', 'Status', 'Date']
+          ['Booking ID', 'Customer', 'Service', 'Branch', 'Amount (AED)', 'Status', 'Date']
         ];
         
-        rawData.bookings.slice(0, 1000).forEach(booking => { // Limit to 1000 rows
+        rawData.bookings.slice(0, 1000).forEach(booking => {
           bookingsData.push([
             booking.id.substring(0, 10) + '...',
             booking.customerName || 'N/A',
             booking.serviceName || 'N/A',
             booking.branch || 'N/A',
-            (booking.totalAmount || 0).toString(),
+            (booking.totalAmount || 0).toFixed(2),
             booking.status || 'N/A',
-            booking.bookingDate instanceof Date ? booking.bookingDate.toLocaleDateString() : 'N/A'
+            booking.bookingDate instanceof Date ? format(booking.bookingDate, 'yyyy-MM-dd') : 'N/A'
           ]);
         });
         
@@ -599,22 +634,22 @@ export default function SuperAdminAnalytics() {
         XLSX.utils.book_append_sheet(wb, bookingsWs, 'Raw Bookings');
       }
 
-      // 6. Raw Orders Data Sheet
+      // Raw Orders Data
       if (rawData.orders && rawData.orders.length > 0) {
         const ordersData = [
           ['Raw Orders Data'],
           [],
-          ['Order ID', 'Customer', 'Branch', 'Amount', 'Status', 'Date']
+          ['Order ID', 'Customer', 'Branch', 'Amount (AED)', 'Status', 'Date']
         ];
         
-        rawData.orders.slice(0, 1000).forEach(order => { // Limit to 1000 rows
+        rawData.orders.slice(0, 1000).forEach(order => {
           ordersData.push([
             order.id.substring(0, 10) + '...',
             order.customerName || 'N/A',
             order.branchNames?.[0] || 'N/A',
-            (order.totalAmount || 0).toString(),
+            (order.totalAmount || 0).toFixed(2),
             order.paymentStatus || 'N/A',
-            order.orderDate instanceof Date ? order.orderDate.toLocaleDateString() : 'N/A'
+            order.orderDate instanceof Date ? format(order.orderDate, 'yyyy-MM-dd') : 'N/A'
           ]);
         });
         
@@ -622,13 +657,10 @@ export default function SuperAdminAnalytics() {
         XLSX.utils.book_append_sheet(wb, ordersWs, 'Raw Orders');
       }
 
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
       const filename = `analytics_report_${timestamp}.xlsx`;
       
-      // Export the workbook
       XLSX.writeFile(wb, filename);
-      
       console.log('Excel file exported successfully:', filename);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
@@ -636,15 +668,21 @@ export default function SuperAdminAnalytics() {
     }
   };
 
+  const handleRefresh = () => {
+    fetchAnalyticsData();
+  };
+
   useEffect(() => {
     fetchAnalyticsData();
-  }, [timeRange]);
+  }, []);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-AE', {
       style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+      currency: 'AED',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount).replace('AED', 'AED ');
   };
 
   const formatPercentage = (value: number) => {
@@ -653,14 +691,6 @@ export default function SuperAdminAnalytics() {
 
   const formatNumber = (num: number) => {
     return num.toLocaleString();
-  };
-
-  const handleRefresh = () => {
-    fetchAnalyticsData();
-  };
-
-  const handleExport = () => {
-    exportToExcel();
   };
 
   if (isLoading || !analytics) {
@@ -677,7 +707,6 @@ export default function SuperAdminAnalytics() {
             "flex-1 flex flex-col transition-all duration-300 ease-in-out",
             sidebarOpen ? "lg:ml-0" : "lg:ml-0"
           )}>
-            {/* Header */}
             <header className="bg-white shadow-sm border-b">
               <div className="flex items-center justify-between px-4 py-4 lg:px-8">
                 <div className="flex items-center gap-4">
@@ -692,51 +721,14 @@ export default function SuperAdminAnalytics() {
                     <div className="h-4 bg-gray-200 rounded w-64 mt-1 animate-pulse"></div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="h-9 bg-gray-200 rounded w-32 animate-pulse"></div>
-                  <div className="h-9 bg-gray-200 rounded w-24 animate-pulse"></div>
-                  <div className="h-9 bg-gray-200 rounded w-9 animate-pulse"></div>
-                </div>
               </div>
             </header>
-
-            {/* Content */}
-            <div className="flex-1 overflow-auto">
-              <div className="p-4 lg:p-8">
-                {/* Overview Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <LoadingCard />
-                  <LoadingCard />
-                  <LoadingCard />
-                  <LoadingCard />
-                </div>
-
-                {/* Branch Performance */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                  <Card>
-                    <CardHeader>
-                      <div className="h-5 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2 mt-1 animate-pulse"></div>
-                    </CardHeader>
-                    <CardContent>
-                      {[...Array(5)].map((_, i) => (
-                        <LoadingRow key={i} />
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <div className="h-5 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2 mt-1 animate-pulse"></div>
-                    </CardHeader>
-                    <CardContent>
-                      {[...Array(5)].map((_, i) => (
-                        <LoadingRow key={i} />
-                      ))}
-                    </CardContent>
-                  </Card>
-                </div>
+            <div className="flex-1 overflow-auto p-4 lg:p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <LoadingCard />
+                <LoadingCard />
+                <LoadingCard />
+                <LoadingCard />
               </div>
             </div>
           </div>
@@ -748,7 +740,6 @@ export default function SuperAdminAnalytics() {
   return (
     <ProtectedRoute requiredRole="super_admin">
       <div className="flex h-screen bg-gray-50">
-        {/* Sidebar */}
         <AdminSidebar 
           role="super_admin" 
           onLogout={handleLogout}
@@ -756,13 +747,11 @@ export default function SuperAdminAnalytics() {
           onToggle={() => setSidebarOpen(!sidebarOpen)} 
         />
 
-        {/* Main Content */}
         <div className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
           sidebarOpen ? "lg:ml-0" : "lg:ml-0"
         )}>
-          {/* Header */}
-          <header className="bg-white shadow-sm border-b">
+          <header className="bg-white shadow-sm border-b shrink-0">
             <div className="flex items-center justify-between px-4 py-4 lg:px-8">
               <div className="flex items-center gap-4">
                 <AdminMobileSidebar 
@@ -774,35 +763,24 @@ export default function SuperAdminAnalytics() {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">System Analytics</h1>
                   <p className="text-sm text-gray-600">
-                    Real-time performance across all branches
+                    Complete business performance overview
                     {lastUpdated && (
                       <span className="ml-2 text-xs text-gray-500">
-                        Last updated: {lastUpdated.toLocaleTimeString()}
+                        Last updated: {format(lastUpdated, 'hh:mm:ss a')}
                       </span>
                     )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <Select value={timeRange} onValueChange={(value) => {
-                  setTimeRange(value);
-                  fetchAnalyticsData(value);
-                }}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="90d">Last 90 days</SelectItem>
-                    <SelectItem value="1y">Last year</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Button variant="outline" onClick={handleExport}>
                   <Download className="w-4 h-4 mr-2" />
                   Export Excel
                 </Button>
-               
+                <Button variant="outline" onClick={handleRefresh}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
                 <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user?.email}</span>
                 <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
                   Logout
@@ -811,208 +789,475 @@ export default function SuperAdminAnalytics() {
             </div>
           </header>
 
-          {/* Content */}
-          <div className="flex-1 overflow-auto">
-            <div className="p-4 lg:p-8">
-              {/* Overview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(analytics.overview.totalRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className={analytics.overview.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatPercentage(analytics.overview.revenueChange)}
-                      </span> from last period
-                    </p>
-                  </CardContent>
-                </Card>
+          <div className="flex-1 overflow-auto p-4 lg:p-8">
+            {/* View Selector */}
+            <div className="flex gap-2 mb-6">
+              <Button
+                variant={selectedView === 'calendar' ? 'default' : 'outline'}
+                onClick={() => setSelectedView('calendar')}
+                className="gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Calendar View
+              </Button>
+              <Button
+                variant={selectedView === 'monthly' ? 'default' : 'outline'}
+                onClick={() => setSelectedView('monthly')}
+                className="gap-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Monthly Trends
+              </Button>
+              <Button
+                variant={selectedView === 'yearly' ? 'default' : 'outline'}
+                onClick={() => setSelectedView('yearly')}
+                className="gap-2"
+              >
+                <LineChart className="w-4 h-4" />
+                Yearly Overview
+              </Button>
+            </div>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatNumber(analytics.overview.totalBookings)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className={analytics.overview.bookingsChange >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatPercentage(analytics.overview.bookingsChange)}
-                      </span> from last period
-                    </p>
-                  </CardContent>
-                </Card>
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(analytics.overview.totalRevenue)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Lifetime revenue
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatNumber(analytics.overview.totalCustomers)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className={analytics.overview.bookingsChange >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatPercentage(analytics.overview.bookingsChange)}
-                      </span> from last period
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatNumber(analytics.overview.totalBookings)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Lifetime bookings
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatNumber(analytics.overview.totalOrders)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className={analytics.overview.ordersChange >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatPercentage(analytics.overview.ordersChange)}
-                      </span> from last period
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatNumber(analytics.overview.totalCustomers)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Unique customers
+                  </p>
+                </CardContent>
+              </Card>
 
-              {/* Branch Performance */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Branch Performance</CardTitle>
-                    <CardDescription>Revenue and performance by location</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {analytics.branchPerformance.map((branch, index) => {
-                        const maxRevenue = Math.max(...analytics.branchPerformance.map(b => b.revenue));
-                        return (
-                          <div key={index} className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-medium">{branch.name}</span>
-                                <span className="text-sm text-gray-600">{formatCurrency(branch.revenue)}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-secondary h-2 rounded-full"
-                                  style={{ width: `${maxRevenue > 0 ? (branch.revenue / maxRevenue) * 100 : 0}%` }}
-                                ></div>
-                              </div>
-                              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>{branch.bookings} bookings • {branch.customers} customers</span>
-                                <span className={branch.growth >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                  {formatPercentage(branch.growth)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatNumber(analytics.overview.totalOrders)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Product orders
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Calendar View */}
+            {selectedView === 'calendar' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                {/* Calendar */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Calendar Overview</CardTitle>
+                      <CardDescription>Daily performance - click on any date for details</CardDescription>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Monthly Trends</CardTitle>
-                    <CardDescription>Revenue, bookings and orders over time</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {analytics.monthlyTrends.map((month, index) => {
-                        const maxRevenue = Math.max(...analytics.monthlyTrends.map(m => m.revenue));
-                        return (
-                          <div key={index} className="flex items-center justify-between">
-                            <span className="text-sm font-medium w-12">{month.month}</span>
-                            <div className="flex-1 mx-4">
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-primary h-2 rounded-full"
-                                  style={{ width: `${maxRevenue > 0 ? (month.revenue / maxRevenue) * 100 : 0}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">{formatCurrency(month.revenue)}</div>
-                              <div className="text-xs text-gray-500">
-                                {month.bookings} bookings • {month.orders} orders
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleToday}>
+                        Today
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm font-medium min-w-[120px] text-center">
+                        {format(currentDate, 'MMMM yyyy')}
+                      </span>
+                      <Button variant="outline" size="icon" onClick={handleNextMonth}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Service Analytics */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Top Services</CardTitle>
-                    <CardDescription>Most popular services across all branches</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {analytics.topServices.map((service, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center text-white font-semibold">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium">{service.name}</p>
-                              <p className="text-sm text-gray-600">{service.bookings} bookings</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold">{formatCurrency(service.revenue)}</p>
-                            <p className="text-sm text-green-600">
-                              Avg: {formatCurrency(service.avgPrice)}
-                            </p>
-                          </div>
+                    {/* Day headers */}
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+                          {day}
                         </div>
                       ))}
                     </div>
+                    
+                    {/* Calendar grid */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarDays.map((day, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleDateSelect(day)}
+                          className={cn(
+                            "aspect-square p-2 rounded-lg border transition-all text-sm hover:shadow-md",
+                            day.isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400',
+                            day.isToday && 'border-secondary ring-2 ring-secondary/20',
+                            selectedDate && isSameDay(day.date, selectedDate) && 'bg-secondary text-white',
+                            !selectedDate && day.revenue > 0 && 'bg-green-50 border-green-200'
+                          )}
+                        >
+                          <div className="flex flex-col h-full">
+                            <span className={cn(
+                              "text-xs font-medium",
+                              selectedDate && isSameDay(day.date, selectedDate) && 'text-white'
+                            )}>
+                              {day.dayOfMonth}
+                            </span>
+                            {day.revenue > 0 && (
+                              <div className="mt-auto">
+                                <div className={cn(
+                                  "text-[8px] font-bold truncate",
+                                  selectedDate && isSameDay(day.date, selectedDate) ? 'text-white/90' : 'text-green-600'
+                                )}>
+                                  AED {day.revenue.toFixed(0)}
+                                </div>
+                                <div className={cn(
+                                  "text-[8px]",
+                                  selectedDate && isSameDay(day.date, selectedDate) ? 'text-white/70' : 'text-gray-500'
+                                )}>
+                                  {day.bookings} book • {day.orders} ord
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-4 pt-4 border-t text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-50 border border-green-200 rounded"></div>
+                        <span>Has revenue</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-secondary rounded"></div>
+                        <span>Selected date</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 border-2 border-secondary rounded"></div>
+                        <span>Today</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Selected Date Details */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {selectedDate 
+                        ? format(selectedDate, 'MMMM d, yyyy')
+                        : 'Select a Date'
+                      }
+                    </CardTitle>
+                    <CardDescription>
+                      {selectedDate 
+                        ? 'Performance details for this date'
+                        : 'Click on any date in the calendar to view details'
+                      }
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedDate && selectedMonthData ? (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-green-50 rounded-lg">
+                          <p className="text-sm text-green-600 mb-1">Total Revenue</p>
+                          <p className="text-2xl font-bold text-green-700">
+                            {formatCurrency(selectedMonthData.revenue)}
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-3 bg-blue-50 rounded-lg">
+                            <p className="text-xs text-blue-600 mb-1">Bookings</p>
+                            <p className="text-xl font-bold text-blue-700">
+                              {selectedMonthData.bookings}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-purple-50 rounded-lg">
+                            <p className="text-xs text-purple-600 mb-1">Orders</p>
+                            <p className="text-xl font-bold text-purple-700">
+                              {selectedMonthData.orders}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {selectedMonthData.bookings > 0 && (
+                          <div className="mt-4">
+                            <h4 className="text-sm font-medium mb-2">Bookings on this day:</h4>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {rawData?.bookings
+                                .filter(b => isSameDay(b.bookingDate, selectedDate))
+                                .map((booking, i) => (
+                                  <div key={i} className="text-xs p-2 bg-gray-50 rounded">
+                                    <div className="font-medium">{booking.serviceName}</div>
+                                    <div className="text-gray-500">
+                                      {booking.customerName} • {formatCurrency(booking.totalAmount || 0)}
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : selectedDate ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No activity on this date
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p>Click on any date to see details</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Monthly Trends View */}
+            {selectedView === 'monthly' && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle>Monthly Trends - Full Year</CardTitle>
+                  <CardDescription>Revenue, bookings and orders for all 12 months</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {analytics.monthlyTrends.map((month, index) => {
+                      const maxRevenue = Math.max(...analytics.monthlyTrends.map(m => m.revenue));
+                      return (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-sm font-medium w-12">{month.month}</span>
+                          <div className="flex-1 mx-4">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-primary h-2 rounded-full"
+                                style={{ width: `${maxRevenue > 0 ? (month.revenue / maxRevenue) * 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div className="text-right min-w-[180px]">
+                            <div className="text-sm font-medium">{formatCurrency(month.revenue)}</div>
+                            <div className="text-xs text-gray-500">
+                              {month.bookings} bookings • {month.orders} orders
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Yearly Overview View */}
+            {selectedView === 'yearly' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Yearly Summary</CardTitle>
+                    <CardDescription>Annual performance metrics</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-primary/5 rounded-lg">
+                        <p className="text-sm text-primary mb-1">Total Revenue (Year to Date)</p>
+                        <p className="text-3xl font-bold text-primary">
+                          {formatCurrency(analytics.overview.totalRevenue)}
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          <p className="text-xs text-blue-600 mb-1">Total Bookings</p>
+                          <p className="text-xl font-bold text-blue-700">
+                            {formatNumber(analytics.overview.totalBookings)}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-purple-50 rounded-lg">
+                          <p className="text-xs text-purple-600 mb-1">Total Orders</p>
+                          <p className="text-xl font-bold text-purple-700">
+                            {formatNumber(analytics.overview.totalOrders)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-green-50 rounded-lg">
+                        <p className="text-xs text-green-600 mb-1">Average Order Value</p>
+                        <p className="text-xl font-bold text-green-700">
+                          {formatCurrency(analytics.overview.avgOrderValue)}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-orange-50 rounded-lg">
+                        <p className="text-xs text-orange-600 mb-1">Total Customers</p>
+                        <p className="text-xl font-bold text-orange-700">
+                          {formatNumber(analytics.overview.totalCustomers)}
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Revenue Distribution</CardTitle>
-                    <CardDescription>Revenue breakdown by branch</CardDescription>
+                    <CardTitle>Top Performing Months</CardTitle>
+                    <CardDescription>Highest revenue months</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {analytics.revenueByBranch.map((branch, index) => (
+                      {analytics.monthlyTrends
+                        .sort((a, b) => b.revenue - a.revenue)
+                        .slice(0, 5)
+                        .map((month, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center text-white font-semibold">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium">{month.month}</p>
+                                <p className="text-xs text-gray-600">
+                                  {month.bookings} bookings • {month.orders} orders
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold">{formatCurrency(month.revenue)}</p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Branch Performance */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Branch Performance</CardTitle>
+                  <CardDescription>Revenue and performance by location</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {analytics.branchPerformance.map((branch, index) => {
+                      const maxRevenue = Math.max(...analytics.branchPerformance.map(b => b.revenue));
+                      return (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-medium">{branch.branch}</span>
+                              <span className="text-sm font-medium">{branch.name}</span>
                               <span className="text-sm text-gray-600">{formatCurrency(branch.revenue)}</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
-                                className="bg-blue-500 h-2 rounded-full"
-                                style={{ width: `${branch.percentage}%` }}
+                                className="bg-secondary h-2 rounded-full"
+                                style={{ width: `${maxRevenue > 0 ? (branch.revenue / maxRevenue) * 100 : 0}%` }}
                               ></div>
                             </div>
                             <div className="flex justify-between text-xs text-gray-500 mt-1">
-                              <span>{branch.bookings} bookings</span>
-                              <span>{branch.percentage.toFixed(1)}% of total</span>
+                              <span>{branch.bookings} bookings • {branch.customers} customers</span>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Revenue Distribution</CardTitle>
+                  <CardDescription>Revenue breakdown by branch</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {analytics.revenueByBranch.map((branch, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium">{branch.branch}</span>
+                            <span className="text-sm text-gray-600">{formatCurrency(branch.revenue)}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full"
+                              style={{ width: `${branch.percentage}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>{branch.bookings} bookings</span>
+                            <span>{branch.percentage.toFixed(1)}% of total</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Top Services */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Services</CardTitle>
+                <CardDescription>Most popular services across all branches</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {analytics.topServices.map((service, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center text-white font-semibold">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium">{service.name}</p>
+                          <p className="text-sm text-gray-600">{service.bookings} bookings</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(service.revenue)}</p>
+                        <p className="text-xs text-green-600">
+                          Avg: {formatCurrency(service.avgPrice)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

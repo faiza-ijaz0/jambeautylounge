@@ -392,7 +392,7 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
           {/* Financial Information */}
           <div className="mt-6 pt-6 border-t">
             <h4 className="font-bold mb-3 text-gray-700">Financial Information</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Total Amount</p>
                 <p className="text-lg font-bold">${booking.totalAmount?.toFixed(2) || '0.00'}</p>
@@ -415,10 +415,7 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
                   {booking.paymentStatus}
                 </Badge>
               </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-500">Discount</p>
-                <p className="text-lg font-bold">${booking.discountAmount?.toFixed(2) || '0.00'}</p>
-              </div>
+             
             </div>
           </div>
 
@@ -662,17 +659,7 @@ export default function SuperAdminAppointments() {
                   </p>
                 )}
               </div>
-              <Button 
-                onClick={() => {
-                  const userBranch = user?.role === 'admin' ? user.branchName : undefined;
-                  fetchBookings(userBranch);
-                }}
-                variant="outline" 
-                className="gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </Button>
+              
             </div>
 
             {/* STATS CARDS - UPDATED: Pending removed, Upcoming added */}

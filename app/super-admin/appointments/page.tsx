@@ -139,7 +139,7 @@
 //         bookingsData.push({
 //           id: doc.id,
 //           bookingDate: data.bookingDate || '',
-//           bookingNumber: data.bookingNumber || `BOOK-${doc.id.substring(0, 8)}`,
+//           bookingNumber: data.bookingNumber || `BOOK-AED{doc.id.substring(0, 8)}`,
 //           bookingTime: data.bookingTime || '',
 //           timeSlot: data.timeSlot || '',
 //           branch: data.branch || data.userBranchName || 'Unknown Branch',
@@ -324,7 +324,7 @@
 //                     Category: {booking.serviceCategory}
 //                   </div>
 //                   <div className="text-sm">
-//                     Price: ${booking.servicePrice?.toFixed(2) || '0.00'}
+//                     Price: AED{booking.servicePrice?.toFixed(2) || '0.00'}
 //                   </div>
 //                   <div className="text-sm">
 //                     Duration: {booking.serviceDuration} minutes
@@ -365,7 +365,7 @@
 //             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 //               <div className="bg-gray-50 p-3 rounded-lg">
 //                 <p className="text-sm text-gray-500">Total Amount</p>
-//                 <p className="text-lg font-bold">${booking.totalAmount?.toFixed(2) || '0.00'}</p>
+//                 <p className="text-lg font-bold">AED{booking.totalAmount?.toFixed(2) || '0.00'}</p>
 //               </div>
 //               <div className="bg-gray-50 p-3 rounded-lg">
 //                 <p className="text-sm text-gray-500">Payment Method</p>
@@ -387,7 +387,7 @@
 //               </div>
 //               <div className="bg-gray-50 p-3 rounded-lg">
 //                 <p className="text-sm text-gray-500">Discount</p>
-//                 <p className="text-lg font-bold">${booking.discountAmount?.toFixed(2) || '0.00'}</p>
+//                 <p className="text-lg font-bold">AED{booking.discountAmount?.toFixed(2) || '0.00'}</p>
 //               </div>
 //             </div>
 //           </div>
@@ -818,8 +818,8 @@
 //                   <div className="text-sm text-gray-600">
 //                     Showing {filteredBookings.length} bookings 
 //                     {dateFilter !== 'all' && ` for selected date range`}
-//                     {statusFilter !== 'all' && ` with status: ${statusFilter}`}
-//                     {branchFilter !== 'all' && ` at branch: ${branchFilter}`}
+//                     {statusFilter !== 'all' && ` with status: AED{statusFilter}`}
+//                     {branchFilter !== 'all' && ` at branch: AED{branchFilter}`}
 //                   </div>
 //                 </div>
 //               </CardContent>
@@ -898,7 +898,7 @@
 //                         {/* Service Name */}
 //                         <td className="px-4 py-3 whitespace-nowrap">
 //                           <div className="text-sm">{booking.serviceName}</div>
-//                           <div className="text-xs text-gray-500">${booking.servicePrice.toFixed(2)}</div>
+//                           <div className="text-xs text-gray-500">AED{booking.servicePrice.toFixed(2)}</div>
 //                         </td>
                         
 //                         {/* Staff Name */}
@@ -964,7 +964,7 @@
 //               <div className="flex items-center justify-between">
 //                 <div>
 //                   Showing {filteredBookings.length} of {stats.totalAppointments} filtered bookings
-//                   {dateFilter !== 'all' && ` (${stats.totalAppointments} total in date range)`}
+//                   {dateFilter !== 'all' && ` (AED{stats.totalAppointments} total in date range)`}
 //                 </div>
 //                 <div className="text-xs text-gray-400">
 //                   Last updated: {new Date().toLocaleTimeString()}
@@ -1129,7 +1129,7 @@ const useBookingsStore = create<BookingsStore>((set, get) => ({
         bookingsData.push({
           id: doc.id,
           bookingDate: data.bookingDate || '',
-          bookingNumber: data.bookingNumber || `BOOK-${doc.id.substring(0, 8)}`,
+          bookingNumber: data.bookingNumber || `BOOK-AED{doc.id.substring(0, 8)}`,
           bookingTime: data.bookingTime || '',
           timeSlot: data.timeSlot || '',
           branch: data.branch || data.userBranchName || 'Unknown Branch',
@@ -1314,7 +1314,7 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
                     Category: {booking.serviceCategory}
                   </div>
                   <div className="text-sm">
-                    Price: ${booking.servicePrice?.toFixed(2) || '0.00'}
+                    Price: AED{booking.servicePrice?.toFixed(2) || '0.00'}
                   </div>
                   <div className="text-sm">
                     Duration: {booking.serviceDuration} minutes
@@ -1352,10 +1352,10 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
           {/* Financial Information */}
           <div className="mt-6 pt-6 border-t">
             <h4 className="font-bold mb-3 text-gray-700">Financial Information</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Total Amount</p>
-                <p className="text-lg font-bold">${booking.totalAmount?.toFixed(2) || '0.00'}</p>
+                <p className="text-lg font-bold">AED{booking.totalAmount?.toFixed(2) || '0.00'}</p>
               </div>
               <div className="bg-gray-50 p-3 rounded-lg">
                 <p className="text-sm text-gray-500">Payment Method</p>
@@ -1375,10 +1375,7 @@ const BookingModal = ({ isOpen, onClose, booking }: BookingModalProps) => {
                   {booking.paymentStatus}
                 </Badge>
               </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-500">Discount</p>
-                <p className="text-lg font-bold">${booking.discountAmount?.toFixed(2) || '0.00'}</p>
-              </div>
+             
             </div>
           </div>
 
@@ -1611,14 +1608,7 @@ export default function SuperAdminAppointments() {
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Bookings Dashboard</h1>
                 <p className="text-sm lg:text-base text-gray-600">View and manage all bookings</p>
               </div>
-              <Button 
-                onClick={fetchBookings}
-                variant="outline" 
-                className="gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </Button>
+             
             </div>
 
             {/* STATS CARDS - UPDATED: Pending removed, Upcoming added */}
@@ -1643,10 +1633,10 @@ export default function SuperAdminAppointments() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                 
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                  <div className="text-2xl font-bold">AED {stats.totalRevenue}</div>
                   <p className="text-xs text-muted-foreground">
                     Completed services value
                   </p>
@@ -1818,8 +1808,8 @@ export default function SuperAdminAppointments() {
                   <div className="text-sm text-gray-600">
                     Showing {filteredBookings.length} bookings 
                     {dateFilter !== 'all' && ` for selected date range`}
-                    {statusFilter !== 'all' && ` with status: ${statusFilter}`}
-                    {branchFilter !== 'all' && ` at branch: ${branchFilter}`}
+                    {statusFilter !== 'all' && ` with status: AED{statusFilter}`}
+                    {branchFilter !== 'all' && ` at branch: AED{branchFilter}`}
                   </div>
                 </div>
               </CardContent>
@@ -1902,7 +1892,7 @@ export default function SuperAdminAppointments() {
                         {/* Service Name */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm">{booking.serviceName}</div>
-                          <div className="text-xs text-gray-500">${booking.servicePrice.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500">AED{booking.servicePrice.toFixed(2)}</div>
                         </td>
                         
                         {/* Staff Name */}
@@ -1968,7 +1958,7 @@ export default function SuperAdminAppointments() {
               <div className="flex items-center justify-between">
                 <div>
                   Showing {filteredBookings.length} of {stats.totalAppointments} filtered bookings
-                  {dateFilter !== 'all' && ` (${stats.totalAppointments} total in date range)`}
+                  {dateFilter !== 'all' && ` (AED{stats.totalAppointments} total in date range)`}
                 </div>
                 <div className="text-xs text-gray-400">
                   Last updated: {new Date().toLocaleTimeString()}

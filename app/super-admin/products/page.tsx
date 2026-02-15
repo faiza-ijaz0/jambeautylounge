@@ -332,7 +332,7 @@ export default function SuperAdminProducts() {
         category: categoryName,
         categoryId: productForm.categoryId,
         description: productForm.description.trim(),
-        sku: productForm.sku.trim() || `PROD-${Date.now()}`,
+        sku: productForm.sku.trim() || `PROD-AED{Date.now()}`,
         price: parseFloat(productForm.price),
         cost: parseFloat(productForm.cost),
         totalStock: parseInt(productForm.totalStock),
@@ -482,7 +482,7 @@ export default function SuperAdminProducts() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`Product ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      alert(`Product AED{newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error) {
       console.error("Error updating product status: ", error);
       alert('Error updating product status. Please try again.');
@@ -513,7 +513,7 @@ export default function SuperAdminProducts() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`Stock updated to ${newStock} successfully!`);
+      alert(`Stock updated to AED{newStock} successfully!`);
     } catch (error) {
       console.error("Error updating stock: ", error);
       alert('Error updating stock. Please try again.');
@@ -670,20 +670,18 @@ export default function SuperAdminProducts() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{totalProducts}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {activeProducts} active products
-                    </p>
+                   
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Inventory Value</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                   
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${totalStockValue.toLocaleString()}
+                      AED {totalStockValue.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Current stock value
@@ -693,16 +691,14 @@ export default function SuperAdminProducts() {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                    <CardTitle className="text-sm font-medium">Active Products</CardTitle>
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${totalRevenue.toLocaleString()}
+                      {activeProducts} 
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      From product sales
-                    </p>
+                  
                   </CardContent>
                 </Card>
 
@@ -754,9 +750,9 @@ export default function SuperAdminProducts() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Prices</SelectItem>
-                        <SelectItem value="under-20">Under $20</SelectItem>
-                        <SelectItem value="20-50">$20 - $50</SelectItem>
-                        <SelectItem value="over-50">Over $50</SelectItem>
+                        <SelectItem value="under-20">Under AED20</SelectItem>
+                        <SelectItem value="20-50">AED20 - AED50</SelectItem>
+                        <SelectItem value="over-50">Over AED50</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={stockFilter} onValueChange={setStockFilter}>
@@ -877,8 +873,8 @@ export default function SuperAdminProducts() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1 text-sm">
-                                <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="font-semibold">${product.price}</span>
+                               
+                                <span className="font-semibold">AED{product.price}</span>
                               </div>
                               <div className="flex items-center gap-1 text-sm">
                                 <Package className="w-4 h-4 text-blue-600" />
@@ -890,7 +886,7 @@ export default function SuperAdminProducts() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-500">Cost:</span>
-                              <span className="font-medium ml-1">${product.cost}</span>
+                              <span className="font-medium ml-1">AED{product.cost}</span>
                             </div>
                             <div>
                               <span className="text-gray-500">Margin:</span>
@@ -1071,7 +1067,7 @@ export default function SuperAdminProducts() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price ($) *
+                    Price (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1086,7 +1082,7 @@ export default function SuperAdminProducts() {
                 </div>
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Cost ($) *
+                    Cost (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1125,7 +1121,7 @@ export default function SuperAdminProducts() {
                     Margin: {calculateMargin(parseFloat(productForm.price), parseFloat(productForm.cost))}%
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    Profit per unit: ${(parseFloat(productForm.price) - parseFloat(productForm.cost)).toFixed(2)}
+                    Profit per unit: AED{(parseFloat(productForm.price) - parseFloat(productForm.cost)).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -1151,7 +1147,7 @@ export default function SuperAdminProducts() {
                     branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.name}
-                        {branch.city && ` (${branch.city})`}
+                        {branch.city && ` (AED{branch.city})`}
                       </option>
                     ))
                   )}
@@ -1258,11 +1254,11 @@ export default function SuperAdminProducts() {
                             <p className="font-medium text-gray-900">{selectedProduct?.name}</p>
                             <p className="text-sm text-gray-600">{selectedProduct?.sku}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`px-2 py-1 rounded-md text-xs ${getStatusColor(selectedProduct?.status || '')}`}>
+                              <span className={`px-2 py-1 rounded-md text-xs AED{getStatusColor(selectedProduct?.status || '')}`}>
                                 {selectedProduct?.status?.replace('-', ' ')}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                                ${selectedProduct?.price}
+                                AED{selectedProduct?.price}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
                                 Stock: {selectedProduct?.totalStock}

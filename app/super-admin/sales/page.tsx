@@ -339,7 +339,7 @@ export default function BookingReportPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `booking-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `booking-report-AED{format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
   };
 
@@ -359,7 +359,7 @@ export default function BookingReportPage() {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    return hours > 0 ? `AED{hours}h AED{mins}m` : `AED{mins}m`;
   };
 
   return (
@@ -414,12 +414,12 @@ export default function BookingReportPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalBookingRevenue.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED{summary.totalBookingRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
-                  {summary.totalBookings} bookings
+                 AED {summary.totalBookings} bookings
                 </p>
               </CardContent>
             </Card>
@@ -430,7 +430,7 @@ export default function BookingReportPage() {
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalCashPayments.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED{summary.totalCashPayments.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {(summary.totalCashPayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
                 </p>
@@ -443,7 +443,7 @@ export default function BookingReportPage() {
                 <Wallet className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalWalletPayments.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED{summary.totalWalletPayments.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {(summary.totalWalletPayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
                 </p>
@@ -456,7 +456,7 @@ export default function BookingReportPage() {
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${summary.totalOnlinePayments.toFixed(2)}</div>
+                <div className="text-2xl font-bold">AED{summary.totalOnlinePayments.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
                   {(summary.totalOnlinePayments / summary.totalBookingRevenue * 100 || 0).toFixed(1)}% of total
                 </p>
@@ -638,7 +638,7 @@ export default function BookingReportPage() {
                 <CardHeader>
                   <CardTitle>Bookings Report</CardTitle>
                   <CardDescription>
-                    {filteredBookings.length} bookings found • Total Revenue: ${filteredBookings.reduce((sum, b) => sum + b.totalAmount, 0).toFixed(2)}
+                    {filteredBookings.length} bookings found • Total Revenue: AED{filteredBookings.reduce((sum, b) => sum + b.totalAmount, 0).toFixed(2)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -711,19 +711,19 @@ export default function BookingReportPage() {
                                       )}>
                                         {booking.paymentMethod === 'cod' ? 'COD' : 'Cash'}:
                                       </span>
-                                      <span className="font-bold">${totalCashCOD.toFixed(2)}</span>
+                                      <span className="font-bold">AED{totalCashCOD.toFixed(2)}</span>
                                     </div>
                                   )}
                                   {walletAmount > 0 && (
                                     <div className="flex justify-between text-sm">
                                       <span className="text-blue-600 font-medium">Wallet:</span>
-                                      <span className="font-bold">${walletAmount.toFixed(2)}</span>
+                                      <span className="font-bold">AED{walletAmount.toFixed(2)}</span>
                                     </div>
                                   )}
                                   {otherAmount > 0 && (
                                     <div className="flex justify-between text-sm">
                                       <span className="text-purple-600 font-medium">Other:</span>
-                                      <span className="font-bold">${otherAmount.toFixed(2)}</span>
+                                      <span className="font-bold">AED{otherAmount.toFixed(2)}</span>
                                     </div>
                                   )}
                                   <div className="pt-1 border-t">
@@ -753,7 +753,7 @@ export default function BookingReportPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="font-bold text-lg">
-                                ${booking.totalAmount.toFixed(2)}
+                                AED{booking.totalAmount.toFixed(2)}
                               </TableCell>
                               <TableCell>
                                 <Badge variant={
@@ -821,10 +821,10 @@ export default function BookingReportPage() {
                               <TableCell>
                                 <div>{booking.serviceName}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  ${booking.servicePrice.toFixed(2)}
+                                  AED{booking.servicePrice.toFixed(2)}
                                 </div>
                               </TableCell>
-                              <TableCell className="font-bold">${booking.totalAmount.toFixed(2)}</TableCell>
+                              <TableCell className="font-bold">AED{booking.totalAmount.toFixed(2)}</TableCell>
                               <TableCell>
                                 <div className={cn(
                                   "font-medium",
@@ -832,7 +832,7 @@ export default function BookingReportPage() {
                                     (booking.paymentMethod === 'cod' ? "text-orange-600" : "text-green-600") : 
                                     "text-gray-400"
                                 )}>
-                                  ${totalCashCOD.toFixed(2)}
+                                  AED{totalCashCOD.toFixed(2)}
                                 </div>
                                 {totalCashCOD > 0 && (
                                   <div className="text-xs text-muted-foreground">
@@ -846,7 +846,7 @@ export default function BookingReportPage() {
                                   "font-medium",
                                   walletAmount > 0 ? "text-blue-600" : "text-gray-400"
                                 )}>
-                                  ${walletAmount.toFixed(2)}
+                                  AED{walletAmount.toFixed(2)}
                                 </div>
                                 {walletAmount > 0 && (
                                   <div className="text-xs text-muted-foreground">
@@ -859,7 +859,7 @@ export default function BookingReportPage() {
                                   "font-medium",
                                   otherAmount > 0 ? "text-purple-600" : "text-gray-400"
                                 )}>
-                                  ${otherAmount.toFixed(2)}
+                                  AED{otherAmount.toFixed(2)}
                                 </div>
                                 {otherAmount > 0 && (
                                   <div className="text-xs text-muted-foreground">
@@ -939,7 +939,7 @@ export default function BookingReportPage() {
                           filteredBookings.forEach(booking => {
                             // Main staff
                             if (booking.staffName) {
-                              const key = `${booking.staffName}|${booking.staffRole}`;
+                              const key = `AED{booking.staffName}|AED{booking.staffRole}`;
                               const existing = staffMap.get(key) || {
                                 staffName: booking.staffName,
                                 role: booking.staffRole,
@@ -970,7 +970,7 @@ export default function BookingReportPage() {
                             
                             // Team members
                             booking.teamMembers?.forEach(member => {
-                              const memberKey = `${member.name}|${member.role}`;
+                              const memberKey = `AED{member.name}|AED{member.role}`;
                               const memberExisting = staffMap.get(memberKey) || {
                                 staffName: member.name,
                                 role: member.role,
@@ -1016,27 +1016,27 @@ export default function BookingReportPage() {
                                 </TableCell>
                                 <TableCell>{staff.bookings}</TableCell>
                                 <TableCell className="font-bold text-green-600">
-                                  ${staff.revenue.toFixed(2)}
+                                  AED{staff.revenue.toFixed(2)}
                                 </TableCell>
                                 <TableCell className={cn(
                                   "font-medium",
                                   staff.cashCodRevenue > 0 ? "text-green-600" : "text-gray-400"
                                 )}>
-                                  ${staff.cashCodRevenue.toFixed(2)}
+                                  AED{staff.cashCodRevenue.toFixed(2)}
                                 </TableCell>
                                 <TableCell className={cn(
                                   "font-medium",
                                   staff.walletRevenue > 0 ? "text-blue-600" : "text-gray-400"
                                 )}>
-                                  ${staff.walletRevenue.toFixed(2)}
+                                  AED{staff.walletRevenue.toFixed(2)}
                                 </TableCell>
                                 <TableCell className={cn(
                                   "font-medium",
                                   staff.otherRevenue > 0 ? "text-purple-600" : "text-gray-400"
                                 )}>
-                                  ${staff.otherRevenue.toFixed(2)}
+                                  AED{staff.otherRevenue.toFixed(2)}
                                 </TableCell>
-                                <TableCell>${avgRevenue.toFixed(2)}</TableCell>
+                                <TableCell>AED{avgRevenue.toFixed(2)}</TableCell>
                               </TableRow>
                             );
                           });

@@ -120,7 +120,7 @@ export interface LoyaltyPoint {
   name: string;
   description: string;
   pointsPerDollar: number;
-  redemptionRate: number; // $ per point
+  redemptionRate: number; // AED per point
   minimumPoints: number;
   expiryDays: number;
   branches: string[];
@@ -967,11 +967,11 @@ export default function SuperAdminMembership() {
       setShowAddDialog(false);
       setSelectedItem(null);
       resetForms();
-      alert(`${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} updated successfully!`);
+      alert(`AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} updated successfully!`);
       
     } catch (error) {
-      console.error(`Error updating ${dialogType}: `, error);
-      alert(`Error updating ${dialogType}. Please try again.`);
+      console.error(`Error updating AED{dialogType}: `, error);
+      alert(`Error updating AED{dialogType}. Please try again.`);
     } finally {
       setIsEditing(false);
     }
@@ -997,10 +997,10 @@ export default function SuperAdminMembership() {
       
       setDeleteDialogOpen(false);
       setSelectedItem(null);
-      alert(`${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} deleted successfully!`);
+      alert(`AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} deleted successfully!`);
     } catch (error) {
-      console.error(`Error deleting ${dialogType}: `, error);
-      alert(`Error deleting ${dialogType}. Please try again.`);
+      console.error(`Error deleting AED{dialogType}: `, error);
+      alert(`Error deleting AED{dialogType}. Please try again.`);
     } finally {
       setIsDeleting(null);
     }
@@ -1026,10 +1026,10 @@ export default function SuperAdminMembership() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`${type.charAt(0).toUpperCase() + type.slice(1)} ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      alert(`AED{type.charAt(0).toUpperCase() + type.slice(1)} AED{newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error) {
-      console.error(`Error updating ${type} status: `, error);
-      alert(`Error updating ${type} status. Please try again.`);
+      console.error(`Error updating AED{type} status: `, error);
+      alert(`Error updating AED{type} status. Please try again.`);
     }
   };
 
@@ -1467,8 +1467,8 @@ export default function SuperAdminMembership() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1 text-sm">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span className="font-semibold">${membership.price}</span>
+                                 
+                                  <span className="font-semibold">AED{membership.price}</span>
                                 </div>
                                 <div className="flex items-center gap-1 text-sm">
                                   <Calendar className="w-4 h-4 text-blue-600" />
@@ -1592,8 +1592,8 @@ export default function SuperAdminMembership() {
                                   <Percent className="w-4 h-4 text-green-600" />
                                   <span className="font-semibold">
                                     {offer.discountType === 'percentage' 
-                                      ? `${offer.discountValue}% off` 
-                                      : `$${offer.discountValue} off`}
+                                      ? `AED{offer.discountValue}% off` 
+                                      : `AEDAED{offer.discountValue} off`}
                                   </span>
                                 </div>
                               </div>
@@ -1702,8 +1702,8 @@ export default function SuperAdminMembership() {
                                   <Percent className="w-4 h-4 text-green-600" />
                                   <span className="font-semibold">
                                     {promo.discountType === 'percentage' 
-                                      ? `${promo.discountValue}% off` 
-                                      : `$${promo.discountValue} off`}
+                                      ? `AED{promo.discountValue}% off` 
+                                      : `AEDAED{promo.discountValue} off`}
                                   </span>
                                 </div>
                               </div>
@@ -1724,7 +1724,7 @@ export default function SuperAdminMembership() {
                             </div>
                             {promo.minimumPurchase && (
                               <div className="text-sm text-gray-500">
-                                Min. purchase: ${promo.minimumPurchase}
+                                Min. purchase: AED{promo.minimumPurchase}
                               </div>
                             )}
                             <div className="text-sm text-gray-500">
@@ -1814,11 +1814,11 @@ export default function SuperAdminMembership() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1 text-sm">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
+                                  
                                   <span className="font-semibold">
                                     {cashback.cashbackType === 'percentage' 
-                                      ? `${cashback.cashbackValue}% cashback` 
-                                      : `$${cashback.cashbackValue} cashback`}
+                                      ? `AED{cashback.cashbackValue}% cashback` 
+                                      : `AEDAED{cashback.cashbackValue} cashback`}
                                   </span>
                                 </div>
                               </div>
@@ -1839,7 +1839,7 @@ export default function SuperAdminMembership() {
                             </div>
                             {cashback.minimumPurchase && (
                               <div className="text-sm text-gray-500">
-                                Min. purchase: ${cashback.minimumPurchase}
+                                Min. purchase: AED{cashback.minimumPurchase}
                               </div>
                             )}
                             <div className="text-sm text-gray-500">
@@ -1931,12 +1931,12 @@ export default function SuperAdminMembership() {
                                 <div className="flex items-center gap-1 text-sm">
                                   <Star className="w-4 h-4 text-yellow-600" />
                                   <span className="font-semibold">
-                                    {loyalty.pointsPerDollar} points per $
+                                    {loyalty.pointsPerDollar} points per AED
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1 text-sm">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span>${loyalty.redemptionRate}/point</span>
+                                  
+                                  <span>AED{loyalty.redemptionRate}/point</span>
                                 </div>
                               </div>
                             </div>
@@ -1983,10 +1983,10 @@ export default function SuperAdminMembership() {
         <SheetContent className="overflow-y-auto sm:max-w-xl h-[700px] m-auto rounded-3xl p-5">
           <SheetHeader>
             <SheetTitle className="font-bold text-4xl text-center text-slate-700">
-              {selectedItem ? `Edit ${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}` : `Add New ${dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}`}
+              {selectedItem ? `Edit AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}` : `Add New AED{dialogType.charAt(0).toUpperCase() + dialogType.slice(1)}`}
             </SheetTitle>
             <SheetDescription className="font-bold text-md text-center text-slate-800">
-              {selectedItem ? `Update ${dialogType} details` : `Create a new ${dialogType} record`}
+              {selectedItem ? `Update AED{dialogType} details` : `Create a new AED{dialogType} record`}
             </SheetDescription>
           </SheetHeader>
           
@@ -2024,7 +2024,7 @@ export default function SuperAdminMembership() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs font-bold uppercase">
-                      Price ($) *
+                      Price (AED) *
                     </Label>
                     <Input
                       type="number"
@@ -2086,7 +2086,7 @@ export default function SuperAdminMembership() {
                             newBenefits[index] = e.target.value;
                             setMembershipForm({...membershipForm, benefits: newBenefits});
                           }}
-                          placeholder={`Benefit ${index + 1}`}
+                          placeholder={`Benefit AED{index + 1}`}
                           className="flex-1"
                         />
                         {index > 0 && (
@@ -2278,7 +2278,7 @@ export default function SuperAdminMembership() {
                           <div key={service.id} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              id={`service-${service.id}`}
+                              id={`service-AED{service.id}`}
                               checked={offerForm.applicableServices.includes(service.id)}
                               onChange={(e) => {
                                 const serviceId = service.id;
@@ -2291,8 +2291,8 @@ export default function SuperAdminMembership() {
                               }}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <Label htmlFor={`service-${service.id}`} className="text-sm cursor-pointer">
-                              {service.name} (${service.price})
+                            <Label htmlFor={`service-AED{service.id}`} className="text-sm cursor-pointer">
+                              {service.name} (AED{service.price})
                             </Label>
                           </div>
                         ))}
@@ -2313,7 +2313,7 @@ export default function SuperAdminMembership() {
                           <div key={product.id} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              id={`product-${product.id}`}
+                              id={`product-AED{product.id}`}
                               checked={offerForm.applicableProducts.includes(product.id)}
                               onChange={(e) => {
                                 const productId = product.id;
@@ -2326,8 +2326,8 @@ export default function SuperAdminMembership() {
                               }}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <Label htmlFor={`product-${product.id}`} className="text-sm cursor-pointer">
-                              {product.name} (${product.price})
+                            <Label htmlFor={`product-AED{product.id}`} className="text-sm cursor-pointer">
+                              {product.name} (AED{product.price})
                             </Label>
                           </div>
                         ))}
@@ -2652,7 +2652,7 @@ export default function SuperAdminMembership() {
                   </div>
                   <div>
                     <Label className="text-xs font-bold uppercase">
-                      Redemption Rate ($ per point) *
+                      Redemption Rate (AED per point) *
                     </Label>
                     <Input
                       type="number"
@@ -2733,7 +2733,7 @@ export default function SuperAdminMembership() {
                   branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
-                      {branch.city && ` (${branch.city})`}
+                      {branch.city && ` (AED{branch.city})`}
                     </option>
                   ))
                 )}
@@ -2854,15 +2854,15 @@ export default function SuperAdminMembership() {
                             {selectedItem?.description?.substring(0, 100)}...
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`px-2 py-1 rounded-md text-xs ${getStatusColor(selectedItem?.status || '')}`}>
+                            <span className={`px-2 py-1 rounded-md text-xs AED{getStatusColor(selectedItem?.status || '')}`}>
                               {selectedItem?.status}
                             </span>
                             <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                              {dialogType === 'membership' && `$${selectedItem?.price}`}
-                              {dialogType === 'offer' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `$${selectedItem?.discountValue}`)}
-                              {dialogType === 'promo' && (selectedItem?.discountType === 'percentage' ? `${selectedItem?.discountValue}%` : `$${selectedItem?.discountValue}`)}
-                              {dialogType === 'cashback' && (selectedItem?.cashbackType === 'percentage' ? `${selectedItem?.cashbackValue}%` : `$${selectedItem?.cashbackValue}`)}
-                              {dialogType === 'loyalty' && `${selectedItem?.pointsPerDollar} pts/$`}
+                              {dialogType === 'membership' && `AEDAED{selectedItem?.price}`}
+                              {dialogType === 'offer' && (selectedItem?.discountType === 'percentage' ? `AED{selectedItem?.discountValue}%` : `AEDAED{selectedItem?.discountValue}`)}
+                              {dialogType === 'promo' && (selectedItem?.discountType === 'percentage' ? `AED{selectedItem?.discountValue}%` : `AEDAED{selectedItem?.discountValue}`)}
+                              {dialogType === 'cashback' && (selectedItem?.cashbackType === 'percentage' ? `AED{selectedItem?.cashbackValue}%` : `AEDAED{selectedItem?.cashbackValue}`)}
+                              {dialogType === 'loyalty' && `AED{selectedItem?.pointsPerDollar} pts/AED`}
                             </span>
                           </div>
                         </div>

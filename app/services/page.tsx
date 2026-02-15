@@ -57,6 +57,9 @@ interface StaffMember {
   name: string;
   image: string;
   position?: string;
+  // Store original fields for debugging
+  avatar?: string;
+  role?: string;
 }
 
 interface CartItem {
@@ -68,7 +71,7 @@ interface CartItem {
   description: string;
   image: string;
   rating: number;
-    branchNames?: string[];
+  branchNames?: string[];
   reviews: number;
 }
 
@@ -225,13 +228,38 @@ const useStaffStore = create<StaffStore>((set) => ({
       const staffData: StaffMember[] = [];
       querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
         const data = doc.data();
+        
+        // 🔥 FIXED: Proper image fetching from Firebase
+        // Firebase mein field name "avatar" hai
+        let imageUrl = '/default-avatar.png'; // Default fallback
+        
+        // Check karo ke konsa field available hai
+        if (data.avatar) {
+          imageUrl = data.avatar;
+          console.log(`✅ Staff ${data.name} using avatar:`, data.avatar);
+        } else if (data.imageUrl) {
+          imageUrl = data.imageUrl;
+        } else if (data.image) {
+          imageUrl = data.image;
+        } else if (data.photoURL) {
+          imageUrl = data.photoURL;
+        }
+        
         staffData.push({
           id: doc.id,
           name: data.name || data.fullName || 'Unknown Staff',
-          image: data.imageUrl || data.image || data.photoURL || '/default-avatar.png',
+          image: imageUrl, // ✅ Proper image URL
           position: data.position || data.role || 'Barber',
+          // Store original fields for debugging
+          avatar: data.avatar,
+          role: data.role,
         });
       });
+      
+      console.log('✅ Staff fetched with images:', staffData.map(s => ({
+        name: s.name,
+        image: s.image
+      })));
       
       set({ staff: staffData });
     } catch (error) {
@@ -370,41 +398,40 @@ export default function ServicesPage() {
   });
 
   // Handle add to cart WITHOUT Firebase authentication check
-  // Handle add to cart WITHOUT Firebase authentication check
-const handleAddToCart = (service: Service) => {
-  // DIRECTLY add to cart without login check
-  setIsAddingToCart(service.id);
+  const handleAddToCart = (service: Service) => {
+    // DIRECTLY add to cart without login check
+    setIsAddingToCart(service.id);
 
-  // Create cart item with ALL required data + BRANCHNAMES
-  const cartItem: CartItem = {
-    id: service.id,
-    name: service.name,
-    category: service.category || 'Service',
-    duration: service.duration.toString() || '0',
-    price: service.price || 0,
-    description: service.description || '',
-    image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
-    rating: 5,
-    reviews: 0,
-    branchNames: service.branchNames || []  // ✅ YEH ADD KIYA!
+    // Create cart item with ALL required data + BRANCHNAMES
+    const cartItem: CartItem = {
+      id: service.id,
+      name: service.name,
+      category: service.category || 'Service',
+      duration: service.duration.toString() || '0',
+      price: service.price || 0,
+      description: service.description || '',
+      image: service.imageUrl || 'https://images.unsplash.com/photo-1599351431247-f5094021186d?q=80&w=2070&auto=format&fit=crop',
+      rating: 5,
+      reviews: 0,
+      branchNames: service.branchNames || []  // ✅ YEH ADD KIYA!
+    };
+
+    // Update local cart store
+    addToCart(cartItem);
+    markServiceAdded(service.id);
+    
+    // ALSO save to localStorage with branchNames
+    const currentCart = JSON.parse(localStorage.getItem('bookingCart') || '[]');
+    const updatedCart = [...currentCart, cartItem];
+    localStorage.setItem('bookingCart', JSON.stringify(updatedCart));
+    
+    setAddedService(service.id);
+    
+    setTimeout(() => {
+      setAddedService(null);
+      setIsAddingToCart(null);
+    }, 2000);
   };
-
-  // Update local cart store
-  addToCart(cartItem);
-  markServiceAdded(service.id);
-  
-  // ALSO save to localStorage with branchNames
-  const currentCart = JSON.parse(localStorage.getItem('bookingCart') || '[]');
-  const updatedCart = [...currentCart, cartItem];
-  localStorage.setItem('bookingCart', JSON.stringify(updatedCart));
-  
-  setAddedService(service.id);
-  
-  setTimeout(() => {
-    setAddedService(null);
-    setIsAddingToCart(null);
-  }, 2000);
-};
 
   // Handle View Cart button click - NO LOGIN CHECK
   const handleViewCart = () => {
@@ -744,34 +771,43 @@ const handleAddSelectedServices = () => {
                 All Barbers
               </button>
               
-              {staff.map((member) => (
-                <button
-                  key={member.id}
-                  onClick={() => setSelectedStaff(member.id)}
-                  className={cn(
-                    "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-3 border min-w-[140px]",
-                    selectedStaff === member.id 
-                      ? "bg-secondary/10 text-secondary border-secondary/30 shadow-sm" 
-                      : "bg-white text-black border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                  )}
-                  type="button"
-                >
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 border-2 border-white shadow-sm shrink-0">
-                    <img 
-                      src={member.image} 
-                      alt={member.name} 
-                      className="w-full h-full object-cover"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                        e.currentTarget.src = '/default-avatar.png';
-                      }}
-                    />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-bold truncate">{member.name}</div>
-                    <div className="text-[9px] text-gray-500 truncate">{member.position || 'Barber'}</div>
-                  </div>
-                </button>
-              ))}
+              {staff.map((member) => {
+                // Debug log for each staff member
+                console.log(`Rendering staff ${member.name} with image:`, member.image);
+                
+                return (
+                  <button
+                    key={member.id}
+                    onClick={() => setSelectedStaff(member.id)}
+                    className={cn(
+                      "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-3 border min-w-[140px]",
+                      selectedStaff === member.id 
+                        ? "bg-secondary/10 text-secondary border-secondary/30 shadow-sm" 
+                        : "bg-white text-black border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                    )}
+                    type="button"
+                  >
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 border-2 border-white shadow-sm shrink-0">
+                      <img 
+                        src={member.image} 
+                        alt={member.name} 
+                        className="w-full h-full object-cover"
+                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                          console.log(`Image failed to load for ${member.name}:`, member.image);
+                          e.currentTarget.src = '/default-avatar.png';
+                        }}
+                        onLoad={() => {
+                          console.log(`Image loaded successfully for ${member.name}`);
+                        }}
+                      />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold truncate">{member.name}</div>
+                      <div className="text-[9px] text-gray-500 truncate">{member.position || 'Barber'}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -802,10 +838,7 @@ const handleAddSelectedServices = () => {
               <Badge variant="outline" className="text-gray-600">
                 Total: {services.length} services
               </Badge>
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                Live Database
-              </Badge>
+             
             </div>
           </div>
 

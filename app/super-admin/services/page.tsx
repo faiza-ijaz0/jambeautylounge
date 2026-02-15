@@ -454,7 +454,7 @@ export default function SuperAdminServices() {
         updatedAt: serverTimestamp()
       });
       
-      alert(`Service ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      alert(`Service AED{newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error) {
       console.error("Error updating service status: ", error);
       alert('Error updating service status. Please try again.');
@@ -607,7 +607,7 @@ export default function SuperAdminServices() {
           <div className="flex-1 overflow-auto">
             <div className="p-4 lg:p-8">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Services</CardTitle>
@@ -615,41 +615,24 @@ export default function SuperAdminServices() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{totalServices}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {activeServices} active services
-                    </p>
+                    
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                    <CardTitle className="text-sm font-medium">Active Services</CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${totalRevenue.toLocaleString()}
+                     {activeServices} 
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      From all services
-                    </p>
+                   
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {totalBookings.toLocaleString()}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Across all branches
-                    </p>
-                  </CardContent>
-                </Card>
+              
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -658,7 +641,7 @@ export default function SuperAdminServices() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${avgPrice.toFixed(0)}
+                      AED{avgPrice.toFixed(0)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Per service
@@ -795,8 +778,8 @@ export default function SuperAdminServices() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1 text-sm">
-                                <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="font-semibold">${service.price}</span>
+                               
+                                <span className="font-semibold">AED{service.price}</span>
                               </div>
                               <div className="flex items-center gap-1 text-sm">
                                 <Clock className="w-4 h-4 text-blue-600" />
@@ -969,7 +952,7 @@ export default function SuperAdminServices() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-bold uppercase">
-                    Price ($) *
+                    Price (AED) *
                   </Label>
                   <Input
                     type="number"
@@ -1021,7 +1004,7 @@ export default function SuperAdminServices() {
                     branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.name}
-                        {branch.city && ` (${branch.city})`}
+                        {branch.city && ` (AED{branch.city})`}
                       </option>
                     ))
                   )}
@@ -1135,11 +1118,11 @@ export default function SuperAdminServices() {
                             <p className="font-medium text-gray-900">{selectedService?.name}</p>
                             <p className="text-sm text-gray-600">{selectedService?.description}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`px-2 py-1 rounded-md text-xs ${getStatusColor(selectedService?.status || '')}`}>
+                              <span className={`px-2 py-1 rounded-md text-xs AED{getStatusColor(selectedService?.status || '')}`}>
                                 {selectedService?.status}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
-                                ${selectedService?.price}
+                                AED{selectedService?.price}
                               </span>
                               <span className="px-2 py-1 rounded-md text-xs border border-gray-300">
                                 {selectedService?.duration} min

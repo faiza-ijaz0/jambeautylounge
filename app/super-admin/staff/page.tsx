@@ -535,7 +535,7 @@
 //                   </CardHeader>
 //                   <CardContent>
 //                     <div className="text-2xl font-bold">
-//                       ${staff.length > 0 
+//                       AED{staff.length > 0 
 //                         ? (staff.reduce((acc, member) => acc + member.salary, 0) / staff.length / 1000).toFixed(0)
 //                         : '0'}k
 //                     </div>
@@ -633,7 +633,7 @@
 //                                   {member.name.split(' ').map(n => n[0]).join('')}
 //                                 </div>
 //                               )}
-//                               <Badge className={`absolute -bottom-1 -right-1 ${getStatusColor(member.status)}`}>
+//                               <Badge className={`absolute -bottom-1 -right-1 AED{getStatusColor(member.status)}`}>
 //                                 {member.status.replace('_', ' ')}
 //                               </Badge>
 //                             </div>
@@ -726,9 +726,9 @@
 //                                     <span>Visa:</span>
 //                                     <Badge 
 //                                       className={`
-//                                         ${visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
-//                                         ${visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
-//                                         ${visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
+//                                         AED{visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
+//                                         AED{visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
+//                                         AED{visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
 //                                       `}
 //                                     >
 //                                       {new Date(member.visaExpiry).toLocaleDateString()}
@@ -764,7 +764,7 @@
 //                               <h4 className="font-medium text-gray-900 mb-2">Employment</h4>
 //                               <div className="space-y-1 text-sm text-gray-600">
 //                                 <p>Experience: {member.experience}</p>
-//                                 <p>Salary: ${member.salary.toLocaleString()}/year</p>
+//                                 <p>Salary: AED{member.salary.toLocaleString()}/year</p>
 //                                 <p>Hired: {new Date(member.hireDate).toLocaleDateString()}</p>
 //                               </div>
 //                             </div>
@@ -2492,7 +2492,7 @@ export default function SuperAdminStaff() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      ${staff.length > 0 
+                      AED{staff.length > 0 
                         ? (staff.reduce((acc, member) => acc + member.salary, 0) / staff.length / 1000).toFixed(0)
                         : '0'}k
                     </div>
@@ -2590,7 +2590,7 @@ export default function SuperAdminStaff() {
                                   {member.name.split(' ').map(n => n[0]).join('')}
                                 </div>
                               )}
-                              <Badge className={`absolute -bottom-1 -right-1 ${getStatusColor(member.status)}`}>
+                              <Badge className={`absolute -bottom-1 -right-1 AED{getStatusColor(member.status)}`}>
                                 {member.status.replace('_', ' ')}
                               </Badge>
                             </div>
@@ -2683,9 +2683,9 @@ export default function SuperAdminStaff() {
                                     <span>Visa:</span>
                                     <Badge 
                                       className={`
-                                        ${visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
-                                        ${visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                        ${visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
+                                        AED{visaStatus === 'expired' ? 'bg-red-100 text-red-800' : ''}
+                                        AED{visaStatus === 'expiring_soon' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                        AED{visaStatus === 'valid' ? 'bg-green-100 text-green-800' : ''}
                                       `}
                                     >
                                       {new Date(member.visaExpiry).toLocaleDateString()}
@@ -2743,7 +2743,7 @@ export default function SuperAdminStaff() {
                               <h4 className="font-medium text-gray-900 mb-2">Employment</h4>
                               <div className="space-y-1 text-sm text-gray-600">
                                 <p>Experience: {member.experience}</p>
-                                <p>Salary: ${member.salary.toLocaleString()}/year</p>
+                                <p>Salary: AED{member.salary.toLocaleString()}/year</p>
                                 <p>Hired: {new Date(member.hireDate).toLocaleDateString()}</p>
                               </div>
                             </div>

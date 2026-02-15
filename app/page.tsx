@@ -1023,8 +1023,8 @@ export default function Home() {
                 ))}
               </CarouselContent>
               <div className="hidden md:flex justify-end gap-4 mt-12">
-                <CarouselPrevious className="static translate-y-0 w-10 h-10 border-white/10 text-white hover:bg-white/10 transition-all rounded-full" />
-                <CarouselNext className="static translate-y-0 w-10 h-10 border-white/10 text-white hover:bg-white/10 transition-all rounded-full" />
+                <CarouselPrevious className="static translate-y-0 w-10 h-10 border-white/10 text-white bg-white/10 transition-all rounded-full" />
+                <CarouselNext className="static translate-y-0 w-10 h-10 border-white/10 text-white bg-white/10 transition-all rounded-full" />
               </div>
             </Carousel>
           )}

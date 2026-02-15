@@ -757,12 +757,14 @@ export default function SuperAdminExpensesPage() {
     return allBranches;
   };
 
+  // 🔥 FIXED: Currency formatter for AED
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-AE', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(amount);
+      currency: 'AED',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount).replace('AED', 'AED ');
   };
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -1128,7 +1130,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                           <BarChart data={expenseSummary.monthWiseData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" />
-                            <YAxis tickFormatter={(value) => `$${value}`} />
+                            <YAxis tickFormatter={(value) => `AED ${value}`} />
                             <Tooltip formatter={(value) => formatCurrency(value as number)} />
                             <Legend />
                             <Bar dataKey="productsCost" fill="#0088FE" name="Products Cost" />
@@ -1290,7 +1292,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                             <BarChart data={expenseSummary.monthWiseData}>
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="month" />
-                              <YAxis />
+                              <YAxis tickFormatter={(value) => `AED ${value}`} />
                               <Tooltip formatter={(value) => formatCurrency(value as number)} />
                               <Legend />
                               <Bar dataKey="manualExpenses" fill="#FF8042" name="Manual Expenses" />
@@ -1558,7 +1560,7 @@ ${expenseSummary.categoryWiseData.map(c =>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-1">Amount (USD) *</label>
+                        <label className="block text-sm font-medium mb-1">Amount (AED) *</label>
                         <Input
                           type="number"
                           name="amount"
