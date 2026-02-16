@@ -131,7 +131,7 @@ export default function SuperAdminBranches() {
     const opening = branch.weeklyTimings?.[todayKey]?.opening || branch.openingTime;
     const closing = branch.weeklyTimings?.[todayKey]?.closing || branch.closingTime;
     
-    return `AED{opening} - AED{closing}`;
+    return `${opening} - ${closing}`;
   };
 
   // 🔥 Firebase se real-time branches fetch
@@ -606,7 +606,7 @@ export default function SuperAdminBranches() {
                         }}
                       />
                     ) : null}
-                    <div className={`absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center AED{branch.image ? 'hidden fallback' : ''}`}>
+                    <div className={`absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${branch.image ? 'hidden fallback' : ''}`}>
                       <Building className="w-12 h-12 text-white" />
                     </div>
                     <div className="absolute top-2 right-2 flex gap-2">
@@ -892,13 +892,13 @@ export default function SuperAdminBranches() {
                           <div className="flex items-center gap-3">
                             <input
                               type="checkbox"
-                              id={`AED{day}-closed`}
+                              id={`${day}-closed`}
                               checked={formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closed}
                               onChange={() => toggleDayClosed(day as keyof typeof formData.weeklyTimings)}
                               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               disabled={isAdding}
                             />
-                            <Label htmlFor={`AED{day}-closed`} className="text-sm font-medium text-gray-700">
+                            <Label htmlFor={`${day}-closed`} className="text-sm font-medium text-gray-700">
                               {label}
                             </Label>
                             {formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closed && (
@@ -912,11 +912,11 @@ export default function SuperAdminBranches() {
                         {!formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closed && (
                           <div className="grid grid-cols-2 gap-4 pl-7">
                             <div>
-                              <Label htmlFor={`AED{day}-opening`} className="text-xs text-gray-600">
+                              <Label htmlFor={`${day}-opening`} className="text-xs text-gray-600">
                                 Opening Time
                               </Label>
                               <Input
-                                id={`AED{day}-opening`}
+                                id={`${day}-opening`}
                                 type="time"
                                 value={formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].opening}
                                 onChange={(e) => setWeeklyTiming(
@@ -929,11 +929,11 @@ export default function SuperAdminBranches() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor={`AED{day}-closing`} className="text-xs text-gray-600">
+                              <Label htmlFor={`${day}-closing`} className="text-xs text-gray-600">
                                 Closing Time
                               </Label>
                               <Input
-                                id={`AED{day}-closing`}
+                                id={`${day}-closing`}
                                 type="time"
                                 value={formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closing}
                                 onChange={(e) => setWeeklyTiming(
@@ -1296,13 +1296,13 @@ export default function SuperAdminBranches() {
                           <div className="flex items-center gap-3">
                             <input
                               type="checkbox"
-                              id={`edit-AED{day}-closed`}
+                              id={`edit-${day}-closed`}
                               checked={formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closed}
                               onChange={() => toggleDayClosed(day as keyof typeof formData.weeklyTimings)}
                               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               disabled={isEditing}
                             />
-                            <Label htmlFor={`edit-AED{day}-closed`} className="text-sm font-medium text-gray-700">
+                            <Label htmlFor={`edit-${day}-closed`} className="text-sm font-medium text-gray-700">
                               {label}
                             </Label>
                             {formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closed && (
@@ -1316,11 +1316,11 @@ export default function SuperAdminBranches() {
                         {!formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closed && (
                           <div className="grid grid-cols-2 gap-4 pl-7">
                             <div>
-                              <Label htmlFor={`edit-AED{day}-opening`} className="text-xs text-gray-600">
+                              <Label htmlFor={`edit-${day}-opening`} className="text-xs text-gray-600">
                                 Opening Time
                               </Label>
                               <Input
-                                id={`edit-AED{day}-opening`}
+                                id={`edit-${day}-opening`}
                                 type="time"
                                 value={formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].opening}
                                 onChange={(e) => setWeeklyTiming(
@@ -1333,11 +1333,11 @@ export default function SuperAdminBranches() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor={`edit-AED{day}-closing`} className="text-xs text-gray-600">
+                              <Label htmlFor={`edit-${day}-closing`} className="text-xs text-gray-600">
                                 Closing Time
                               </Label>
                               <Input
-                                id={`edit-AED{day}-closing`}
+                                id={`edit-${day}-closing`}
                                 type="time"
                                 value={formData.weeklyTimings[day as keyof typeof formData.weeklyTimings].closing}
                                 onChange={(e) => setWeeklyTiming(

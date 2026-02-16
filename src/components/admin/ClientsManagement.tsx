@@ -363,7 +363,7 @@ export default function ClientsManagement({
           // Store additional data
           bookings: bookings,
           orders: orders,
-          wallet: wallet,
+          wallet: wallet?? undefined,
         });
       }
 
@@ -487,7 +487,7 @@ export default function ClientsManagement({
       const newClientData = {
         firstName: newClient.firstName.trim(),
         lastName: newClient.lastName.trim(),
-        name: `AED{newClient.firstName.trim()} AED{newClient.lastName.trim()}`,
+        name: `${newClient.firstName.trim()} ${newClient.lastName.trim()}`,
         email: newClient.email.trim().toLowerCase(),
         phone: newClient.phone.trim(),
         role: "customer",
@@ -549,7 +549,7 @@ export default function ClientsManagement({
       await updateDoc(clientDoc, {
         firstName: editingClient.firstName.trim(),
         lastName: editingClient.lastName.trim(),
-        name: `AED{editingClient.firstName.trim()} AED{editingClient.lastName.trim()}`,
+        name: `${editingClient.firstName.trim()} ${editingClient.lastName.trim()}`,
         email: editingClient.email.trim().toLowerCase(),
         phone: editingClient.phone.trim(),
         address: editingClient.address?.trim() || "",
@@ -630,7 +630,7 @@ export default function ClientsManagement({
         c.notes || "",
       ]),
     ]
-      .map((row) => row.map((cell) => `"AED{cell}"`).join(","))
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
       .join("\n");
 
     const element = document.createElement("a");
@@ -640,7 +640,7 @@ export default function ClientsManagement({
     );
     element.setAttribute(
       "download",
-      `clients-export-AED{new Date().toISOString().split("T")[0]}.csv`
+      `clients-export-${new Date().toISOString().split("T")[0]}.csv`
     );
     element.style.display = "none";
     document.body.appendChild(element);
@@ -671,7 +671,7 @@ export default function ClientsManagement({
             const clientData = {
               firstName: values[0] || "",
               lastName: values[1] || "",
-              name: `AED{values[0] || ""} AED{values[1] || ""}`.trim(),
+              name: `${values[0] || ""} ${values[1] || ""}`.trim(),
               email: values[2] || "",
               phone: values[3] || "",
               role: "customer",
@@ -1067,7 +1067,7 @@ export default function ClientsManagement({
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-green-600">
-                        AED{client.spendingAmount.toLocaleString()}
+                        ${client.spendingAmount.toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-primary">
                         {client.loyaltyPoints.toLocaleString()}
@@ -1278,7 +1278,7 @@ export default function ClientsManagement({
                                                   </div>
                                                   <div className="text-right">
                                                     <p className="font-bold text-lg text-primary">
-                                                      AED{booking.totalAmount}
+                                                      ${booking.totalAmount}
                                                     </p>
                                                     {getBookingStatusBadge(booking.status)}
                                                   </div>
@@ -1325,14 +1325,14 @@ export default function ClientsManagement({
                                                           <Package className="w-3 h-3 text-gray-400" />
                                                           <span>{product.productName} x{product.quantity}</span>
                                                           <span className="text-gray-400">-</span>
-                                                          <span>AED{product.price}</span>
+                                                          <span>${product.price}</span>
                                                         </div>
                                                       ))}
                                                     </div>
                                                   </div>
                                                   <div className="text-right">
                                                     <p className="font-bold text-lg text-primary">
-                                                      AED{order.totalAmount}
+                                                      ${order.totalAmount}
                                                     </p>
                                                     {getOrderStatusBadge(order.status)}
                                                   </div>
@@ -1359,7 +1359,7 @@ export default function ClientsManagement({
                                                   Wallet Balance
                                                 </p>
                                                 <p className="text-3xl font-bold text-blue-600">
-                                                  AED{selectedClient.wallet.balance}
+                                                  ${selectedClient.wallet.balance}
                                                 </p>
                                               </CardContent>
                                             </Card>
