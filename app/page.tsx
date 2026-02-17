@@ -2333,10 +2333,7 @@ export default function Home() {
               Create Account First! ✋
             </h3>
 
-            {/* Message */}
-            <p className="text-gray-600 text-center mb-8">
-              Aapko chat karne ke liye pehle account create karna hoga.
-            </p>
+          
 
             {/* Login/Signup Button */}
             <Link 
