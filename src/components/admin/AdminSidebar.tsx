@@ -754,11 +754,18 @@ const branchAdminNavItems = [
     pageKey: 'membership'
   },
   {
-    title: 'Messages',
+    title: 'Admin chat',
     href: '/admin/messages',
     icon: MessageCircle,
     pageKey: 'messages'
   },
+   {
+    title: 'Customer chat',
+    href: '/admin/customer-chats',
+    icon: MessageCircle,
+    pageKey: 'messages'
+  },
+
   {
     title: 'Custom Invoice',
     href: '/admin/custominvoice',
@@ -922,8 +929,15 @@ const superAdminNavItems = [
     ]
   },
   {
-    title: 'Messages',
+    title: 'Branch Chat',
     href: '/super-admin/messages',
+    icon: MessageCircle,
+    pageKey: 'messages'
+  },
+
+   {
+    title: 'Customer Chat',
+    href: '/super-admin/customer-chat',
     icon: MessageCircle,
     pageKey: 'messages'
   },

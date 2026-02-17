@@ -126,6 +126,13 @@ export const AVAILABLE_PAGES: Page[] = [
     category: "management",
   },
   {
+    id: "customer-chats",
+    name: "customer-chats",
+    path: "/admin/customer-chats",
+    icon: Package,
+    category: "management",
+  },
+  {
     id: "categories",
     name: "Categories",
     path: "/admin/categories",
