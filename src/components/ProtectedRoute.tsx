@@ -66,7 +66,7 @@ import { Scissors, ShieldAlert } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'super_admin';
+  requiredRole?: 'admin' | 'super_admin'|'customer';
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
