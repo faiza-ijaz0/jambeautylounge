@@ -125,7 +125,7 @@ export function Header() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group relative z-50">
           <div className={cn(
-            "relative w-12 h-12 rounded-2xl transition-all duration-500 group-hover:scale-110 overflow-hidden",
+            "relative w-16 h-16 rounded-2xl transition-all duration-500 group-hover:scale-110 overflow-hidden",
             isScrolled ? "drop-shadow-sm" : "drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
           )}>
             <Image

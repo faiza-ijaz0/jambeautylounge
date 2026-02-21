@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -236,7 +237,7 @@ const useStaffStore = create<StaffStore>((set) => ({
         // Check karo ke konsa field available hai
         if (data.avatar) {
           imageUrl = data.avatar;
-          console.log(`✅ Staff ${data.name} using avatar:`, data.avatar);
+          console.log(`✅ Staff AED{data.name} using avatar:`, data.avatar);
         } else if (data.imageUrl) {
           imageUrl = data.imageUrl;
         } else if (data.image) {
@@ -311,7 +312,7 @@ const useBookingStore = create<BookingStore>((set, get) => ({
 // WhatsApp contact function
 const openWhatsApp = (message: string) => {
   const encodedMessage = encodeURIComponent(message);
-  window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  window.open(`https://wa.me/?text=AED{encodedMessage}`, '_blank');
 };
 
 // Main Component
@@ -349,6 +350,36 @@ export default function ServicesPage() {
   
   // Use ref to track if we've already set up real-time updates
   const hasSetupRealtimeRef = useRef<boolean>(false);
+
+  // ===== CHAT LOGIC (Copied from Home Page) =====
+  const [showChatPopup, setShowChatPopup] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check login status
+  useEffect(() => {
+    const checkLogin = () => {
+      // Check if user is logged in (update this based on your auth system)
+      const user = localStorage.getItem('user'); // or cookies, or context
+      setIsLoggedIn(!!user);
+    };
+    
+    checkLogin();
+    
+    // Optional: Listen for storage changes
+    window.addEventListener('storage', checkLogin);
+    return () => window.removeEventListener('storage', checkLogin);
+  }, []);
+
+  const handleChatClick = () => {
+    if (isLoggedIn) {
+      // Agar login hai to chat page par jao
+      window.location.href = '/customer/chat';
+    } else {
+      // Agar login nahi hai to popup dikhao
+      setShowChatPopup(true);
+    }
+  };
+  // =============================================
 
   // Fetch data on component mount
   useEffect(() => {
@@ -470,7 +501,7 @@ const handleAddSelectedServices = () => {
   setShowMultiSelectSheet(false);
   setMultiSelectMode(false);
   
-  alert(`${selectedServices.size} services added to your booking!`);
+  alert(`AED{selectedServices.size} services added to your booking!`);
 };
 
   // Toggle service selection for multi-select
@@ -499,16 +530,16 @@ const handleAddSelectedServices = () => {
 
   // Handle share service
   const handleShareService = (service: Service) => {
-    const shareText = `Check out ${service.name} - ${service.description}. Price: $${service.price}. Duration: ${service.duration} minutes.`;
+    const shareText = `Check out AED{service.name} - AED{service.description}. Price: AEDAED{service.price}. Duration: AED{service.duration} minutes.`;
     
     if (navigator.share) {
       navigator.share({
-        title: `${service.name} - Premium Grooming`,
+        title: `AED{service.name} - Premium Grooming`,
         text: shareText,
         url: window.location.href,
       }).catch(err => console.log('Error sharing:', err));
     } else {
-      navigator.clipboard.writeText(`${service.name}\n${shareText}\n${window.location.href}`).then(() => {
+      navigator.clipboard.writeText(`AED{service.name}\nAED{shareText}\nAED{window.location.href}`).then(() => {
         alert('Service details copied to clipboard!');
       });
     }
@@ -517,6 +548,150 @@ const handleAddSelectedServices = () => {
   return (
     <div className="min-h-screen bg-[#fcfcfc]">
       <Header />
+
+      {/* ==================== 3 BUTTONS - EXACT COPY FROM HOME PAGE ==================== */}
+      {/* Fixed bottom right buttons - WhatsApp, Call, Chatbot */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-4">
+        
+        {/* Simple Official WhatsApp Icon */}
+        <a 
+          href="https://wa.me/923001234567" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+          title="WhatsApp"
+        >
+          <svg 
+            className="w-7 h-7" 
+            viewBox="0 0 24 24" 
+            fill="currentColor"
+          >
+            {/* Direct WhatsApp Logo */}
+            <path
+              fill="#25D366"
+              d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.78 2.7 15.57 3.71 17.08L2.09 21.91L7.06 20.33C8.55 21.24 10.27 21.72 12.04 21.72C17.5 21.72 21.95 17.27 21.95 11.81C21.95 6.35 17.5 2 12.04 2ZM12.04 20.09C10.46 20.09 8.92 19.65 7.58 18.83L7.32 18.68L4.43 19.57L5.34 16.77L5.18 16.5C4.3 15.12 3.81 13.53 3.81 11.91C3.81 7.37 7.5 3.68 12.04 3.68C16.58 3.68 20.27 7.37 20.27 11.91C20.27 16.45 16.58 20.09 12.04 20.09ZM16.46 13.95C16.18 13.81 14.95 13.21 14.69 13.12C14.43 13.03 14.24 12.98 14.05 13.26C13.86 13.54 13.33 14.09 13.17 14.27C13.01 14.45 12.85 14.47 12.57 14.33C12.29 14.19 11.46 13.91 10.48 13.05C9.7 12.37 9.16 11.51 9.02 11.23C8.88 10.95 9 10.79 9.13 10.66C9.25 10.53 9.4 10.33 9.53 10.17C9.66 10.01 9.71 9.89 9.79 9.73C9.87 9.57 9.82 9.43 9.74 9.31C9.66 9.19 9.11 7.98 8.9 7.5C8.69 7.02 8.48 7.07 8.32 7.07C8.16 7.07 7.99 7.07 7.83 7.07C7.67 7.07 7.41 7.13 7.19 7.39C6.97 7.65 6.35 8.29 6.35 9.58C6.35 10.87 7.22 12.11 7.37 12.3C7.52 12.49 9.09 14.83 11.5 15.94C12.69 16.52 13.59 16.79 14.28 16.97C15.06 17.16 15.79 17.09 16.36 16.88C16.93 16.67 17.67 16.15 17.88 15.53C18.09 14.91 18.09 14.38 18.04 14.28C17.99 14.18 17.85 14.11 17.68 14.04C17.52 13.99 16.74 14.09 16.46 13.95Z"
+            />
+          </svg>
+        </a>
+  
+        {/* Very Simple Phone Icon */}
+        <a 
+          href="tel:+1234567890"
+          className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+          title="Call Now"
+        >
+          <svg 
+            className="w-6 h-6 text-white" 
+            viewBox="0 0 24 24" 
+            fill="currentColor"
+          >
+            {/* Simple Phone Handset */}
+            <path d="M20 10.999h2C22 5.869 18.127 2 12.99 2v2C17.052 4 20 6.943 20 10.999z"/>
+            <path d="M13 8c2.103 0 3 .897 3 3h2c0-3.225-1.775-5-5-5v2z"/>
+            <path d="M16.5 13.5c-.3-.3-.7-.5-1.1-.5-.4 0-.8.1-1.1.4l-1.4 1.4c-1.1-.6-2.1-1.3-3-2.2-.9-.9-1.6-1.9-2.2-3l1.4-1.4c.3-.3.4-.7.4-1.1 0-.4-.1-.8-.4-1.1l-2-2c-.3-.3-.7-.5-1.1-.5-.4 0-.8.1-1.1.4L3.5 6.5c-.3.3-.5.7-.5 1.1 0 3.9 2.1 7.6 5 10.5 2.9 2.9 6.6 5 10.5 5 .4 0 .8-.2 1.1-.5l1.4-1.4c.3-.3.5-.7.5-1.1 0-.4-.2-.8-.5-1.1l-2-2z"/>
+          </svg>
+        </a>
+
+        {/* Chatbot Button with Login Logic */}
+        <button
+          onClick={handleChatClick}
+          className="flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+          title="Chat with Bot"
+        >
+          <svg 
+            className="w-6 h-6" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor"
+          >
+            <defs>
+              <linearGradient id="chatbot-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#667eea" />   {/* Purple */}
+                <stop offset="50%" stopColor="#764ba2" />  {/* Dark Purple */}
+                <stop offset="100%" stopColor="#6b8cff" /> {/* Blue */}
+              </linearGradient>
+            </defs>
+            
+            {/* Background Circle */}
+            <circle 
+              cx="12" 
+              cy="12" 
+              r="10" 
+              stroke="url(#chatbot-gradient)" 
+              strokeWidth="1.5" 
+              fill="transparent"
+            />
+            
+            {/* Chatbot Icon - Message Bubble with Dots */}
+            <path 
+              d="M20 12C20 16.4183 16.4183 20 12 20C10.5 20 9.1 19.6 7.9 18.9L4 20L5.1 16.1C4.4 14.9 4 13.5 4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12Z" 
+              stroke="url(#chatbot-gradient)" 
+              strokeWidth="1.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              fill="white"
+            />
+            
+            {/* Three Dots inside bubble */}
+            <circle cx="9" cy="12" r="1" fill="url(#chatbot-gradient)" />
+            <circle cx="12" cy="12" r="1" fill="url(#chatbot-gradient)" />
+            <circle cx="15" cy="12" r="1" fill="url(#chatbot-gradient)" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Chat Login Popup */}
+      {showChatPopup && (
+        <div className="fixed inset-0 flex items-center justify-center z-[60]">
+          {/* Overlay */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowChatPopup(false)}
+          />
+          
+          {/* Popup Box */}
+          <div className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 w-full animate-in fade-in zoom-in duration-300">
+            {/* Close Button */}
+            <button 
+              onClick={() => setShowChatPopup(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Icon */}
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-2xl font-serif font-bold text-center text-gray-900 mb-2">
+              Create Account First! ✋
+            </h3>
+
+            {/* Login/Signup Button */}
+            <Link 
+              href="/customer/login"
+              className="block w-full text-center bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+              onClick={() => setShowChatPopup(false)}
+            >
+              Login / Sign Up
+            </Link>
+
+            {/* Continue as Guest (Optional) */}
+            <button 
+              onClick={() => setShowChatPopup(false)}
+              className="block w-full text-center text-gray-500 text-sm mt-4 hover:text-gray-700 transition-colors"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Premium Hero Section with Single Image */}
       <section className="relative py-32 px-4 overflow-hidden h-96">
@@ -537,9 +712,9 @@ const handleAddSelectedServices = () => {
             <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
-            Signature <br /><span className="text-gray-400 italic">Rituals</span>
+            Signature <br /><span className="text-[#FA9DB7] italic">Rituals</span>
           </h1>
-          <p className="text-white/60 max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+          <p className="text-[#FA9DB7] max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
             "Artistry is not just a service, it's a transformation."
           </p>
           <div className="flex items-center justify-center gap-6 flex-wrap">
@@ -661,7 +836,7 @@ const handleAddSelectedServices = () => {
                                     <Clock className="w-3.5 h-3.5 text-secondary" />
                                     <span className="text-xs font-bold text-secondary">{service.duration}m</span>
                                   </div>
-                                  <span className="font-bold text-primary text-lg">${service.price}</span>
+                                  <span className="font-bold text-primary text-lg">AED{service.price}</span>
                                 </div>
                               </div>
                               
@@ -760,12 +935,12 @@ const handleAddSelectedServices = () => {
                 className={cn(
                   "whitespace-nowrap px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border flex items-center gap-2",
                   selectedStaff === 'all' 
-                    ? "bg-secondary/20 text-secondary border-secondary/40 shadow-sm" 
-                    : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                    ? "bg-secondary/20 text-[#FA9DB7] border-secondary/40 shadow-sm" 
+                    : "bg-gray-50 text-[#FA9DB7] border-gray-200 hover:border-gray-300"
                 )}
                 type="button"
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-6 h-6 rounded-full bg-[#FA9DB7] flex items-center justify-center text-white text-xs font-bold">
                   All
                 </div>
                 All Barbers
@@ -773,7 +948,7 @@ const handleAddSelectedServices = () => {
               
               {staff.map((member) => {
                 // Debug log for each staff member
-                console.log(`Rendering staff ${member.name} with image:`, member.image);
+                console.log(`Rendering staff AED{member.name} with image:`, member.image);
                 
                 return (
                   <button
@@ -793,17 +968,17 @@ const handleAddSelectedServices = () => {
                         alt={member.name} 
                         className="w-full h-full object-cover"
                         onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                          console.log(`Image failed to load for ${member.name}:`, member.image);
+                          console.log(`Image failed to load for AED{member.name}:`, member.image);
                           e.currentTarget.src = '/default-avatar.png';
                         }}
                         onLoad={() => {
-                          console.log(`Image loaded successfully for ${member.name}`);
+                          console.log(`Image loaded successfully for AED{member.name}`);
                         }}
                       />
                     </div>
                     <div className="text-left">
-                      <div className="font-bold truncate">{member.name}</div>
-                      <div className="text-[9px] text-gray-500 truncate">{member.position || 'Barber'}</div>
+                      <div className="font-bold text-[#FA9DB7] truncate">{member.name}</div>
+                      <div className="text-[9px] text-[#FA9DB7] truncate">{member.position || 'Barber'}</div>
                     </div>
                   </button>
                 );
@@ -821,7 +996,7 @@ const handleAddSelectedServices = () => {
             <div>
               <h2 className="text-3xl font-serif font-bold text-primary">
                 Premium Services
-                <span className="text-secondary ml-2">({filteredServices.length})</span>
+                <span className="text-[#FA9DB7] ml-2">({filteredServices.length})</span>
               </h2>
              
             </div>
@@ -879,7 +1054,7 @@ const handleAddSelectedServices = () => {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {filteredServices.map((service) => {
                 const isServiceAdded = isServiceInCart(service.id);
                 
@@ -905,7 +1080,7 @@ const handleAddSelectedServices = () => {
                       {/* Price Badge */}
                       <div className="absolute top-5 right-5">
                         <div className="bg-white/95 backdrop-blur-sm text-black border-none px-4 py-2.5 rounded-2xl font-black text-sm shadow-2xl">
-                          ${service.price}
+                          AED{service.price}
                         </div>
                       </div>
                       
@@ -967,7 +1142,7 @@ const handleAddSelectedServices = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="font-bold">Revenue:</span>
-                            <span>${service.revenue}</span>
+                            <span>AED{service.revenue}</span>
                           </div>
                         </div>
                         <div className={cn(
@@ -1109,7 +1284,7 @@ const handleAddSelectedServices = () => {
                         <p className="font-bold text-primary">Your Booking Cart</p>
                         <p className="text-sm text-gray-600">
                           {cartItems.length} service{cartItems.length !== 1 ? 's' : ''} selected • 
-                          Total: ${cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
+                          Total: AED{cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -1182,7 +1357,7 @@ const handleAddSelectedServices = () => {
                   {/* Stats Row */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-gray-50 rounded-xl p-4 text-center">
-                      <div className="text-2xl font-bold text-primary">${selectedService.price}</div>
+                      <div className="text-2xl font-bold text-primary">AED{selectedService.price}</div>
                       <div className="text-xs text-gray-600">Price</div>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-4 text-center">
@@ -1277,7 +1452,7 @@ const handleAddSelectedServices = () => {
                                 <DollarSign className="w-4 h-4 text-secondary" />
                                 <span className="font-medium">Service Price</span>
                               </div>
-                              <span className="font-bold text-green-600">${selectedService.price}</span>
+                              <span className="font-bold text-green-600">AED{selectedService.price}</span>
                             </div>
                             
                             <div className="flex items-center justify-between">
@@ -1285,7 +1460,7 @@ const handleAddSelectedServices = () => {
                                 <TrendingUp className="w-4 h-4 text-secondary" />
                                 <span className="font-medium">Total Revenue</span>
                               </div>
-                              <span className="font-bold text-blue-600">${selectedService.revenue}</span>
+                              <span className="font-bold text-blue-600">AED{selectedService.revenue}</span>
                             </div>
                           </div>
                         </div>
@@ -1343,7 +1518,7 @@ const handleAddSelectedServices = () => {
                               variant="outline" 
                               className="flex items-center gap-2"
                               onClick={() => openWhatsApp(
-                                `Hi, I'm interested in ${selectedService.name} service. Can you tell me more about it?`
+                                `Hi, I'm interested in AED{selectedService.name} service. Can you tell me more about it?`
                               )}
                               type="button"
                             >
@@ -1405,7 +1580,7 @@ const handleAddSelectedServices = () => {
                       <Button 
                         variant="outline"
                         className="flex-1"
-                        onClick={() => router.push(`/booking?service=${selectedService.id}`)}
+                        onClick={() => router.push(`/booking?service=AED{selectedService.id}`)}
                         type="button"
                       >
                         <Calendar className="w-4 h-4 mr-2" />
@@ -1424,20 +1599,8 @@ const handleAddSelectedServices = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Refresh Button */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <Button
-          onClick={() => {
-            fetchServices();
-            fetchStaff();
-          }}
-          className="rounded-full w-12 h-12 bg-primary hover:bg-primary/90 shadow-xl"
-          title="Refresh data from Firebase"
-          type="button"
-        >
-          <RefreshCw className="w-5 h-5" />
-        </Button>
-      </div>
+      {/* Refresh Button - Below the 3 buttons (z-40) */}
+      
     </div>
   );
 }
