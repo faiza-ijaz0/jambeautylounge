@@ -2338,21 +2338,21 @@ export default function AdminAppointments() {
                 </TabsContent>
 
                 <TabsContent value="advanced-calendar" className="space-y-6">
-                  <AdvancedCalendar
-                    appointments={finalAppointments}
-                    onAppointmentClick={(appointment: any) => {
-                      const fullAppointment = allAppointments.find(apt => apt.id === appointment.id);
-                      if (fullAppointment) {
-                        setSelectedAppointment(fullAppointment);
-                        setShowAppointmentDetails(true);
-                      }
-                    }}
-                    onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
-                    onCreateBooking={handleCreateBooking}
-                    staff={staffMembers}
-                    showFullDetails={true}
-                  />
-                </TabsContent>
+  <AdvancedCalendar
+    appointments={finalAppointments as any}
+    onAppointmentClick={(appointment: any) => {
+      const fullAppointment = allAppointments.find(apt => apt.id === appointment.id);
+      if (fullAppointment) {
+        setSelectedAppointment(fullAppointment);
+        setShowAppointmentDetails(true);
+      }
+    }}
+    onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
+    onCreateBooking={handleCreateBooking}
+    staff={staffMembers as any}
+    showFullDetails={true}
+  />
+</TabsContent>
 
               
               <TabsContent value="approvals" className="space-y-6">
