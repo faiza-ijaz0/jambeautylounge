@@ -693,40 +693,52 @@ const handleAddSelectedServices = () => {
         </div>
       )}
 
-      {/* Premium Hero Section with Single Image */}
-      <section className="relative py-32 px-4 overflow-hidden h-96">
-        {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ 
-            backgroundImage: "url('https://images.unsplash.com/photo-1535241749838-299277b6305f?q=80&w=2070&auto=format&fit=crop')",
-          }}
-        >
-          <div className="absolute inset-0 bg-linear-to-b from-black/50 via-black/40 to-primary/80"></div>
-        </div>
+{/* Premium Hero Section with Video Background */}
+<section className="relative py-32 px-4 overflow-hidden h-[500px] md:h-[600px]">
+  {/* Video Background */}
+  <div className="absolute inset-0 w-full h-full">
+    <video
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="absolute inset-0 w-full h-full object-cover"
+    >
+      <source src="https://www.pexels.com/download/video/7291771/" type="video/mp4" />
+      {/* Fallback for browsers that don't support video */}
+      Your browser does not support the video tag.
+    </video>
+    
+    {/* Light Overlay - text readable with visible video */}
+    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-primary/70"></div>
+  </div>
 
-        {/* Content Overlay */}
-        <div className="absolute inset-0 bg-black/40"></div>
-        <div className="max-w-7xl mx-auto text-center relative z-10 h-full flex flex-col justify-center items-center">
-          <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-2 mt-8 border border-white/10">
-            <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
-            Signature <br /><span className="text-[#FA9DB7] italic">Rituals</span>
-          </h1>
-          <p className="text-[#FA9DB7] max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
-            "Artistry is not just a service, it's a transformation."
-          </p>
-          <div className="flex items-center justify-center gap-6 flex-wrap">
-            
-            <div className="h-px w-12 bg-white/20 hidden md:block"></div>
-            <span className="text-white/50 font-black tracking-[0.3em] text-[10px] uppercase">
-              {services.length} MASTER SERVICES
-            </span>
-          </div>
-        </div>
-      </section>
+  {/* Content Overlay - REMOVED the extra black layer */}
+  {/* <div className="absolute inset-0 bg-black/30"></div> */} {/* YEH LINE HATAA DI */}
 
+  <div className="max-w-7xl mx-auto text-center relative z-10 h-full flex flex-col justify-center items-center">
+    <div className="inline-block bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-2 mt-8 border border-white/10">
+      <span className="text-white font-black tracking-[0.5em] uppercase text-[10px]">The Service Menu</span>
+    </div>
+    
+    {/* Updated Heading with your requested spacing */}
+    <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-2 leading-[0.85] tracking-tighter">
+      <div className="mb-8">Signature</div>
+      <span className="text-[#FA9DB7] italic">Rituals</span>
+    </h1>
+    
+    <p className="text-[#FA9DB7] max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+      "Artistry is not just a service, it's a transformation."
+    </p>
+    <div className="flex items-center justify-center gap-6 flex-wrap">
+      <div className="h-px w-12 bg-white/20 hidden md:block"></div>
+      <span className="text-white/50 font-black tracking-[0.3em] text-[10px] uppercase">
+        {services.length} MASTER SERVICES
+      </span>
+    </div>
+  </div>
+</section>
+     
       {/* Filters Section */}
       <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -1238,10 +1250,10 @@ const handleAddSelectedServices = () => {
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Scissors className="w-6 h-6 text-primary" />
+                      <Scissors className="w-6 h-6 text-[#FA9DB7]" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Total Services</p>
+                      <p className="text-sm text-[#FA9DB7]">Total Services</p>
                       <p className="text-2xl font-bold text-primary">{services.length}</p>
                     </div>
                   </div>
@@ -1250,23 +1262,23 @@ const handleAddSelectedServices = () => {
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
-                      <Filter className="w-6 h-6 text-secondary" />
+                      <Filter className="w-6 h-6 text-[#FA9DB7]" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Filtered Services</p>
-                      <p className="text-2xl font-bold text-secondary">{filteredServices.length}</p>
+                      <p className="text-sm text-[#FA9DB7]">Filtered Services</p>
+                      <p className="text-2xl font-bold text-primary">{filteredServices.length}</p>
                     </div>
                   </div>
                 </div>
                 
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                      <Check className="w-6 h-6 text-green-600" />
+                    <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
+                      <Check className="w-6 h-6 text-[#FA9DB7]" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Active Services</p>
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-sm text-[#FA9DB7]">Active Services</p>
+                      <p className="text-2xl font-bold text-primary">
                         {services.filter(s => s.status === 'active').length}
                       </p>
                     </div>

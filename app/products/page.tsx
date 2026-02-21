@@ -612,61 +612,43 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Premium Hero Section with Image Carousel */}
-      <section className="relative h-96 overflow-hidden">
-        {/* Background Carousel */}
-        <Carousel 
-          opts={{ 
-            align: "center", 
-            loop: true,
-          }} 
-          plugins={[Autoplay({ delay: 5000, stopOnInteraction: false })]}
-          className="absolute inset-0 w-full h-full"
-        >
-          <CarouselContent className="h-full">
-            {[
-              "https://images.unsplash.com/photo-1556228578-8c89e6adf883?q=80&w=2070&auto=format&fit=crop",
-              "https://images.unsplash.com/photo-1526045612212-70caf35b4884?q=80&w=2070&auto=format&fit=crop",
-              "https://images.unsplash.com/photo-1504674900152-b8b27e3e46ab?q=80&w=2070&auto=format&fit=crop",
-              "https://images.unsplash.com/photo-1559163616-cd4628902d4a?q=80&w=2070&auto=format&fit=crop",
-              "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=2070&auto=format&fit=crop",
-            ].map((image, index) => (
-              <CarouselItem key={index} className="relative w-full h-96 flex items-center justify-center group">
-                <div 
-                  className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 group-hover:scale-120 transition-transform duration-1000"
-                  style={{ 
-                    backgroundImage: `url('${image}')`,
-                  }}
-                >
-                  <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/20 to-primary/60"></div>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          {/* Carousel Controls */}
-          <div className="absolute bottom-6 right-6 z-20 flex gap-2">
-            <CarouselPrevious className="static bg-white/20 border-white/40 hover:bg-white/30 text-white" />
-            <CarouselNext className="static bg-white/20 border-white/40 hover:bg-white/30 text-white" />
-          </div>
-        </Carousel>
+{/* Premium Hero Section with Video Background */}
+<section className="relative h-96 overflow-hidden">
+  {/* Video Background */}
+  <div className="absolute inset-0 w-full h-full">
+    <video
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="absolute inset-0 w-full h-full object-cover"
+    >
+      <source src="https://www.pexels.com/download/video/7509479/" type="video/mp4" />
+      {/* Fallback for browsers that don't support video */}
+      Your browser does not support the video tag.
+    </video>
+    
+    {/* Soft Overlay - text readable with visible video */}
+    <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-primary/50"></div>
+  </div>
 
-        {/* Content Overlay */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <div className="max-w-6xl mx-auto text-center px-4">
-            <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full mb-6 border border-white/10">
-              <Package className="w-4 h-4 text-gray-600" />
-              <span className="text-gray-500 font-black tracking-[0.5em] uppercase text-[10px]">The Boutique</span>
-            </div>
-            <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
-              Couture <br /><span className="text-[#FA9DB7] italic">Skincare</span>
-            </h1>
-            <p className="text-[#FA9DB7] max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
-              "Beauty is science, curated for your skin."
-            </p>
-          </div>
-        </div>
-      </section>
-
+  {/* Content Overlay */}
+  <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+    <div className="max-w-6xl mx-auto text-center px-4">
+      <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-2 mt-6 rounded-full mb-6 border border-white/10">
+        <Package className="w-4 h-4 text-gray-600" />
+        <span className="text-gray-500 font-black tracking-[0.5em] uppercase text-[10px]">The Boutique</span>
+      </div>
+      <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
+        Couture <br /><span className="text-[#FA9DB7] italic">Skincare</span>
+      </h1>
+      <p className="text-white max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+        "Beauty is science, curated for your skin."
+      </p>
+    </div>
+  </div>
+</section>
+    
       {/* Filters Section */}
       <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -782,7 +764,7 @@ export default function ProductsPage() {
                     </div>
                     <div className="text-left">
                       <div className="font-bold truncate">{member.name}</div>
-                      <div className="text-[9px] text-[#FA9DB7]truncate">{member.position || 'Barber'}</div>
+                      <div className="text-[9px] text-[#FA9DB7] truncate">{member.position || 'Barber'}</div>
                     </div>
                   </button>
                 );
@@ -1097,3 +1079,24 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
