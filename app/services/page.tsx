@@ -740,7 +740,7 @@ const handleAddSelectedServices = () => {
 </section>
      
       {/* Filters Section */}
-      <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-6 px-4 shadow-lg">
+      <section className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 py-2 px-2 shadow-lg">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Search and Multi-select Row */}
           <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
@@ -1120,8 +1120,8 @@ const handleAddSelectedServices = () => {
                     </div>
 
                     {/* Card Content */}
-                    <CardHeader className="pt-7 pb-4 px-7">
-                      <div className="flex justify-between items-center mb-3">
+                    <CardHeader className="px-7">
+                      <div className="flex justify-between items-center ">
                         <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] text-secondary border-secondary/30">
                           {service.category}
                         </Badge>
@@ -1138,14 +1138,14 @@ const handleAddSelectedServices = () => {
                       </CardTitle>
                     </CardHeader>
 
-                    <CardContent className="px-7 pb-7 flex-1 flex flex-col">
+                    <CardContent className="px-7  flex-1 flex flex-col">
                       {/* Description */}
                       <p className="text-gray-600 text-sm font-light leading-relaxed line-clamp-3 mb-6 flex-1">
                         {service.description}
                       </p>
 
                       {/* Service Stats */}
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-6">
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-1">
                             <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />

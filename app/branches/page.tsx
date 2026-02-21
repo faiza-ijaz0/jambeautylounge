@@ -575,51 +575,74 @@ export default function Branches() {
         </div>
       )}
 
-      {/* Premium Hero with Single Image - CODE1 STYLE */}
-      <section className="relative h-96 overflow-hidden">
-        {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ 
-            backgroundImage: "url('https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmVhdXR5JTIwc2Fsb29ufGVufDB8fDB8fHww')",
-          }}
-        >
-          <div className="absolute inset-0 bg-linear-to-b from-black/40 via-black/30 to-primary/70"></div>
-        </div>
+  {/* Premium Hero with Video Background - Same as Blog */}
+<section className="relative h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
+  {/* Video Background */}
+  <div className="absolute inset-0 w-full h-full">
+    <video
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="absolute inset-0 w-full h-full object-cover"
+    >
+      {/* Pexels Video - Direct URL */}
+      <source src="https://videos.pexels.com/video-files/3997198/3997198-uhd_3840_2160_30fps.mp4" type="video/mp4" />
+      
+      {/* Fallback for browsers that don't support video */}
+      Your browser does not support the video tag.
+    </video>
+    
+    {/* Soft Overlay - Exactly like blog */}
+    <div className="absolute inset-0 bg-gradient-to-br from-[#FA9DB7]/30 via-white/40 to-[#FA9DB7]/30"></div>
+  </div>
 
-        {/* Content Overlay */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <div className="max-w-6xl mx-auto text-center px-4">
-           
-            <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-tight">
-              Premium <span className="text-[#FA9DB7] italic">Locations</span>
-            </h1>
-            <p className="text-gray-200 max-w-2xl mx-auto text-lg font-light leading-relaxed mb-8">
-              Experience luxury grooming at any of our strategically located branches.
-            </p>
-            
-            {/* Real-time Stats - CODE1 STYLE */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-8 pointer-events-auto">
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
-                <div className="text-2xl font-serif font-bold text-[#FA9DB7] mb-1">{totalBranches}</div>
-                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Locations</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
-                <div className="text-2xl font-serif font-bold text-[#FA9DB7] mb-1">{activeBranches}</div>
-                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Active</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
-                <div className="text-2xl font-serif font-bold text-[#FA9DB7] mb-1">{totalManagers}</div>
-                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Managers</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-all">
-                <div className="text-2xl font-serif font-bold text-[#FA9DB7] mb-1">{totalCities}</div>
-                <div className="text-white/70 text-xs font-black uppercase tracking-widest">Cities</div>
-              </div>
-            </div>
-          </div>
+  {/* Content Overlay - Centered with proper spacing */}
+  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+    <div className="max-w-6xl mx-auto text-center px-4 -mt-16 md:-mt-20">
+      {/* Main Heading - Large spacing from top */}
+      <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-white mb-8 leading-tight drop-shadow-lg">
+        Premium <span className="text-[#FA9DB7] italic">Locations</span>
+      </h1>
+      
+      {/* Subheading - More breathing room */}
+      <p className="text-white/90 max-w-3xl mx-auto text-lg md:text-xl lg:text-2xl font-light leading-relaxed mb-12 drop-shadow px-4">
+        Experience luxury grooming at any of our strategically located branches. 
+        Find the perfect salon near you.
+      </p>
+      
+      {/* Stats Grid - With better spacing and visibility */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto pointer-events-auto px-4">
+        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
+          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{totalBranches}</div>
+          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Total Locations</div>
         </div>
-      </section>
+        
+        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
+          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{activeBranches}</div>
+          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Active Branches</div>
+        </div>
+        
+        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
+          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{totalManagers}</div>
+          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Expert Managers</div>
+        </div>
+        
+        <div className="bg-white/90 backdrop-blur-md px-6 py-5 rounded-2xl border border-white/30 shadow-2xl hover:bg-white hover:scale-105 transition-all duration-300">
+          <div className="text-3xl md:text-4xl font-serif font-bold text-[#FA9DB7] mb-2">{totalCities}</div>
+          <div className="text-gray-700 text-xs md:text-sm font-black uppercase tracking-widest">Cities Covered</div>
+        </div>
+      </div>
+
+      {/* Optional: Decorative Scroll Indicator */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce pointer-events-auto">
+        <div className="w-10 h-16 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
+          <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
      
      <div className="py-20 px-4 bg-linear-to-b  to-white">
@@ -945,7 +968,7 @@ export default function Branches() {
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <Navigation className="w-6 h-6 text-[#FA9DB7]" />
+                      <Navigation className="w-6 h-6 " />
                     </div>
                     <div>
                       <p className="text-sm text-[#FA9DB7]">Cities Covered</p>

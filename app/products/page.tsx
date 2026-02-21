@@ -613,7 +613,7 @@ export default function ProductsPage() {
       )}
 
 {/* Premium Hero Section with Video Background */}
-<section className="relative h-96 overflow-hidden">
+<section className="relative h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
   {/* Video Background */}
   <div className="absolute inset-0 w-full h-full">
     <video
@@ -623,7 +623,9 @@ export default function ProductsPage() {
       playsInline
       className="absolute inset-0 w-full h-full object-cover"
     >
-      <source src="https://www.pexels.com/download/video/7509479/" type="video/mp4" />
+      {/* ✅ Fixed Direct Video URL */}
+      <source src="https://videos.pexels.com/video-files/6894271/6894271-uhd_3840_2160_30fps.mp4" type="video/mp4" />
+      
       {/* Fallback for browsers that don't support video */}
       Your browser does not support the video tag.
     </video>
@@ -632,19 +634,38 @@ export default function ProductsPage() {
     <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-primary/50"></div>
   </div>
 
-  {/* Content Overlay */}
-  <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-    <div className="max-w-6xl mx-auto text-center px-4">
-      <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-2 mt-6 rounded-full mb-6 border border-white/10">
-        <Package className="w-4 h-4 text-gray-600" />
-        <span className="text-gray-500 font-black tracking-[0.5em] uppercase text-[10px]">The Boutique</span>
+  {/* Content Overlay - Centered with better spacing */}
+  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+    <div className="max-w-6xl mx-auto text-center px-4 -mt-12 md:-mt-16">
+      {/* Badge with proper spacing from top */}
+      <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md px-6 py-3 rounded-full mb-8 border border-white/20 shadow-lg">
+        <Package className="w-4 h-4 text-white/80" />
+        <span className="text-white/90 font-black tracking-[0.5em] uppercase text-[10px] md:text-xs">THE BOUTIQUE</span>
       </div>
-      <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6 leading-[0.85] tracking-tighter">
+      
+      {/* Main Heading - Larger with better spacing */}
+      <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-white mb-8 leading-[0.85] tracking-tighter drop-shadow-2xl">
         Couture <br /><span className="text-[#FA9DB7] italic">Skincare</span>
       </h1>
-      <p className="text-white max-w-2xl mx-auto text-lg font-light leading-relaxed italic mb-8">
+      
+      {/* Quote - More breathing room */}
+      <p className="text-white/90 max-w-3xl mx-auto text-lg md:text-xl lg:text-2xl font-light leading-relaxed italic mb-12 drop-shadow-lg px-4">
         "Beauty is science, curated for your skin."
       </p>
+
+      {/* Optional: Call to Action Button */}
+      <div className="pointer-events-auto">
+        <button className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-semibold px-8 py-4 rounded-full border border-white/30 transition-all duration-300 hover:scale-105 shadow-xl">
+          Explore Collection
+        </button>
+      </div>
+
+      {/* Optional: Scroll Indicator */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce pointer-events-auto">
+        <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
+          <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>

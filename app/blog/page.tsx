@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -354,66 +355,84 @@ export default function BlogPage() {
         </div>
       )}
 
-      <main className="flex-1 pt-18">
+      <main className="flex-1">
         {/* Premium Hero Section - CODE1 STYLE */}
-        <section className="
-        relative bg-gradient-to-br from-[#FA9DB7] via-white to-[#FA9DB7] py-32 px-4 overflow-hidden
-        
-        ">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diamond-upholstery.png')] opacity-[0.02]"></div>
-          <div className="max-w-7xl mx-auto relative z-10">
-            <div className="text-center space-y-8">
-               <div className="inline-flex items-center gap-2 bg-white/50 text-[#FA9DB7] px-6 py-3 rounded-full text-sm font-medium">
-              <Tag className="w-4 h-4" />
-              Beauty Insights & Tips
-            </div>
-              <h1 className="text-6xl md:text-8xl font-serif font-bold tracking-tighter text-[#FA9DB7] bg -clip-text text-">
-              Beauty Blog
-            </h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light">
-                Discover expert beauty advice, trending tips, and insider knowledge from JAM Beauty Lounge's
-              professional team. Your journey to radiant beauty starts here.
-              </p>
-              
-              {/* Stats - CODE1 STYLE */}
-              <div className="flex flex-wrap items-center justify-center gap-6 pt-8">
-                <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-[#FA9DB7] uppercase tracking-wider">Total Articles</p>
-                      <p className="text-2xl font-bold text-gray-400">{blogs.length}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <MessageSquare className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-[#FA9DB7] uppercase tracking-wider">Total Comments</p>
-                      <p className="text-2xl font-bold text-gray-400">
-                        {blogs.reduce((sum, post) => sum + post.comments, 0)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="w-5 h-5 text-gray-400"/>
-                    <div>
-                      <p className="text-xs text-[#FA9DB7] uppercase tracking-wider">Total Views</p>
-                      <p className="text-2xl font-bold text-gray-400">
-                        {blogs.reduce((sum, post) => sum + post.views, 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <section className="relative bg-gradient-to-br from-[#FA9DB7] via-white to-[#FA9DB7] py-32 px-4 overflow-hidden">
+  {/* Video Background */}
+  <div className="absolute inset-0 w-full h-full">
+    <video
+      autoPlay
+      loop
+      muted
+      playsInline
+      className="absolute inset-0 w-full h-full object-cover"
+    >
+      <source src="https://www.pexels.com/download/video/854416/" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+    
+    {/* Soft Overlay - video visible rahega aur text readable */}
+    <div className="absolute inset-0 bg-gradient-to-br from-[#FA9DB7]/30 via-white/40 to-[#FA9DB7]/30"></div>
+  </div>
+
+  {/* Texture Overlay (optional - hata bhi sakte ho) */}
+  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diamond-upholstery.png')] opacity-[0.02] mix-blend-overlay"></div>
+  
+  <div className="max-w-7xl mx-auto relative z-10">
+    <div className="text-center space-y-8">
+      <div className="inline-flex items-center gap-2 bg-white/70 backdrop-blur-sm text-[#FA9DB7] px-6 py-3 rounded-full text-sm font-medium shadow-lg border border-white/20">
+        <Tag className="w-4 h-4" />
+        Beauty Insights & Tips
+      </div>
+      
+      <h1 className="text-6xl md:text-8xl font-serif font-bold tracking-tighter text-white drop-shadow-lg">
+        Beauty Blog
+      </h1>
+      
+      <p className="text-xl text-white/90 max-w-3xl mx-auto leading-relaxed font-light drop-shadow">
+        Discover expert beauty advice, trending tips, and insider knowledge from JAM Beauty Lounge's
+        professional team. Your journey to radiant beauty starts here.
+      </p>
+      
+      {/* Stats - with better visibility on video */}
+      <div className="flex flex-wrap items-center justify-center gap-6 pt-8">
+        <div className="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/30 shadow-xl hover:bg-white transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <BookOpen className="w-5 h-5 text-[#FA9DB7]" />
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wider">Total Articles</p>
+              <p className="text-2xl font-bold text-gray-800">{blogs.length}</p>
             </div>
           </div>
-        </section>
+        </div>
+        
+        <div className="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/30 shadow-xl hover:bg-white transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="w-5 h-5 text-[#FA9DB7]" />
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wider">Total Comments</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {blogs.reduce((sum, post) => sum + post.comments, 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-2xl border border-white/30 shadow-xl hover:bg-white transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-5 h-5 text-[#FA9DB7]" />
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wider">Total Views</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {blogs.reduce((sum, post) => sum + post.views, 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
         {/* Search and Filter Section - CODE1 STYLE */}
         <section className="py-16 px-4 border-b border-gray-100 bg-white">
