@@ -3401,48 +3401,24 @@ export default function AdminAppointments() {
                 </TabsContent>
 
                 <TabsContent value="advanced-calendar" className="space-y-6">
-                  <AdvancedCalendar
-                    appointments={finalAppointments.map(apt => ({
-                      ...apt,
-                      teamMembers: apt.teamMembers || [],
-                      products: apt.products || [],
-                      cardLast4Digits: apt.cardLast4Digits || '',
-                      trnNumber: apt.trnNumber || '',
-                      paymentMethods: apt.paymentMethods || [],
-                      paymentAmounts: {
-                        cash: (apt.paymentAmounts as any)?.cash || 0,
-                        card: (apt.paymentAmounts as any)?.card || 0,
-                        check: (apt.paymentAmounts as any)?.check || 0,
-                        digital: (apt.paymentAmounts as any)?.digital || 0,
-                        wallet: (apt.paymentAmounts as any)?.wallet || 0
-                      },
-                      discount: apt.discount || 0,
-                      discountType: apt.discountType || 'fixed',
-                      serviceTip: apt.serviceTip || 0,
-                      serviceCharges: apt.serviceCharges || 0,
-                      tax: apt.tax || 5
-                    })).filter(apt => {
-                      if (user?.role === 'admin' && user?.branchName) {
-                        return apt.branch === user.branchName;
-                      }
-                      return true;
-                    })}
-                    onAppointmentClick={(appointment: any) => {
-                      const fullAppointment = allAppointments.find(apt => apt.id === appointment.id);
-                      if (fullAppointment) {
-                        setSelectedAppointment({
-                          ...fullAppointment,
-                          ...appointment
-                        });
-                        setShowAppointmentDetails(true);
-                      }
-                    }}
-                    onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
-                    onCreateBooking={handleCreateBooking}
-                    staff={staffMembers}
-                    showFullDetails={true}
-                  />
-                </TabsContent>
+                                <AdvancedCalendar
+                                  appointments={finalAppointments as any}
+                                  onAppointmentClick={(appointment: any) => {
+                                    const fullAppointment = allAppointments.find(apt => apt.id === appointment.id);
+                                    if (fullAppointment) {
+                                      setSelectedAppointment(fullAppointment);
+                                      setShowAppointmentDetails(true);
+                                    }
+                                  }}
+                                  onStatusChange={(appointmentId, newStatus) => handleStatusChange(appointmentId.toString(), newStatus)}
+                                  onCreateBooking={handleCreateBooking}
+                                  staff={staffMembers as any}
+                                  showFullDetails={true}
+                                />
+                              </TabsContent>
+
+
+
 
                 <TabsContent value="approvals" className="space-y-6">
                   <div className="space-y-4">
