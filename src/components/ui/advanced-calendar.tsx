@@ -14,7 +14,9 @@ import {
   AlertCircle, Receipt, Trash2, Plus, Minus, Download, Hash, 
   Building, Tag, Package, Smartphone, Wallet, FileCheck, Printer,
   Search, Filter, Banknote, Coins, Smartphone as Mobile, QrCode,
-  CheckSquare, Percent, CalendarDays, ClipboardList
+  CheckSquare, Percent, CalendarDays, ClipboardList,
+  MoreHorizontal,
+  ChevronDown
 } from "lucide-react";
 import { format, addDays, startOfDay, addMinutes, isSameDay, parseISO } from "date-fns";
 import { collection, getDocs, query, where, doc, getDoc ,updateDoc ,deleteDoc} from "firebase/firestore";
@@ -227,6 +229,468 @@ const getPaymentMethodColor = (type: string): string => {
     default: return 'bg-gray-100 text-gray-800 border-gray-200';
   }
 };
+// ✅ INVOICE POPUP - SLIP ON LEFT, BUTTONS ON RIGHT
+const InvoicePopup = ({ 
+  appointment, 
+  services,
+  tips,
+  discount,
+  tax,
+  serviceCharges,
+  subtotal,
+  totalAmount,
+  paymentMethods,
+  totalPaid,
+  balanceDue,
+  onClose,
+  onVoid,
+  formatCurrency = (amount) => {
+    if (amount === undefined || amount === null || isNaN(amount)) return 'AED 0.00';
+    return `AED ${amount.toFixed(2)}`;
+  }
+}: { 
+  appointment: Appointment | null; 
+  services: any[];
+  tips: {[key: string]: number};
+  discount: number;
+  tax: number;
+  serviceCharges: number;
+  subtotal: number;
+  totalAmount: number;
+  paymentMethods: Array<{type: string, label: string, amount: number}>;
+  totalPaid: number;
+  balanceDue: number;
+  onClose: () => void;
+  onVoid: () => void;
+  formatCurrency?: (amount: number) => string;
+}) => {
+  const [invoiceData, setInvoiceData] = useState({
+    companyName: 'Lavanya Beauty Salon',
+    address: '3, Ground Floor, Widad Building, 10th Street, Al Nahda, Dubai',
+    email: 'lavanyabeautysalon2023@gmail.com',
+    mobile: '+971 501168700',
+    trn: '10430991800003',
+    date: new Date().toLocaleDateString('en-GB'),
+    invoiceNo: `INV-${Date.now().toString().slice(-6)}`,
+    clientName: appointment?.customerName || appointment?.customer || 'Customer',
+    paymentReceivedBy: 'Sruthi',
+    paymentDate: new Date().toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  });
+
+  // Calculate discount amount
+  const discountAmount = (subtotal * discount) / 100;
+  const taxableAmount = subtotal - discountAmount;
+  const taxAmount = (taxableAmount * tax) / 100;
+  const totalWithTax = subtotal - discountAmount + taxAmount + serviceCharges + Object.values(tips).reduce((a, b) => a + b, 0);
+
+ // Handle PDF Download - EXACTLY like generatePDF with proper table
+const handleDownloadPDF = () => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const margin = 20;
+
+  // ===== COMPANY HEADER =====
+  doc.setFontSize(22);
+  doc.setTextColor(0, 51, 102); // Dark blue color
+  doc.setFont("helvetica", "bold");
+  doc.text(invoiceData.companyName, margin, 20);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(invoiceData.address, margin, 28);
+  doc.text(invoiceData.email, margin, 34);
+  doc.text(`Mobile: ${invoiceData.mobile}`, margin, 40);
+  doc.text(`TRN: ${invoiceData.trn}`, margin, 46);
+
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 51, 102);
+  doc.text('TAX INVOICE', pageWidth - margin - 40, 20);
+
+  doc.setDrawColor(0, 51, 102);
+  doc.line(margin, 55, pageWidth - margin, 55);
+
+  // ===== CUSTOMER INFORMATION =====
+  let yPos = 65;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text('Customer Information:', margin, yPos);
+
+  yPos += 7;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Name: ${invoiceData.clientName}`, margin, yPos);
+  yPos += 6;
+  doc.text(`Phone: ${appointment?.customerPhone || appointment?.phone || ''}`, margin, yPos);
+  yPos += 6;
+  doc.text(`Email: ${appointment?.customerEmail || appointment?.email || ''}`, margin, yPos);
+  yPos += 6;
+  
+  // Booking Date and Time
+  const bookingDate = appointment?.bookingDate || appointment?.date || '';
+  const bookingTime = appointment?.bookingTime || appointment?.time || '';
+  doc.text(`Date: ${bookingDate}  Time: ${bookingTime}`, margin, yPos);
+
+  // TRN Number (if available)
+  if (invoiceData.trn) {
+    yPos += 6;
+    doc.text(`TRN: ${invoiceData.trn}`, margin, yPos);
+  }
+
+  // Invoice Details on Right
+  doc.setFont("helvetica", "bold");
+  doc.text(`Invoice: ${invoiceData.invoiceNo}`, pageWidth - margin - 60, 65);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${invoiceData.date}`, pageWidth - margin - 60, 72);
+
+  // ===== SERVICES TABLE - WITH ALL DETAILS =====
+  yPos = 110;
+  
+  // Create detailed table data with all service information
+  const tableHeaders = [['SL NO', 'Service', 'Staff', 'Duration', 'Price', 'Tip', 'Total']];
+  const tableData = services.map((service, index) => [
+    (index + 1).toString(),
+    service.name,
+    service.staff || 'Not Assigned',
+    service.duration ? `${service.duration} min` : '60 min',
+    formatCurrency(service.price),
+    formatCurrency(tips[service.staff] || 0),
+    formatCurrency(service.price + (tips[service.staff] || 0))
+  ]);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: tableHeaders,
+    body: tableData,
+    theme: 'grid',
+    headStyles: { fillColor: [0, 51, 102], textColor: 255, fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: 15, halign: 'center' },
+      1: { cellWidth: 55 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 25, halign: 'right' }
+    }
+  });
+
+  const tableEndY = (doc as any).lastAutoTable.finalY + 15;
+
+  
+
+
+  // ===== SUMMARY SECTION (RIGHT SIDE) =====
+  const summaryX = pageWidth - margin - 85;
+  let summaryY = tableEndY;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text('Summary:', summaryX, summaryY);
+
+  summaryY += 8;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+
+  // Subtotal
+  doc.text(`Subtotal:`, summaryX, summaryY);
+  doc.text(formatCurrency(subtotal), summaryX + 55, summaryY, { align: 'right' });
+  summaryY += 6;
+
+  // Tips
+  const totalTips = Object.values(tips).reduce((a, b) => a + b, 0);
+  if (totalTips > 0) {
+    doc.text(`Tips:`, summaryX, summaryY);
+    doc.text(formatCurrency(totalTips), summaryX + 55, summaryY, { align: 'right' });
+    summaryY += 6;
+  }
+
+  // Discount
+  if (discount > 0) {
+    const discountAmount = (subtotal * discount) / 100;
+    doc.text(`Discount (${discount}%):`, summaryX, summaryY);
+    doc.text(`-${formatCurrency(discountAmount)}`, summaryX + 55, summaryY, { align: 'right' });
+    summaryY += 6;
+  }
+
+  // VAT
+  const taxableAmount = subtotal - ((subtotal * discount) / 100);
+  const taxAmount = (taxableAmount * tax) / 100;
+  doc.text(`VAT (${tax}%):`, summaryX, summaryY);
+  doc.text(formatCurrency(taxAmount), summaryX + 55, summaryY, { align: 'right' });
+  summaryY += 6;
+
+  // Service Charges
+  if (serviceCharges > 0) {
+    doc.text(`Service Charges:`, summaryX, summaryY);
+    doc.text(formatCurrency(serviceCharges), summaryX + 55, summaryY, { align: 'right' });
+    summaryY += 6;
+  }
+
+  // Total Tips Summary Line (if needed)
+  if (totalTips > 0) {
+    // Already added above
+  }
+
+  // Separator line
+  summaryY += 4;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(summaryX, summaryY - 2, summaryX + 65, summaryY - 2);
+
+  // Grand Total
+  const totalWithTax = subtotal - ((subtotal * discount) / 100) + taxAmount + serviceCharges + totalTips;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(`Total:`, summaryX, summaryY + 4);
+  doc.text(formatCurrency(totalWithTax), summaryX + 55, summaryY + 4, { align: 'right' });
+
+  // ===== FOOTER =====
+  const footerY = doc.internal.pageSize.height - 15;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(150, 150, 150);
+  doc.text('THANK YOU FOR YOUR BUSINESS', pageWidth / 2, footerY, { align: 'center' });
+
+  doc.save(`Invoice-${invoiceData.invoiceNo}.pdf`);
+};
+
+  // Handle Print
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <Sheet open={true} onOpenChange={onClose}>
+      <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
+        <SheetTitle className="sr-only">View Invoice</SheetTitle>
+        
+        {/* Pink Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <Receipt className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">View Invoice</h2>
+                <p className="text-pink-100 text-sm">{invoiceData.invoiceNo}</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-8 w-8 p-0 rounded-full">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Main Content - 2 Columns */}
+        <div className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* LEFT COLUMN - SLIP ONLY WITH COMPLETE DETAILS */}
+<div className="lg:col-span-2">
+  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
+    {/* Company Header */}
+    <div className="text-center mb-4">
+      <h1 className="text-xl font-bold text-pink-600">{invoiceData.companyName}</h1>
+      <p className="text-xs text-gray-600">{invoiceData.address}</p>
+      <p className="text-xs text-gray-500">{invoiceData.email}</p>
+      <p className="text-xs text-gray-500">Mobile: {invoiceData.mobile}</p>
+      <p className="text-xs text-gray-500">TRN: {invoiceData.trn}</p>
+    </div>
+
+    {/* Invoice Details - Two Lines */}
+    <div className="mb-4 text-sm">
+      <div className="flex justify-between">
+        <p><span className="text-pink-600">Date:</span> {invoiceData.date}</p>
+        <p><span className="text-pink-600">Invoice No:</span> {invoiceData.invoiceNo}</p>
+      </div>
+      <p className="mt-1"><span className="text-pink-600">Client Name:</span> {invoiceData.clientName}</p>
+      <p className="mt-1"><span className="text-pink-600">Client Phone:</span> {appointment?.customerPhone || appointment?.phone || 'N/A'}</p>
+      <p className="mt-1"><span className="text-pink-600">Booking Date:</span> {appointment?.bookingDate || appointment?.date || 'N/A'} at {appointment?.bookingTime || appointment?.time || 'N/A'}</p>
+    </div>
+
+    {/* Services Table - WITH COMPLETE DETAILS */}
+    <div className="mb-4">
+      <h3 className="text-sm font-semibold text-gray-800 mb-2">Services</h3>
+      <table className="w-full text-xs">
+        <thead className="bg-pink-100">
+          <tr>
+            <th className="px-2 py-2 text-left">SL NO</th>
+            <th className="px-2 py-2 text-left">Service</th>
+            <th className="px-2 py-2 text-left">Staff</th>
+            <th className="px-2 py-2 text-center">Duration</th>
+            <th className="px-2 py-2 text-right">Price</th>
+            <th className="px-2 py-2 text-right">Tip</th>
+            <th className="px-2 py-2 text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-pink-100">
+          {services.map((service, idx) => {
+            const tipAmount = tips[service.staff] || 0;
+            const totalAmount = (service.price || 0) + tipAmount;
+            
+            return (
+              <tr key={idx} className="hover:bg-pink-50">
+                <td className="px-2 py-2">{idx + 1}</td>
+                <td className="px-2 py-2 font-medium">{service.name}</td>
+                <td className="px-2 py-2">{service.staff || '—'}</td>
+                <td className="px-2 py-2 text-center">{service.duration ? `${service.duration} min` : '60 min'}</td>
+                <td className="px-2 py-2 text-right">{formatCurrency(service.price)}</td>
+                <td className="px-2 py-2 text-right">{formatCurrency(tipAmount)}</td>
+                <td className="px-2 py-2 text-right font-medium">{formatCurrency(totalAmount)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Payment Status */}
+    <div className="mb-3">
+      <div className="flex items-center gap-2 text-green-600 font-semibold">
+        <CheckCircle className="w-4 h-4" />
+        <span>Payment Completed</span>
+      </div>
+    
+    </div>
+
+    {/* Payment Methods */}
+    {paymentMethods.length > 0 && (
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-gray-800 mb-1">Payment Methods</h3>
+        <div className="bg-pink-50 p-2 rounded-lg">
+          {paymentMethods.map((pm, idx) => (
+            <div key={idx} className="flex justify-between text-xs py-1">
+              <span className="font-medium">{pm.label}</span>
+              <span>{formatCurrency(pm.amount)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Summary */}
+    <div className="border-t border-pink-200 pt-3">
+      <div className="flex justify-end">
+        <div className="w-64 space-y-1">
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">Subtotal:</span>
+            <span className="font-medium">{formatCurrency(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-600">Discount ({discount}%):</span>
+              <span className="font-medium text-red-600">-{formatCurrency(discountAmount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">VAT ({tax}%):</span>
+            <span className="font-medium">{formatCurrency(taxAmount)}</span>
+          </div>
+          {serviceCharges > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-600">Service Charges:</span>
+              <span className="font-medium">{formatCurrency(serviceCharges)}</span>
+            </div>
+          )}
+          {Object.values(tips).reduce((a, b) => a + b, 0) > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-600">Total Tips:</span>
+              <span className="font-medium text-green-600">{formatCurrency(Object.values(tips).reduce((a, b) => a + b, 0))}</span>
+            </div>
+          )}
+          <div className="border-t border-pink-200 pt-1 mt-1">
+            <div className="flex justify-between font-bold text-sm">
+              <span>Grand Total:</span>
+              <span className="text-pink-600">{formatCurrency(totalWithTax)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Footer */}
+    <div className="text-center text-gray-500 text-xs mt-4">
+      THANK YOU FOR YOUR BUSINESS
+    </div>
+  </div>
+</div>
+
+        {/* RIGHT COLUMN - BUTTONS ONLY */}
+<div className="lg:col-span-1 space-y-4">
+  {/* Action Buttons - IN ROW */}
+  <div className="bg-pink-100 border border-pink-100 rounded-xl p-4 shadow-sm">
+    <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-1">
+      <Settings className="w-4 h-4 text-pink-500" />
+      Actions
+    </h3>
+    
+    <div className="flex flex-row gap-2">
+      <Button 
+        size="sm"
+        className="flex-1 bg-pink-500 hover:bg-pink-100 text-white text-xs h-8 px-2 gap-1"
+        onClick={onVoid}
+      >
+        <RotateCcw className="w-3 h-3" />
+        Void
+      </Button>
+      
+      <Button 
+        size="sm"
+        className="flex-1 bg-pink-500 hover:bg-pink-700 text-white text-xs h-8 px-2 gap-1"
+        onClick={handlePrint}
+      >
+        <Printer className="w-3 h-3" />
+        Print
+      </Button>
+      
+      <Button 
+        size="sm"
+        className="flex-1 bg-pink-500 hover:bg-pink-700 text-white text-xs h-8 px-2 gap-1"
+        onClick={handleDownloadPDF}
+      >
+        <Download className="w-3 h-3" />
+        PDF
+      </Button>
+    </div>
+  </div>
+
+  {/* Send Invoice Section */}
+  <div className="bg-white border border-pink-100 rounded-xl p-4 shadow-sm">
+    <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-1">
+      <Mail className="w-4 h-4 text-pink-500" />
+      Send Invoice
+    </h3>
+    
+    <div className="space-y-2">
+      <Input
+        placeholder="Email Address"
+        className="w-full h-8 text-sm border-pink-200"
+      />
+      <Button className="w-full bg-pink-500 hover:bg-pink-700 text-white h-8 text-sm">
+        Send
+      </Button>
+    </div>
+  </div>
+</div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
 
 
 // INVOICE GENERATION POPUP COMPONENT - FINAL VERSION
@@ -1373,25 +1837,31 @@ if (amounts.Check > 0 || amounts.check > 0) {
   );
 };
 
-// ✅ COMPLETE CHECKOUT POPUP - FULLY EDITABLE with PINKISH THEME
+
+// ✅ COMPLETE CHECKOUT POPUP - with CONFIRMATION POPUP (FIXED)
 const CheckoutPopup = ({ 
   appointment, 
   onClose,
   onProcessPayment,
-  formatCurrency = (amount) => `AED ${amount.toFixed(2)}`
+  formatCurrency = (amount) => {
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return 'AED 0.00';
+    }
+    return `AED ${amount.toFixed(2)}`;
+  }
 }: { 
   appointment: Appointment | null; 
   onClose: () => void;
   onProcessPayment?: (data: any) => void;
   formatCurrency?: (amount: number) => string;
 }) => {
+  const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   
   // Editable fields state
   const [services, setServices] = useState<any[]>(appointment?.serviceDetails || []);
   const [tips, setTips] = useState<{[key: string]: number}>({});
   const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [tax, setTax] = useState(5);
   const [serviceCharges, setServiceCharges] = useState(0);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
@@ -1402,33 +1872,42 @@ const CheckoutPopup = ({
   });
   const [paymentMethods, setPaymentMethods] = useState<Array<{type: string, label: string, amount: number}>>([]);
 
-  // Calculate totals
-  const subtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
-  const totalTips = Object.values(tips).reduce((sum, t) => sum + t, 0);
-  const discountAmount = discountType === 'percentage' ? (subtotal * discount) / 100 : discount;
+  // Safe format function
+  const safeFormat = (amount: number | undefined | null) => {
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return 'AED 0.00';
+    }
+    return `AED ${amount.toFixed(2)}`;
+  };
+
+  // Calculate totals with safe defaults
+  const subtotal = services?.reduce((sum, s) => sum + (s?.price || 0), 0) || 0;
+  const totalTips = Object.values(tips).reduce((sum, t) => sum + (t || 0), 0) || 0;
+  const discountAmount = (subtotal * (discount || 0)) / 100;
   const taxableAmount = subtotal - discountAmount;
-  const taxAmount = (taxableAmount * tax) / 100;
-  const totalAmount = subtotal - discountAmount + taxAmount + serviceCharges + totalTips;
-  const totalPaid = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+  const taxAmount = (taxableAmount * (tax || 0)) / 100;
+  const totalAmount = subtotal - discountAmount + taxAmount + (serviceCharges || 0) + totalTips;
+  const totalPaid = paymentMethods.reduce((sum, pm) => sum + (pm?.amount || 0), 0) || 0;
   const balanceDue = totalAmount - totalPaid;
 
   // Update service price
   const updateServicePrice = (index: number, newPrice: number) => {
     const updated = [...services];
-    updated[index] = { ...updated[index], price: newPrice };
+    updated[index] = { ...updated[index], price: newPrice || 0 };
     setServices(updated);
   };
 
   // Update service staff
   const updateServiceStaff = (index: number, newStaff: string) => {
     const updated = [...services];
-    updated[index] = { ...updated[index], staff: newStaff };
+    updated[index] = { ...updated[index], staff: newStaff || '' };
     setServices(updated);
   };
 
-  // Add tip for staff
-  const addTip = (staffName: string, amount: number) => {
-    setTips(prev => ({ ...prev, [staffName]: (prev[staffName] || 0) + amount }));
+  // Update tip manually
+  const updateTip = (staffName: string, value: string) => {
+    const amount = parseFloat(value) || 0;
+    setTips(prev => ({ ...prev, [staffName]: amount }));
   };
 
   // Add payment method
@@ -1473,35 +1952,40 @@ const CheckoutPopup = ({
     setManualPaymentDetails({ methodName: '', amount: 0 });
   };
 
-  // Handle payment processing
-  const handleProcessPayment = () => {
+  // Handle Pay button click - Show confirmation popup
+  const handlePayClick = () => {
     if (paymentMethods.length === 0) {
       alert('Please select a payment method');
       return;
     }
-    
-    const paymentData = {
-      appointment,
-      services,
-      tips,
-      discount,
-      discountType,
-      tax,
-      serviceCharges,
-      subtotal,
-      totalAmount,
-      paymentMethods,
-      totalPaid,
-      balanceDue
-    };
-    
-    // Show invoice popup
-    setShowInvoicePopup(true);
-    
-    if (onProcessPayment) {
-      onProcessPayment(paymentData);
-    }
+    setShowConfirmationPopup(true);
   };
+
+ // Handle confirmation - Close confirmation and show invoice
+const handleConfirmPayment = () => {
+  setShowConfirmationPopup(false);
+  
+  const paymentData = {
+    appointment,
+    services,
+    tips,
+    discount,
+    tax,
+    serviceCharges,
+    subtotal,
+    totalAmount,
+    paymentMethods,
+    totalPaid,
+    balanceDue
+  };
+  
+  // Show invoice popup - YAHAN InvoicePopup CALL HO RAHA HAI
+  setShowInvoicePopup(true);
+  
+  if (onProcessPayment) {
+    onProcessPayment(paymentData);
+  }
+};
 
   // Void function - reset to start
   const handleVoid = () => {
@@ -1520,518 +2004,427 @@ const CheckoutPopup = ({
 
   return (
     <>
-      {/* ✅ PINKISH THEME - FULL WIDTH CHECKOUT POPUP */}
+      {/* ✅ MAIN CHECKOUT POPUP */}
       <Sheet open={true} onOpenChange={onClose}>
-        <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-full p-0 bg-white overflow-y-auto">
           <SheetTitle className="sr-only">Checkout</SheetTitle>
           
           {/* Pink Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-6">
+          <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-4 py-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Receipt className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <Receipt className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-white">Checkout</h2>
-                  <p className="text-pink-100">Booking #{appointment.bookingNumber || appointment.id}</p>
+                  <h2 className="text-lg font-semibold text-white">Checkout</h2>
+                  <p className="text-pink-100 text-xs">Booking #{appointment.bookingNumber || appointment.id}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-10 w-10 p-0 rounded-full">
-                <X className="w-5 h-5" />
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-7 w-7 p-0 rounded-full">
+                <X className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
 
-          <div className="p-8">
-            {/* EDITABLE SERVICES */}
-            <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Scissors className="w-5 h-5 text-pink-500" />
-                Services
-              </h3>
-              
-              <div className="space-y-4">
-                {services.map((service, index) => (
-                  <div key={index} className="border border-pink-100 rounded-lg p-4 bg-pink-50/30">
-                    <div className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-4">
-                        <p className="font-medium text-gray-700">{service.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">{service.time || appointment.bookingTime}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          type="number"
-                          value={service.price || 0}
-                          onChange={(e) => updateServicePrice(index, parseFloat(e.target.value) || 0)}
-                          className="h-9 text-right border-pink-200 focus:border-pink-500"
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                      <div className="col-span-3">
-                        <Input
-                          value={service.staff || ''}
-                          onChange={(e) => updateServiceStaff(index, e.target.value)}
-                          className="h-9 border-pink-200 focus:border-pink-500"
-                          placeholder="Staff name"
-                        />
-                      </div>
-                      <div className="col-span-3 flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          {[10, 20, 50].map(amount => (
-                            <Button
-                              key={amount}
-                              size="sm"
-                              variant="outline"
-                              onClick={() => addTip(service.staff, amount)}
-                              className="h-8 text-xs border-pink-200 hover:bg-pink-100"
-                            >
-                              AED {amount}
-                            </Button>
-                          ))}
+          {/* Main Content - 2 COLUMNS */}
+          <div className="p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* LEFT COLUMN - Services */}
+              <div className="space-y-3">
+                {/* Services List */}
+                <div className="bg-white border border-pink-100 rounded-lg p-3 shadow-sm">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                    <Scissors className="w-3.5 h-3.5 text-pink-500" />
+                    Services
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    {services.map((service, index) => (
+                      <div key={index} className="border border-pink-100 rounded-lg p-2 bg-pink-50/30">
+                        {/* Service Header with Price */}
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="font-medium text-gray-800 text-xs">{service.name}</p>
                           <Input
                             type="number"
-                            placeholder="Custom"
-                            className="w-16 h-8 text-xs border-pink-200"
-                            onBlur={(e) => {
-                              const val = parseFloat(e.target.value);
-                              if (!isNaN(val) && val > 0) addTip(service.staff, val);
-                            }}
+                            value={service.price || 0}
+                            onChange={(e) => updateServicePrice(index, parseFloat(e.target.value) || 0)}
+                            className="w-16 h-6 text-right text-xs border-pink-200"
+                            min="0"
+                            step="0.01"
                           />
                         </div>
+                        
+                        {/* Staff and Tip in one row */}
+                        <div className="grid grid-cols-2 gap-1 mt-1">
+                          {/* Staff */}
+                          <div>
+                            <p className="text-[10px] text-pink-600 mb-0.5">Staff</p>
+                            <Input
+                              value={service.staff || ''}
+                              onChange={(e) => updateServiceStaff(index, e.target.value)}
+                              className="h-5 text-[10px] border-pink-200 w-full px-1"
+                              placeholder="Staff name"
+                            />
+                          </div>
+                          
+                          {/* Tip - Manual Field */}
+                          <div>
+                            <p className="text-[10px] text-pink-600 mb-0.5">Tip (AED)</p>
+                            <Input
+                              type="number"
+                              value={tips[service.staff] || 0}
+                              onChange={(e) => updateTip(service.staff, e.target.value)}
+                              className="h-5 text-[10px] border-pink-200 w-full px-1 text-right"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    {tips[service.staff] > 0 && (
-                      <div className="mt-2 text-sm text-green-600 flex justify-end">
-                        Tip: {formatCurrency(tips[service.staff])}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {/* Add service button */}
-                <Button 
-                  variant="outline" 
-                  className="w-full border-pink-300 text-pink-600 hover:bg-pink-50"
-                  onClick={() => {
-                    setServices([
-                      ...services,
-                      {
-                        name: 'New Service',
-                        staff: appointment.staffName || appointment.staff || appointment.barber || '',
-                        price: 0,
-                        duration: 30
-                      }
-                    ]);
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Add Service
-                </Button>
-              </div>
-            </div>
-
-            {/* EDITABLE CHARGES SECTION */}
-            <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-pink-500" />
-                Charges & Discounts
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Subtotal */}
-                <div className="bg-pink-50/50 p-4 rounded-lg">
-                  <p className="text-sm text-pink-600 mb-1">Subtotal</p>
-                  <p className="text-xl font-bold text-gray-800">{formatCurrency(subtotal)}</p>
-                </div>
-                
-                {/* Discount */}
-                <div className="bg-pink-50/50 p-4 rounded-lg">
-                  <p className="text-sm text-pink-600 mb-1">Discount</p>
-                  <div className="flex items-center gap-2">
-                    <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
-                      <SelectTrigger className="w-20 h-9 border-pink-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">%</SelectItem>
-                        <SelectItem value="fixed">AED</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                      className="w-24 h-9 text-right border-pink-200"
-                      min="0"
-                      step="0.1"
-                    />
-                  </div>
-                </div>
-                
-                {/* VAT */}
-                <div className="bg-pink-50/50 p-4 rounded-lg">
-                  <p className="text-sm text-pink-600 mb-1">VAT (%)</p>
-                  <Input
-                    type="number"
-                    value={tax}
-                    onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
-                    className="w-24 h-9 border-pink-200"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                </div>
-                
-                {/* Service Charges */}
-                <div className="bg-pink-50/50 p-4 rounded-lg">
-                  <p className="text-sm text-pink-600 mb-1">Service Charges</p>
-                  <Input
-                    type="number"
-                    value={serviceCharges}
-                    onChange={(e) => setServiceCharges(parseFloat(e.target.value) || 0)}
-                    className="w-24 h-9 border-pink-200"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-              
-              {/* Total */}
-              <div className="mt-4 p-4 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg text-white">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">Total Amount</span>
-                  <span className="text-2xl font-bold">{formatCurrency(totalAmount)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* PAYMENT METHODS */}
-            <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-pink-500" />
-                Payment Methods
-              </h3>
-              
-              {/* Added payment methods */}
-              <div className="space-y-2 mb-4">
-                {paymentMethods.map((pm, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-pink-50 p-3 rounded-lg">
-                    <span className="font-medium text-gray-700">{pm.label}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-pink-600">{formatCurrency(pm.amount)}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPaymentMethods(paymentMethods.filter((_, i) => i !== idx))}
-                        className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 rounded-full"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Payment method buttons */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Button 
-                  variant="outline" 
-                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'cash' ? 'bg-pink-200 border-pink-500' : ''}`}
-                  onClick={() => {
-                    setSelectedPaymentMethod('cash');
-                    addPaymentMethod();
-                  }}
-                >
-                  <DollarSign className="w-4 h-4 mr-2 text-green-600" /> Cash
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'visa' ? 'bg-pink-200 border-pink-500' : ''}`}
-                  onClick={() => {
-                    setSelectedPaymentMethod('visa');
-                    addPaymentMethod();
-                  }}
-                >
-                  <CreditCard className="w-4 h-4 mr-2 text-blue-600" /> Visa
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'mastercard' ? 'bg-pink-200 border-pink-500' : ''}`}
-                  onClick={() => {
-                    setSelectedPaymentMethod('mastercard');
-                    addPaymentMethod();
-                  }}
-                >
-                  <CreditCard className="w-4 h-4 mr-2 text-purple-600" /> MasterCard
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'unpaid' ? 'bg-pink-200 border-pink-500' : ''}`}
-                  onClick={() => {
-                    setSelectedPaymentMethod('unpaid');
-                    addPaymentMethod();
-                  }}
-                >
-                  <Clock className="w-4 h-4 mr-2 text-gray-600" /> Unpaid
-                </Button>
-              </div>
-              
-              {/* Manual payment */}
-              {!showManualPayment ? (
-                <Button 
-                  variant="ghost" 
-                  className="w-full text-pink-600 mt-4 border border-dashed border-pink-300"
-                  onClick={() => setShowManualPayment(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Add Manual Payment Method
-                </Button>
-              ) : (
-                <div className="mt-4 p-4 bg-pink-50 rounded-lg space-y-3">
-                  <Input
-                    placeholder="Method name (e.g., Bank Transfer)"
-                    value={manualPaymentDetails.methodName}
-                    onChange={(e) => setManualPaymentDetails({...manualPaymentDetails, methodName: e.target.value})}
-                    className="border-pink-200"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Amount"
-                    value={manualPaymentDetails.amount || ''}
-                    onChange={(e) => setManualPaymentDetails({...manualPaymentDetails, amount: parseFloat(e.target.value) || 0})}
-                    className="border-pink-200"
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={addManualPayment} className="flex-1 bg-pink-600 hover:bg-pink-700">Add</Button>
-                    <Button variant="outline" onClick={() => setShowManualPayment(false)}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Balance & Customer */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl p-6 text-white">
-                <p className="text-pink-100 mb-2">Balance Due</p>
-                <p className="text-3xl font-bold">{formatCurrency(balanceDue)}</p>
-              </div>
-              
-              <div className="bg-white border border-pink-100 rounded-xl p-6">
-                <p className="text-sm text-pink-600 mb-1">Customer</p>
-                <p className="font-semibold text-gray-800">{appointment.customerName || appointment.customer}</p>
-                <p className="text-sm text-gray-600 mt-1">{appointment.customerPhone || appointment.phone}</p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button 
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-6 text-lg"
-                onClick={handleProcessPayment}
-                disabled={paymentMethods.length === 0}
-              >
-                <Receipt className="w-5 h-5 mr-2" />
-                {balanceDue <= 0 ? 'Generate Invoice' : `Pay ${formatCurrency(balanceDue)}`}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-50 py-6 text-lg"
-                onClick={handleVoid}
-              >
-                <RotateCcw className="w-5 h-5 mr-2" />
-                Void
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Invoice Generation Popup - PINKISH THEME */}
-      {showInvoicePopup && (
-        <Sheet open={true} onOpenChange={() => {
-          setShowInvoicePopup(false);
-          onClose();
-        }}>
-          <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
-            <SheetTitle className="sr-only">Invoice</SheetTitle>
-            
-            {/* Pink Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                    <Receipt className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-semibold text-white">Invoice</h2>
-                    <p className="text-pink-100">INV-{Date.now().toString().slice(-8)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-8">
-              {/* Invoice Preview */}
-              <div className="bg-white border border-pink-100 rounded-xl p-8 shadow-sm mb-6">
-                <div className="text-center mb-8">
-                  <h1 className="text-3xl font-bold text-pink-600">Jam Beauty Lounge</h1>
-                  <p className="text-gray-600">BASEMENT, NEAR TO CARRYFOUR, MARINA MALL</p>
-                  <p className="text-gray-600">Contact: 028766460 | Email: jambeauty@gmail.com</p>
-                </div>
-
-                <div className="border-t border-b border-pink-200 py-4 mb-6">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div>
-                      <p className="text-sm text-pink-600 mb-1">Customer</p>
-                      <p className="font-semibold">{appointment.customerName}</p>
-                      <p className="text-sm text-gray-600">{appointment.customerPhone}</p>
-                      <p className="text-sm text-gray-600">{appointment.customerEmail}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-pink-600 mb-1">Invoice Details</p>
-                      <p className="font-semibold">INV-{Date.now().toString().slice(-8)}</p>
-                      <p className="text-sm text-gray-600">{new Date().toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Services Table */}
-                <table className="w-full mb-6">
-                  <thead className="bg-pink-100">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-pink-800">Service</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-pink-800">Staff</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-pink-800">Price</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-pink-800">Tip</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-pink-800">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-pink-100">
-                    {services.map((service, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-3">{service.name}</td>
-                        <td className="px-4 py-3">{service.staff}</td>
-                        <td className="px-4 py-3 text-right">{formatCurrency(service.price)}</td>
-                        <td className="px-4 py-3 text-right">{formatCurrency(tips[service.staff] || 0)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(service.price + (tips[service.staff] || 0))}</td>
-                      </tr>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
 
+                {/* Customer Info */}
+                <div className="bg-white border border-pink-100 rounded-lg p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-800 mb-1">
+                    {appointment.customerName || appointment.customer || 'Customer'}
+                  </h3>
+                  <p className="text-[10px] text-gray-600">
+                    {appointment.customerPhone || appointment.phone || 'No phone'}
+                  </p>
+                  {appointment.customerEmail && (
+                    <p className="text-[10px] text-gray-500 mt-0.5 truncate">
+                      {appointment.customerEmail}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN - Summary & Payment */}
+              <div className="space-y-3">
                 {/* Summary */}
-                <div className="flex justify-end mb-6">
-                  <div className="w-64 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                <div className="bg-white border border-pink-100 rounded-lg p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                    <Calculator className="w-3.5 h-3.5 text-pink-500" />
+                    Summary
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs border-b border-pink-100 pb-1">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="font-medium">{safeFormat(subtotal)}</span>
                     </div>
+                    
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600 font-medium">Discount</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center">
+                          <Input
+                            type="number"
+                            value={discount}
+                            onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+                            className="w-12 h-5 text-right text-[10px] border-pink-200"
+                            min="0"
+                            max="100"
+                            step="1"
+                          />
+                          <span className="text-[10px] text-pink-600 ml-1">%</span>
+                        </div>
+                        <span className="text-[10px] text-red-600 min-w-[50px] text-right">
+                          -{safeFormat(discountAmount)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600">VAT</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center">
+                          <Input
+                            type="number"
+                            value={tax}
+                            onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
+                            className="w-12 h-5 text-right text-[10px] border-pink-200"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                          />
+                          <span className="text-[10px] text-pink-600 ml-1">%</span>
+                        </div>
+                        <span className="text-[10px] text-gray-600 min-w-[50px] text-right">
+                          {safeFormat(taxAmount)}
+                        </span>
+                      </div>
+                    </div>
+                    
                     {totalTips > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Tips:</span>
-                        <span className="font-medium text-green-600">{formatCurrency(totalTips)}</span>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-600">Tips Total</span>
+                        <span className="font-medium text-green-600">{safeFormat(totalTips)}</span>
                       </div>
                     )}
-                    {discount > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Discount:</span>
-                        <span className="font-medium text-red-600">-{formatCurrency(discountAmount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">VAT ({tax}%):</span>
-                      <span className="font-medium">{formatCurrency(taxAmount)}</span>
-                    </div>
-                    {serviceCharges > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Service Charges:</span>
-                        <span className="font-medium">{formatCurrency(serviceCharges)}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-pink-200 pt-2 mt-2">
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>Total:</span>
-                        <span className="text-pink-600">{formatCurrency(totalAmount)}</span>
+                    
+                    <div className="border-t-2 border-pink-200 pt-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-gray-800">Total</span>
+                        <span className="text-lg font-bold text-pink-600">{safeFormat(totalAmount)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Payment Methods */}
-                <div className="border-t border-pink-200 pt-4">
-                  <p className="text-sm text-pink-600 mb-2">Payment Methods:</p>
-                  {paymentMethods.map((pm, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span>{pm.label}</span>
-                      <span className="font-medium">{formatCurrency(pm.amount)}</span>
+                <div className="bg-white border border-pink-100 rounded-lg p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-pink-500" />
+                    Payment
+                  </h3>
+                  
+                  {/* Payment Method Buttons */}
+                  <div className="grid grid-cols-2 gap-1 mb-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={`text-[10px] h-6 ${selectedPaymentMethod === 'cash' ? 'bg-pink-100 border-pink-500' : ''}`}
+                      onClick={() => {
+                        setSelectedPaymentMethod('cash');
+                        addPaymentMethod();
+                      }}
+                    >
+                      Cash
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={`text-[10px] h-6 ${selectedPaymentMethod === 'mastercard' ? 'bg-pink-100 border-pink-500' : ''}`}
+                      onClick={() => {
+                        setSelectedPaymentMethod('mastercard');
+                        addPaymentMethod();
+                      }}
+                    >
+                      MasterCard
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={`text-[10px] h-6 ${selectedPaymentMethod === 'visa' ? 'bg-pink-100 border-pink-500' : ''}`}
+                      onClick={() => {
+                        setSelectedPaymentMethod('visa');
+                        addPaymentMethod();
+                      }}
+                    >
+                      Visa
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className={`text-[10px] h-6 text-gray-500 ${selectedPaymentMethod === 'unpaid' ? 'bg-pink-100 border-pink-500' : ''}`}
+                      onClick={() => {
+                        setSelectedPaymentMethod('unpaid');
+                        addPaymentMethod();
+                      }}
+                    >
+                      Unpaid
+                    </Button>
+                  </div>
+
+                  {/* Added Payment Methods Display */}
+                  {paymentMethods.length > 0 && (
+                    <div className="mb-2 space-y-1">
+                      {paymentMethods.map((pm, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-pink-50 p-1 rounded">
+                          <span className="text-[10px] font-medium">{pm.label}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-pink-600">{safeFormat(pm.amount)}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPaymentMethods(paymentMethods.filter((_, i) => i !== idx))}
+                              className="h-4 w-4 p-0 text-red-500"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                <div className="text-center mt-8 text-gray-500">
-                  THANK YOU FOR YOUR BUSINESS
-                </div>
-              </div>
+                  {/* Manual Payment */}
+                  {!showManualPayment ? (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="w-full text-pink-600 hover:bg-pink-50 text-[10px] h-5 border border-dashed border-pink-200"
+                      onClick={() => setShowManualPayment(true)}
+                    >
+                      <Plus className="w-2.5 h-2.5 mr-0.5" /> Add Manual Payment
+                    </Button>
+                  ) : (
+                    <div className="mt-1 p-2 bg-pink-50 rounded space-y-1">
+                      <Input
+                        placeholder="Method name"
+                        value={manualPaymentDetails.methodName}
+                        onChange={(e) => setManualPaymentDetails({...manualPaymentDetails, methodName: e.target.value})}
+                        className="h-5 text-[10px] border-pink-200"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={manualPaymentDetails.amount || ''}
+                        onChange={(e) => setManualPaymentDetails({...manualPaymentDetails, amount: parseFloat(e.target.value) || 0})}
+                        className="h-5 text-[10px] border-pink-200"
+                      />
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={addManualPayment} className="flex-1 bg-pink-600 text-[10px] h-5">Add</Button>
+                        <Button size="sm" variant="outline" onClick={() => setShowManualPayment(false)} className="flex-1 text-[10px] h-5">Cancel</Button>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Action Buttons */}
-              <div className="flex justify-center gap-4">
-                <Button 
-                  onClick={() => {
-                    // Generate PDF
-                    const doc = new jsPDF();
-                    // ... PDF generation code
-                    doc.save(`Invoice-${Date.now()}.pdf`);
-                  }}
-                  className="bg-pink-600 hover:bg-pink-700 text-white gap-2 px-8 py-6 text-lg"
-                >
-                  <Download className="w-5 h-5" />
-                  Download Invoice
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="border-pink-300 text-pink-600 hover:bg-pink-50 gap-2 px-8 py-6 text-lg"
-                  onClick={() => window.print()}
-                >
-                  <Printer className="w-5 h-5" />
-                  Print
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="border-gray-300 text-gray-600 hover:bg-gray-50 px-8 py-6 text-lg"
-                  onClick={() => setShowInvoicePopup(false)}
-                >
-                  Close
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="border-red-300 text-red-600 hover:bg-red-50 px-8 py-6 text-lg"
-                  onClick={() => {
-                    if (confirm('Void this invoice and start over?')) {
-                      setShowInvoicePopup(false);
-                      // Reset everything
-                    }
-                  }}
-                >
-                  <RotateCcw className="w-5 h-5 mr-2" />
-                  Void
-                </Button>
+                  {/* Pay Button */}
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 text-sm font-semibold mt-2"
+                    onClick={handlePayClick}
+                    disabled={paymentMethods.length === 0}
+                  >
+                    Pay {safeFormat(balanceDue)}
+                  </Button>
+                </div>
               </div>
             </div>
-          </SheetContent>
-        </Sheet>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ✅ CONFIRMATION POPUP - Small and Clean */}
+      <Sheet open={showConfirmationPopup} onOpenChange={setShowConfirmationPopup}>
+        <SheetContent className="w-full sm:max-w-md p-0 bg-white rounded-2xl shadow-xl mx-auto my-auto h-fit max-h-[90vh] overflow-y-auto">
+          <SheetTitle className="sr-only">Confirm Payment</SheetTitle>
+          
+          {/* Pink Header */}
+          <div className="bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-4 rounded-t-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base">Confirm Payment</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowConfirmationPopup(false)} className="text-white hover:bg-white/20 h-7 w-7 p-0 rounded-full">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Summary Content */}
+          <div className="p-6 space-y-4">
+            <div className="bg-pink-50 p-4 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-medium">{safeFormat(subtotal)}</span>
+              </div>
+              
+              {discount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Discount ({discount}%)</span>
+                  <span className="font-medium text-red-600">-{safeFormat(discountAmount)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">VAT ({tax}%)</span>
+                <span className="font-medium">{safeFormat(taxAmount)}</span>
+              </div>
+              
+              {serviceCharges > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Service Charges</span>
+                  <span className="font-medium">{safeFormat(serviceCharges)}</span>
+                </div>
+              )}
+              
+              {totalTips > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tips</span>
+                  <span className="font-medium text-green-600">{safeFormat(totalTips)}</span>
+                </div>
+              )}
+              
+              <div className="border-t border-pink-200 pt-2 mt-2">
+                <div className="flex justify-between font-bold">
+                  <span>Total Amount</span>
+                  <span className="text-pink-600">{safeFormat(totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div className="bg-pink-50 p-3 rounded-lg">
+              <p className="text-xs text-pink-600 mb-1">Payment Method</p>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-pink-200 rounded-full flex items-center justify-center">
+                  {paymentMethods[0]?.type === 'cash' && <DollarSign className="w-3 h-3 text-pink-700" />}
+                  {paymentMethods[0]?.type === 'visa' && <CreditCard className="w-3 h-3 text-pink-700" />}
+                  {paymentMethods[0]?.type === 'mastercard' && <CreditCard className="w-3 h-3 text-pink-700" />}
+                </div>
+                <span className="font-medium text-sm">{paymentMethods[0]?.label}</span>
+                <span className="ml-auto font-bold text-pink-600">{safeFormat(paymentMethods[0]?.amount)}</span>
+              </div>
+              {paymentMethods.length > 1 && (
+                <p className="text-xs text-gray-500 mt-1">+{paymentMethods.length - 1} more method(s)</p>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3 pt-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmationPopup(false)}
+                className="flex-1 border-pink-200 text-gray-700"
+              >
+                Back
+              </Button>
+              <Button 
+                onClick={handleConfirmPayment}
+                className="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 text-white"
+              >
+                Proceed
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ✅ INVOICE POPUP - SIRF YEH EK RAHE (DUPLICATE WALA HATA DO) */}
+      {showInvoicePopup && (
+        <InvoicePopup
+          appointment={appointment}
+          services={services}
+          tips={tips}
+          discount={discount}
+          tax={tax}
+          serviceCharges={serviceCharges}
+          subtotal={subtotal}
+          totalAmount={totalAmount}
+          paymentMethods={paymentMethods}
+          totalPaid={totalPaid}
+          balanceDue={balanceDue}
+          onClose={() => {
+            setShowInvoicePopup(false);
+            onClose();
+          }}
+          onVoid={handleVoid}
+          formatCurrency={safeFormat}
+        />
       )}
     </>
   );
 };
 
-// ✅ MAIN POPUP - PINKISH THEME FULL WIDTH
+
+// ✅ MAIN POPUP - PINKISH THEME with COMPRESSED HEIGHT and DROPDOWN AT BOTTOM
 const AdvanceCalendarPopup = ({ 
   appointment, 
   onClose,
@@ -2238,23 +2631,24 @@ const AdvanceCalendarPopup = ({
     <>
       {/* ✅ PINKISH THEME - FULL WIDTH MAIN POPUP */}
       <Sheet open={true} onOpenChange={onClose}>
-        <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-full p-0 bg-white overflow-y-auto">
           <SheetTitle className="sr-only">Appointment Details</SheetTitle>
           
-          {/* Pink Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-6">
+          {/* Pink Header - WITHOUT 3 DOTS */}
+          <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                  <Calendar className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <Calendar className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-white">Appointment Details</h2>
-                  <p className="text-pink-100">Booking #{displayAppointment.bookingNumber || displayAppointment.id}</p>
+                  <h2 className="text-xl font-semibold text-white">Appointment Details</h2>
+                  <p className="text-pink-100 text-sm">Booking #{displayAppointment.bookingNumber || displayAppointment.id}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {/* Status Dropdown - ONLY */}
                 <Select
                   value={displayAppointment.status || 'pending'}
                   onValueChange={(value) => {
@@ -2267,10 +2661,10 @@ const AdvanceCalendarPopup = ({
                   }}
                   disabled={updatingStatus}
                 >
-                  <SelectTrigger className={`w-40 h-9 bg-white/20 border-white/30 text-white ${getStatusColor(displayAppointment.status || 'pending')}`}>
+                  <SelectTrigger className="w-32 h-8 bg-white/20 border-white/30 text-white text-sm">
                     <SelectValue>
-                      <div className="flex items-center gap-2">
-                        <span className="capitalize">{displayAppointment.status || 'pending'}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="capitalize text-sm">{displayAppointment.status || 'pending'}</span>
                       </div>
                     </SelectValue>
                   </SelectTrigger>
@@ -2285,152 +2679,218 @@ const AdvanceCalendarPopup = ({
                   </SelectContent>
                 </Select>
                 
-                <div className="relative">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowMoreOptions(!showMoreOptions)}
-                    className="bg-white/20 hover:bg-white/30 text-white rounded-full w-10 h-10 p-0"
-                  >
-                    <Settings className="w-5 h-5" />
-                  </Button>
-                  
-                  {showMoreOptions && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-pink-100 z-50">
-                      <div className="py-1">
-                        <button onClick={() => handleMoreOptionClick('edit')} className="w-full px-4 py-2 text-left hover:bg-pink-50 flex items-center gap-2">
-                          <Scissors className="w-4 h-4 text-pink-500" /> Edit
-                        </button>
-                        <button onClick={() => handleMoreOptionClick('reschedule')} className="w-full px-4 py-2 text-left hover:bg-pink-50 flex items-center gap-2">
-                          <RotateCcw className="w-4 h-4 text-blue-500" /> Reschedule
-                        </button>
-                        <button onClick={() => handleMoreOptionClick('cancel')} className="w-full px-4 py-2 text-left hover:bg-pink-50 flex items-center gap-2">
-                          <X className="w-4 h-4 text-orange-500" /> Cancel
-                        </button>
-                        <div className="border-t border-pink-100 my-1"></div>
-                        <button onClick={() => handleMoreOptionClick('noshow')} className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2">
-                          <Trash2 className="w-4 h-4" /> No Show & Delete
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-10 w-10 p-0 rounded-full">
-                  <X className="w-5 h-5" />
+                <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-8 w-8 p-0 rounded-full">
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="p-8">
+          {/* Main Content - COMPRESSED HEIGHT */}
+          <div className="p-6">
             {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full"></div>
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-8 h-8 border-3 border-pink-500 border-t-transparent rounded-full"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* LEFT COLUMN */}
-                <div className="space-y-6">
-                  {/* Customer Information */}
-                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <User className="w-5 h-5 text-pink-500" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* LEFT COLUMN - COMPRESSED */}
+                <div className="space-y-4">
+                  {/* Customer Information - COMPRESSED */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-4 shadow-sm">
+                    <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                      <User className="w-4 h-4 text-pink-500" />
                       Customer Information
                     </h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between py-2 border-b border-pink-100">
-                        <span className="text-sm text-pink-600">Name</span>
-                        <span className="font-medium">{displayAppointment.customerName || displayAppointment.customer}</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between py-1 text-sm border-b border-pink-100">
+                        <span className="text-pink-600">Name</span>
+                        <span className="font-medium text-gray-800">{displayAppointment.customerName || displayAppointment.customer}</span>
                       </div>
-                      <div className="flex justify-between py-2 border-b border-pink-100">
-                        <span className="text-sm text-pink-600">Email</span>
-                        <span className="font-medium">{displayAppointment.customerEmail || displayAppointment.email}</span>
+                      <div className="flex justify-between py-1 text-sm border-b border-pink-100">
+                        <span className="text-pink-600">Email</span>
+                        <span className="font-medium text-gray-800 truncate max-w-[200px]">{displayAppointment.customerEmail || displayAppointment.email}</span>
                       </div>
-                      <div className="flex justify-between py-2 border-b border-pink-100">
-                        <span className="text-sm text-pink-600">Phone</span>
-                        <span className="font-medium">{displayAppointment.customerPhone || displayAppointment.phone}</span>
+                      <div className="flex justify-between py-1 text-sm border-b border-pink-100">
+                        <span className="text-pink-600">Phone</span>
+                        <span className="font-medium text-gray-800">{displayAppointment.customerPhone || displayAppointment.phone}</span>
                       </div>
-                      <div className="flex justify-between py-2">
-                        <span className="text-sm text-pink-600">Branch</span>
-                        <span className="font-medium">{displayAppointment.branch}</span>
+                      <div className="flex justify-between py-1 text-sm">
+                        <span className="text-pink-600">Branch</span>
+                        <span className="font-medium text-gray-800">{displayAppointment.branch}</span>
                       </div>
                     </div>
                   </div>
                   
-                  {/* Schedule */}
-                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-pink-500" />
+                  {/* Schedule - COMPRESSED (EK COLUMN) */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-4 shadow-sm">
+                    <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-pink-500" />
                       Schedule
                     </h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between py-2 border-b border-pink-100">
-                        <span className="text-sm text-pink-600">Date</span>
-                        <span className="font-medium">{displayAppointment.bookingDate || displayAppointment.date}</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between py-1 text-sm border-b border-pink-100">
+                        <span className="text-pink-600">Date</span>
+                        <span className="font-medium text-gray-800">{displayAppointment.bookingDate || displayAppointment.date}</span>
                       </div>
-                      <div className="flex justify-between py-2 border-b border-pink-100">
-                        <span className="text-sm text-pink-600">Time</span>
-                        <span className="font-medium">{displayAppointment.bookingTime || displayAppointment.time}</span>
+                      <div className="flex justify-between py-1 text-sm border-b border-pink-100">
+                        <span className="text-pink-600">Time</span>
+                        <span className="font-medium text-gray-800">{displayAppointment.bookingTime || displayAppointment.time}</span>
                       </div>
-                      <div className="flex justify-between py-2">
-                        <span className="text-sm text-pink-600">Duration</span>
-                        <span className="font-medium">{displayAppointment.duration || '60 min'}</span>
+                      <div className="flex justify-between py-1 text-sm">
+                        <span className="text-pink-600">Duration</span>
+                        <span className="font-medium text-gray-800">{displayAppointment.duration || '60 min'}</span>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* RIGHT COLUMN */}
-                <div className="space-y-6">
-                  {/* Services */}
-                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <Scissors className="w-5 h-5 text-pink-500" />
+                {/* RIGHT COLUMN - COMPRESSED */}
+                <div className="space-y-4">
+                  {/* Services - WITH CATEGORY AND DURATION */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-4 shadow-sm">
+                    <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                      <Scissors className="w-4 h-4 text-pink-500" />
                       Services
                     </h3>
                     
                     <div className="space-y-3">
                       {displayAppointment.serviceDetails?.map((service: any, idx: number) => (
-                        <div key={idx} className="bg-pink-50 p-4 rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <span className="font-medium text-gray-800">{service.name}</span>
+                        <div key={idx} className="bg-pink-50 p-3 rounded-lg">
+                          {/* Service Name and Price */}
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-gray-800 text-sm">{service.name}</span>
+                              {service.category && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-pink-200 text-pink-800">
+                                  {service.category}
+                                </span>
+                              )}
+                            </div>
                             <span className="font-bold text-pink-600">{formatCurrency(service.price)}</span>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                          
+                          {/* Service Details - 3 Columns */}
+                          <div className="grid grid-cols-3 gap-2 text-xs">
                             <div>
-                              <span className="text-pink-600">Staff:</span>
-                              <span className="ml-1 text-gray-600">{service.staff}</span>
+                              <span className="text-pink-600 block text-[10px]">Staff</span>
+                              <span className="font-medium text-gray-700 text-xs truncate">{service.staff || '—'}</span>
                             </div>
                             <div>
-                              <span className="text-pink-600">Branch:</span>
-                              <span className="ml-1 text-gray-600">{service.branch}</span>
+                              <span className="text-pink-600 block text-[10px]">Duration</span>
+                              <span className="font-medium text-gray-700 text-xs">
+                                {service.duration ? `${service.duration}min` : displayAppointment.duration || '60min'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-pink-600 block text-[10px]">Branch</span>
+                              <span className="font-medium text-gray-700 text-xs truncate">{service.branch || displayAppointment.branch}</span>
                             </div>
                           </div>
                         </div>
                       ))}
                       
-                      <div className="border-t border-pink-200 pt-3 mt-3">
-                        <div className="flex justify-between font-bold">
-                          <span className="text-gray-700">Total Amount</span>
-                          <span className="text-pink-600 text-lg">
+                      {/* Total Amount */}
+                      <div className="border-t border-pink-200 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-700 font-medium text-sm">Total</span>
+                          <span className="text-pink-600 font-bold">
                             {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price || 0)}
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
+
+
                   
-                  {/* Checkout Button */}
-                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
-                    <Button
-                      onClick={() => setShowCheckoutPopup(true)}
-                      className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-6 text-lg gap-3"
-                    >
-                      <Receipt className="w-5 h-5" />
-                      Proceed to Checkout
-                    </Button>
-                  </div>
+
+                  {/* PROCEED TO CHECKOUT WITH MORE OPTIONS - SAME LINE */}
+<div className="bg-white border border-pink-100 rounded-xl p-4 shadow-sm">
+  <div className="flex items-center gap-3">
+    {/* More Options Button */}
+    <div className="relative">
+      <Button
+        variant="ghost"
+        onClick={() => setShowMoreOptions(!showMoreOptions)}
+        className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white hover:text-white px-4 py-3 text-sm rounded-xl flex items-center gap-2 shadow-md flex-1"
+      >
+        <Settings className="w-4 h-4" />
+        <span>More Options</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${showMoreOptions ? 'rotate-180' : ''}`} />
+      </Button>
+      
+      
+      {showMoreOptions && (
+  <div className="absolute left-0 bottom-full mb-1 w-48 bg-white rounded-lg shadow-lg border border-pink-100 z-50">
+    <div className="py-1">
+      <button 
+        onClick={() => handleMoreOptionClick('edit')} 
+        className="w-full px-3 py-2 text-left hover:bg-pink-50 flex items-center gap-2 text-xs text-gray-700 border-b border-pink-50 last:border-b-0"
+      >
+        <div className="w-6 h-6 bg-pink-100 rounded-full flex items-center justify-center">
+          <Scissors className="w-3 h-3 text-pink-600" />
+        </div>
+        <span className="font-medium">Edit Appointment</span>
+      </button>
+      
+      <button 
+        onClick={() => handleMoreOptionClick('reschedule')} 
+        className="w-full px-3 py-2 text-left hover:bg-pink-50 flex items-center gap-2 text-xs text-gray-700 border-b border-pink-50 last:border-b-0"
+      >
+        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+          <RotateCcw className="w-3 h-3 text-blue-600" />
+        </div>
+        <span className="font-medium">Reschedule</span>
+      </button>
+      
+      <button 
+        onClick={() => handleMoreOptionClick('cancel')} 
+        className="w-full px-3 py-2 text-left hover:bg-pink-50 flex items-center gap-2 text-xs text-gray-700 border-b border-pink-50 last:border-b-0"
+      >
+        <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+          <X className="w-3 h-3 text-orange-600" />
+        </div>
+        <span className="font-medium">Cancel</span>
+      </button>
+      
+      <button 
+        onClick={() => handleMoreOptionClick('noshow')} 
+        className="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center gap-2 text-xs text-red-600"
+      >
+        <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+          <Trash2 className="w-3 h-3 text-red-600" />
+        </div>
+        <span className="font-medium">No Show & Delete</span>
+      </button>
+    </div>
+  </div>
+)}
+    </div>
+
+    {/* Proceed to Checkout Button */}
+    <Button
+      onClick={() => setShowCheckoutPopup(true)}
+      className="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-3 text-sm gap-2 shadow-md rounded-xl"
+    >
+      <Receipt className="w-4 h-4" />
+      Proceed to Checkout
+    </Button>
+  </div>
+</div>
+                  
+                 
+
+                  {/* Notes if any - COMPRESSED */}
+                  {displayAppointment.notes && (
+                    <div className="bg-white border border-pink-100 rounded-xl p-4 shadow-sm">
+                      <h3 className="text-base font-semibold text-gray-800 mb-1 flex items-center gap-1">
+                        <FileText className="w-4 h-4 text-pink-500" />
+                        Notes
+                      </h3>
+                      <p className="text-sm text-gray-700 bg-pink-50 p-2 rounded-lg">{displayAppointment.notes}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2459,11 +2919,12 @@ const AdvanceCalendarPopup = ({
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               placeholder="Reason for cancellation..."
-              rows={4}
+              rows={3}
+              className="text-sm"
             />
-            <div className="flex gap-3 mt-4">
-              <Button variant="outline" onClick={() => setShowCancelDialog(false)}>Back</Button>
-              <Button onClick={handleCancelWithReason} disabled={!cancelReason.trim()} className="bg-red-600">Confirm</Button>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowCancelDialog(false)} size="sm" className="flex-1">Back</Button>
+              <Button onClick={handleCancelWithReason} disabled={!cancelReason.trim()} className="bg-red-600 flex-1" size="sm">Confirm</Button>
             </div>
           </div>
         </SheetContent>
@@ -2477,10 +2938,10 @@ const AdvanceCalendarPopup = ({
             <SheetDescription>This action cannot be undone</SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <p className="text-red-600">Permanently delete this appointment?</p>
-            <div className="flex gap-3 mt-4">
-              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
-              <Button onClick={handleDeleteAppointment} className="bg-red-600">Delete</Button>
+            <p className="text-sm text-red-600">Permanently delete this appointment?</p>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} size="sm" className="flex-1">Cancel</Button>
+              <Button onClick={handleDeleteAppointment} className="bg-red-600 flex-1" size="sm">Delete</Button>
             </div>
           </div>
         </SheetContent>
@@ -2492,12 +2953,12 @@ const AdvanceCalendarPopup = ({
           <SheetHeader>
             <SheetTitle className="text-lg font-semibold">Reschedule</SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-4">
-            <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
-            <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setShowRescheduleDialog(false)}>Cancel</Button>
-              <Button onClick={handleRescheduleSave} disabled={rescheduling}>Reschedule</Button>
+          <div className="mt-6 space-y-3">
+            <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} className="text-sm h-9" />
+            <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} className="text-sm h-9" />
+            <div className="flex gap-2 mt-2">
+              <Button variant="outline" onClick={() => setShowRescheduleDialog(false)} size="sm" className="flex-1">Cancel</Button>
+              <Button onClick={handleRescheduleSave} disabled={rescheduling} size="sm" className="flex-1">Reschedule</Button>
             </div>
           </div>
         </SheetContent>
