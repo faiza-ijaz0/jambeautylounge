@@ -388,7 +388,7 @@ export default function SuperAdminSettings() {
                 </Button>
                 <Button onClick={handleSave} disabled={loading || saving || uploading}>
                   <Save className="w-4 h-4 mr-2" />
-                  {saving ? "Saving..." : uploading ? "Uploading..." : "Save to Firebase"}
+                  {saving ? "Saving..." : uploading ? "Uploading..." : "Save "}
                 </Button>
                 <span className="text-sm text-gray-600 hidden sm:block">Welcome, {user?.email}</span>
                 <Button variant="outline" onClick={handleLogout} className="hidden sm:flex">
@@ -539,7 +539,7 @@ export default function SuperAdminSettings() {
                                       </p>
                                       {settings.businessLogoFile ? (
                                         <p className="text-sm text-green-600 font-medium">
-                                          ✓ New logo selected. Click "Save to Firebase" to upload.
+                                          ✓ New logo selected. 
                                         </p>
                                       ) : settings.businessLogo && settings.businessLogo.includes('firebasestorage') ? (
                                         <p className="text-sm text-blue-600 font-medium">
@@ -586,7 +586,7 @@ export default function SuperAdminSettings() {
                                     </ul>
                                     {logoUrlInput && (
                                       <p className="text-sm text-green-600 font-medium">
-                                        ✓ URL entered. Click "Save to Firebase" to save.
+                                        ✓ URL entered. 
                                       </p>
                                     )}
                                   </div>

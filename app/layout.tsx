@@ -53,7 +53,7 @@ import { Providers } from "@/components/providers"; // ✅ Bas yeh import
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Your App",
+  title: "JamBeautyLounge",
   description: "Description",
 };
 

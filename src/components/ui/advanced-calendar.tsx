@@ -17,7 +17,7 @@ import {
   CheckSquare, Percent, CalendarDays, ClipboardList
 } from "lucide-react";
 import { format, addDays, startOfDay, addMinutes, isSameDay, parseISO } from "date-fns";
-import { collection, getDocs, query, where, doc, getDoc ,updateDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc ,updateDoc ,deleteDoc} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -1373,12 +1373,665 @@ if (amounts.Check > 0 || amounts.check > 0) {
   );
 };
 
-
-
-
+// ✅ COMPLETE CHECKOUT POPUP - FULLY EDITABLE with PINKISH THEME
+const CheckoutPopup = ({ 
+  appointment, 
+  onClose,
+  onProcessPayment,
+  formatCurrency = (amount) => `AED ${amount.toFixed(2)}`
+}: { 
+  appointment: Appointment | null; 
+  onClose: () => void;
+  onProcessPayment?: (data: any) => void;
+  formatCurrency?: (amount: number) => string;
+}) => {
+  const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   
+  // Editable fields state
+  const [services, setServices] = useState<any[]>(appointment?.serviceDetails || []);
+  const [tips, setTips] = useState<{[key: string]: number}>({});
+  const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [tax, setTax] = useState(5);
+  const [serviceCharges, setServiceCharges] = useState(0);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [showManualPayment, setShowManualPayment] = useState(false);
+  const [manualPaymentDetails, setManualPaymentDetails] = useState({
+    methodName: '',
+    amount: 0
+  });
+  const [paymentMethods, setPaymentMethods] = useState<Array<{type: string, label: string, amount: number}>>([]);
 
-// ADVANCE CALENDAR POPUP COMPONENT - WITH RESCHEDULE FUNCTIONALITY
+  // Calculate totals
+  const subtotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
+  const totalTips = Object.values(tips).reduce((sum, t) => sum + t, 0);
+  const discountAmount = discountType === 'percentage' ? (subtotal * discount) / 100 : discount;
+  const taxableAmount = subtotal - discountAmount;
+  const taxAmount = (taxableAmount * tax) / 100;
+  const totalAmount = subtotal - discountAmount + taxAmount + serviceCharges + totalTips;
+  const totalPaid = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
+  const balanceDue = totalAmount - totalPaid;
+
+  // Update service price
+  const updateServicePrice = (index: number, newPrice: number) => {
+    const updated = [...services];
+    updated[index] = { ...updated[index], price: newPrice };
+    setServices(updated);
+  };
+
+  // Update service staff
+  const updateServiceStaff = (index: number, newStaff: string) => {
+    const updated = [...services];
+    updated[index] = { ...updated[index], staff: newStaff };
+    setServices(updated);
+  };
+
+  // Add tip for staff
+  const addTip = (staffName: string, amount: number) => {
+    setTips(prev => ({ ...prev, [staffName]: (prev[staffName] || 0) + amount }));
+  };
+
+  // Add payment method
+  const addPaymentMethod = () => {
+    if (!selectedPaymentMethod) return;
+    
+    let methodLabel = '';
+    switch(selectedPaymentMethod) {
+      case 'cash': methodLabel = 'Cash'; break;
+      case 'visa': methodLabel = 'Visa Card'; break;
+      case 'mastercard': methodLabel = 'MasterCard'; break;
+      case 'unpaid': methodLabel = 'Unpaid'; break;
+    }
+    
+    setPaymentMethods([
+      ...paymentMethods,
+      {
+        type: selectedPaymentMethod,
+        label: methodLabel,
+        amount: totalAmount - totalPaid
+      }
+    ]);
+  };
+
+  // Handle manual payment
+  const addManualPayment = () => {
+    if (!manualPaymentDetails.methodName || manualPaymentDetails.amount <= 0) {
+      alert('Please enter method name and amount');
+      return;
+    }
+    
+    setPaymentMethods([
+      ...paymentMethods,
+      {
+        type: 'manual',
+        label: manualPaymentDetails.methodName,
+        amount: manualPaymentDetails.amount
+      }
+    ]);
+    
+    setShowManualPayment(false);
+    setManualPaymentDetails({ methodName: '', amount: 0 });
+  };
+
+  // Handle payment processing
+  const handleProcessPayment = () => {
+    if (paymentMethods.length === 0) {
+      alert('Please select a payment method');
+      return;
+    }
+    
+    const paymentData = {
+      appointment,
+      services,
+      tips,
+      discount,
+      discountType,
+      tax,
+      serviceCharges,
+      subtotal,
+      totalAmount,
+      paymentMethods,
+      totalPaid,
+      balanceDue
+    };
+    
+    // Show invoice popup
+    setShowInvoicePopup(true);
+    
+    if (onProcessPayment) {
+      onProcessPayment(paymentData);
+    }
+  };
+
+  // Void function - reset to start
+  const handleVoid = () => {
+    if (confirm('Void this transaction and start over?')) {
+      setServices(appointment?.serviceDetails || []);
+      setTips({});
+      setDiscount(0);
+      setTax(5);
+      setServiceCharges(0);
+      setPaymentMethods([]);
+      setSelectedPaymentMethod(null);
+    }
+  };
+
+  if (!appointment) return null;
+
+  return (
+    <>
+      {/* ✅ PINKISH THEME - FULL WIDTH CHECKOUT POPUP */}
+      <Sheet open={true} onOpenChange={onClose}>
+        <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
+          <SheetTitle className="sr-only">Checkout</SheetTitle>
+          
+          {/* Pink Header */}
+          <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Receipt className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-white">Checkout</h2>
+                  <p className="text-pink-100">Booking #{appointment.bookingNumber || appointment.id}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-10 w-10 p-0 rounded-full">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="p-8">
+            {/* EDITABLE SERVICES */}
+            <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-pink-500" />
+                Services
+              </h3>
+              
+              <div className="space-y-4">
+                {services.map((service, index) => (
+                  <div key={index} className="border border-pink-100 rounded-lg p-4 bg-pink-50/30">
+                    <div className="grid grid-cols-12 gap-4 items-center">
+                      <div className="col-span-4">
+                        <p className="font-medium text-gray-700">{service.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">{service.time || appointment.bookingTime}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <Input
+                          type="number"
+                          value={service.price || 0}
+                          onChange={(e) => updateServicePrice(index, parseFloat(e.target.value) || 0)}
+                          className="h-9 text-right border-pink-200 focus:border-pink-500"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Input
+                          value={service.staff || ''}
+                          onChange={(e) => updateServiceStaff(index, e.target.value)}
+                          className="h-9 border-pink-200 focus:border-pink-500"
+                          placeholder="Staff name"
+                        />
+                      </div>
+                      <div className="col-span-3 flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          {[10, 20, 50].map(amount => (
+                            <Button
+                              key={amount}
+                              size="sm"
+                              variant="outline"
+                              onClick={() => addTip(service.staff, amount)}
+                              className="h-8 text-xs border-pink-200 hover:bg-pink-100"
+                            >
+                              AED {amount}
+                            </Button>
+                          ))}
+                          <Input
+                            type="number"
+                            placeholder="Custom"
+                            className="w-16 h-8 text-xs border-pink-200"
+                            onBlur={(e) => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val > 0) addTip(service.staff, val);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {tips[service.staff] > 0 && (
+                      <div className="mt-2 text-sm text-green-600 flex justify-end">
+                        Tip: {formatCurrency(tips[service.staff])}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {/* Add service button */}
+                <Button 
+                  variant="outline" 
+                  className="w-full border-pink-300 text-pink-600 hover:bg-pink-50"
+                  onClick={() => {
+                    setServices([
+                      ...services,
+                      {
+                        name: 'New Service',
+                        staff: appointment.staffName || appointment.staff || appointment.barber || '',
+                        price: 0,
+                        duration: 30
+                      }
+                    ]);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Add Service
+                </Button>
+              </div>
+            </div>
+
+            {/* EDITABLE CHARGES SECTION */}
+            <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-pink-500" />
+                Charges & Discounts
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Subtotal */}
+                <div className="bg-pink-50/50 p-4 rounded-lg">
+                  <p className="text-sm text-pink-600 mb-1">Subtotal</p>
+                  <p className="text-xl font-bold text-gray-800">{formatCurrency(subtotal)}</p>
+                </div>
+                
+                {/* Discount */}
+                <div className="bg-pink-50/50 p-4 rounded-lg">
+                  <p className="text-sm text-pink-600 mb-1">Discount</p>
+                  <div className="flex items-center gap-2">
+                    <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
+                      <SelectTrigger className="w-20 h-9 border-pink-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">%</SelectItem>
+                        <SelectItem value="fixed">AED</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      value={discount}
+                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                      className="w-24 h-9 text-right border-pink-200"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+                
+                {/* VAT */}
+                <div className="bg-pink-50/50 p-4 rounded-lg">
+                  <p className="text-sm text-pink-600 mb-1">VAT (%)</p>
+                  <Input
+                    type="number"
+                    value={tax}
+                    onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
+                    className="w-24 h-9 border-pink-200"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                  />
+                </div>
+                
+                {/* Service Charges */}
+                <div className="bg-pink-50/50 p-4 rounded-lg">
+                  <p className="text-sm text-pink-600 mb-1">Service Charges</p>
+                  <Input
+                    type="number"
+                    value={serviceCharges}
+                    onChange={(e) => setServiceCharges(parseFloat(e.target.value) || 0)}
+                    className="w-24 h-9 border-pink-200"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+              
+              {/* Total */}
+              <div className="mt-4 p-4 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg text-white">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold">Total Amount</span>
+                  <span className="text-2xl font-bold">{formatCurrency(totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* PAYMENT METHODS */}
+            <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-pink-500" />
+                Payment Methods
+              </h3>
+              
+              {/* Added payment methods */}
+              <div className="space-y-2 mb-4">
+                {paymentMethods.map((pm, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-pink-50 p-3 rounded-lg">
+                    <span className="font-medium text-gray-700">{pm.label}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-pink-600">{formatCurrency(pm.amount)}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPaymentMethods(paymentMethods.filter((_, i) => i !== idx))}
+                        className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 rounded-full"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Payment method buttons */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Button 
+                  variant="outline" 
+                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'cash' ? 'bg-pink-200 border-pink-500' : ''}`}
+                  onClick={() => {
+                    setSelectedPaymentMethod('cash');
+                    addPaymentMethod();
+                  }}
+                >
+                  <DollarSign className="w-4 h-4 mr-2 text-green-600" /> Cash
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'visa' ? 'bg-pink-200 border-pink-500' : ''}`}
+                  onClick={() => {
+                    setSelectedPaymentMethod('visa');
+                    addPaymentMethod();
+                  }}
+                >
+                  <CreditCard className="w-4 h-4 mr-2 text-blue-600" /> Visa
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'mastercard' ? 'bg-pink-200 border-pink-500' : ''}`}
+                  onClick={() => {
+                    setSelectedPaymentMethod('mastercard');
+                    addPaymentMethod();
+                  }}
+                >
+                  <CreditCard className="w-4 h-4 mr-2 text-purple-600" /> MasterCard
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className={`border-pink-300 hover:bg-pink-100 ${selectedPaymentMethod === 'unpaid' ? 'bg-pink-200 border-pink-500' : ''}`}
+                  onClick={() => {
+                    setSelectedPaymentMethod('unpaid');
+                    addPaymentMethod();
+                  }}
+                >
+                  <Clock className="w-4 h-4 mr-2 text-gray-600" /> Unpaid
+                </Button>
+              </div>
+              
+              {/* Manual payment */}
+              {!showManualPayment ? (
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-pink-600 mt-4 border border-dashed border-pink-300"
+                  onClick={() => setShowManualPayment(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Add Manual Payment Method
+                </Button>
+              ) : (
+                <div className="mt-4 p-4 bg-pink-50 rounded-lg space-y-3">
+                  <Input
+                    placeholder="Method name (e.g., Bank Transfer)"
+                    value={manualPaymentDetails.methodName}
+                    onChange={(e) => setManualPaymentDetails({...manualPaymentDetails, methodName: e.target.value})}
+                    className="border-pink-200"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={manualPaymentDetails.amount || ''}
+                    onChange={(e) => setManualPaymentDetails({...manualPaymentDetails, amount: parseFloat(e.target.value) || 0})}
+                    className="border-pink-200"
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={addManualPayment} className="flex-1 bg-pink-600 hover:bg-pink-700">Add</Button>
+                    <Button variant="outline" onClick={() => setShowManualPayment(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Balance & Customer */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl p-6 text-white">
+                <p className="text-pink-100 mb-2">Balance Due</p>
+                <p className="text-3xl font-bold">{formatCurrency(balanceDue)}</p>
+              </div>
+              
+              <div className="bg-white border border-pink-100 rounded-xl p-6">
+                <p className="text-sm text-pink-600 mb-1">Customer</p>
+                <p className="font-semibold text-gray-800">{appointment.customerName || appointment.customer}</p>
+                <p className="text-sm text-gray-600 mt-1">{appointment.customerPhone || appointment.phone}</p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <Button 
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-6 text-lg"
+                onClick={handleProcessPayment}
+                disabled={paymentMethods.length === 0}
+              >
+                <Receipt className="w-5 h-5 mr-2" />
+                {balanceDue <= 0 ? 'Generate Invoice' : `Pay ${formatCurrency(balanceDue)}`}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="border-red-300 text-red-600 hover:bg-red-50 py-6 text-lg"
+                onClick={handleVoid}
+              >
+                <RotateCcw className="w-5 h-5 mr-2" />
+                Void
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Invoice Generation Popup - PINKISH THEME */}
+      {showInvoicePopup && (
+        <Sheet open={true} onOpenChange={() => {
+          setShowInvoicePopup(false);
+          onClose();
+        }}>
+          <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
+            <SheetTitle className="sr-only">Invoice</SheetTitle>
+            
+            {/* Pink Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <Receipt className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white">Invoice</h2>
+                    <p className="text-pink-100">INV-{Date.now().toString().slice(-8)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8">
+              {/* Invoice Preview */}
+              <div className="bg-white border border-pink-100 rounded-xl p-8 shadow-sm mb-6">
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl font-bold text-pink-600">Jam Beauty Lounge</h1>
+                  <p className="text-gray-600">BASEMENT, NEAR TO CARRYFOUR, MARINA MALL</p>
+                  <p className="text-gray-600">Contact: 028766460 | Email: jambeauty@gmail.com</p>
+                </div>
+
+                <div className="border-t border-b border-pink-200 py-4 mb-6">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div>
+                      <p className="text-sm text-pink-600 mb-1">Customer</p>
+                      <p className="font-semibold">{appointment.customerName}</p>
+                      <p className="text-sm text-gray-600">{appointment.customerPhone}</p>
+                      <p className="text-sm text-gray-600">{appointment.customerEmail}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-pink-600 mb-1">Invoice Details</p>
+                      <p className="font-semibold">INV-{Date.now().toString().slice(-8)}</p>
+                      <p className="text-sm text-gray-600">{new Date().toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Services Table */}
+                <table className="w-full mb-6">
+                  <thead className="bg-pink-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-pink-800">Service</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-pink-800">Staff</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-pink-800">Price</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-pink-800">Tip</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-pink-800">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-pink-100">
+                    {services.map((service, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3">{service.name}</td>
+                        <td className="px-4 py-3">{service.staff}</td>
+                        <td className="px-4 py-3 text-right">{formatCurrency(service.price)}</td>
+                        <td className="px-4 py-3 text-right">{formatCurrency(tips[service.staff] || 0)}</td>
+                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(service.price + (tips[service.staff] || 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Summary */}
+                <div className="flex justify-end mb-6">
+                  <div className="w-64 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Subtotal:</span>
+                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                    </div>
+                    {totalTips > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Tips:</span>
+                        <span className="font-medium text-green-600">{formatCurrency(totalTips)}</span>
+                      </div>
+                    )}
+                    {discount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Discount:</span>
+                        <span className="font-medium text-red-600">-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">VAT ({tax}%):</span>
+                      <span className="font-medium">{formatCurrency(taxAmount)}</span>
+                    </div>
+                    {serviceCharges > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Service Charges:</span>
+                        <span className="font-medium">{formatCurrency(serviceCharges)}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-pink-200 pt-2 mt-2">
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span className="text-pink-600">{formatCurrency(totalAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Methods */}
+                <div className="border-t border-pink-200 pt-4">
+                  <p className="text-sm text-pink-600 mb-2">Payment Methods:</p>
+                  {paymentMethods.map((pm, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span>{pm.label}</span>
+                      <span className="font-medium">{formatCurrency(pm.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-center mt-8 text-gray-500">
+                  THANK YOU FOR YOUR BUSINESS
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-4">
+                <Button 
+                  onClick={() => {
+                    // Generate PDF
+                    const doc = new jsPDF();
+                    // ... PDF generation code
+                    doc.save(`Invoice-${Date.now()}.pdf`);
+                  }}
+                  className="bg-pink-600 hover:bg-pink-700 text-white gap-2 px-8 py-6 text-lg"
+                >
+                  <Download className="w-5 h-5" />
+                  Download Invoice
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="border-pink-300 text-pink-600 hover:bg-pink-50 gap-2 px-8 py-6 text-lg"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="w-5 h-5" />
+                  Print
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="border-gray-300 text-gray-600 hover:bg-gray-50 px-8 py-6 text-lg"
+                  onClick={() => setShowInvoicePopup(false)}
+                >
+                  Close
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="border-red-300 text-red-600 hover:bg-red-50 px-8 py-6 text-lg"
+                  onClick={() => {
+                    if (confirm('Void this invoice and start over?')) {
+                      setShowInvoicePopup(false);
+                      // Reset everything
+                    }
+                  }}
+                >
+                  <RotateCcw className="w-5 h-5 mr-2" />
+                  Void
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+    </>
+  );
+};
+
+// ✅ MAIN POPUP - PINKISH THEME FULL WIDTH
 const AdvanceCalendarPopup = ({ 
   appointment, 
   onClose,
@@ -1395,26 +2048,18 @@ const AdvanceCalendarPopup = ({
   const [loading, setLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [freshAppointment, setFreshAppointment] = useState<Appointment | null>(null);
-  
-  // ✅ NEW: Reschedule state
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedAppointment, setEditedAppointment] = useState<Partial<Appointment>>({});
+  const [editedServices, setEditedServices] = useState<any[]>([]);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
-  
-  const [paymentDetails, setPaymentDetails] = useState<{
-    methods: PaymentMethod[];
-    totalPaid: number;
-    balanceDue: number;
-    paymentStatus: string;
-    paymentMethod: string;
-  }>({
-    methods: [],
-    totalPaid: 0,
-    balanceDue: 0,
-    paymentStatus: '',
-    paymentMethod: ''
-  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
   
   useEffect(() => {
     if (appointment?.firebaseId) {
@@ -1433,60 +2078,12 @@ const AdvanceCalendarPopup = ({
       if (bookingSnap.exists()) {
         const firebaseData = bookingSnap.data();
         
-        // Extract payment details from Firebase
-        const paymentAmounts = firebaseData.paymentAmounts || {};
-        const paymentMethods: PaymentMethod[] = [];
-        
-        // Map payment amounts to payment methods
-        if (paymentAmounts.cash && paymentAmounts.cash > 0) {
-          paymentMethods.push({
-            type: 'cash',
-            label: 'Cash',
-            amount: paymentAmounts.cash || 0
-          });
-        }
-        
-        if (paymentAmounts.card && paymentAmounts.card > 0) {
-          paymentMethods.push({
-            type: 'card',
-            label: 'Credit/Debit Card',
-            amount: paymentAmounts.card || 0,
-            details: firebaseData.cardLast4Digits ? `Card ending in ${firebaseData.cardLast4Digits}` : ''
-          });
-        }
-        
-        if (paymentAmounts.check && paymentAmounts.check > 0) {
-          paymentMethods.push({
-            type: 'check',
-            label: 'Bank Check',
-            amount: paymentAmounts.check || 0
-          });
-        }
-        
-        if (paymentAmounts.digital && paymentAmounts.digital > 0) {
-          paymentMethods.push({
-            type: 'digital',
-            label: 'Digital Payment',
-            amount: paymentAmounts.digital || 0
-          });
-        }
-        
-        if (paymentAmounts.wallet && paymentAmounts.wallet > 0) {
-          paymentMethods.push({
-            type: 'wallet',
-            label: 'E-Wallet',
-            amount: paymentAmounts.wallet || 0
-          });
-        }
-        
-        const totalPaid = paymentMethods.reduce((sum, pm) => sum + pm.amount, 0);
-        const totalAmount = firebaseData.totalAmount || firebaseData.servicePrice || 0;
-        
         const updatedAppointment: Appointment = {
           ...appointment,
+          ...firebaseData,
           servicePrice: firebaseData.servicePrice || 0,
           subtotal: firebaseData.subtotal || firebaseData.servicePrice || 0,
-          totalAmount: totalAmount,
+          totalAmount: firebaseData.totalAmount || firebaseData.servicePrice || 0,
           taxAmount: firebaseData.taxAmount || 0,
           serviceCharges: firebaseData.serviceCharges || 0,
           discount: firebaseData.discount || 0,
@@ -1499,23 +2096,17 @@ const AdvanceCalendarPopup = ({
           paymentMethod: firebaseData.paymentMethod || '',
           paymentStatus: firebaseData.paymentStatus || '',
           paymentMethods: firebaseData.paymentMethods || [],
-          paymentAmounts: paymentAmounts,
+          paymentAmounts: firebaseData.paymentAmounts || {},
           bookingNumber: firebaseData.bookingNumber || appointment.bookingNumber,
-          price: totalAmount,
+          price: firebaseData.totalAmount || firebaseData.servicePrice || 0,
           date: firebaseData.bookingDate || firebaseData.date || appointment.date,
           time: firebaseData.bookingTime || firebaseData.time || appointment.time,
           status: firebaseData.status || appointment.status
         };
         
         setFreshAppointment(updatedAppointment);
-        
-        setPaymentDetails({
-          methods: paymentMethods,
-          totalPaid,
-          balanceDue: totalAmount - totalPaid,
-          paymentStatus: firebaseData.paymentStatus || '',
-          paymentMethod: firebaseData.paymentMethod || ''
-        });
+        setEditedAppointment(updatedAppointment);
+        setEditedServices(updatedAppointment.serviceDetails || []);
       }
     } catch (error) {
       console.error("Error fetching fresh data:", error);
@@ -1524,554 +2115,389 @@ const AdvanceCalendarPopup = ({
     }
   };
   
-  // ✅ UPDATED: Function to update status with reschedule handling
-  const handleStatusUpdate = async (newStatus: string) => {
-    if (!displayAppointment?.firebaseId) {
-      alert("No Firebase ID found for this appointment");
-      return;
-    }
-    
-    // ✅ NEW: If status is 'rescheduled', show reschedule dialog first
-    if (newStatus === 'rescheduled') {
-      // Pre-fill with current date/time
-      setRescheduleDate(displayAppointment.bookingDate || displayAppointment.date || '');
-      setRescheduleTime(displayAppointment.bookingTime || displayAppointment.time || '');
-      setShowRescheduleDialog(true);
-      return;
-    }
-    
-    // For other statuses, update directly
-    await updateStatusOnly(newStatus);
-  };
-  
-  // ✅ NEW: Function to update only status (for non-reschedule)
-  const updateStatusOnly = async (newStatus: string) => {
-    if (!displayAppointment?.firebaseId) return;
-    
-    setUpdatingStatus(true);
-    try {
-      const bookingRef = doc(db, "bookings", displayAppointment.firebaseId);
-      
-      // Prepare update data
-      const updateData: any = {
-        status: newStatus,
-        updatedAt: new Date()
-      };
-      
-      await updateDoc(bookingRef, updateData);
-      
-      // Update local state
-      if (freshAppointment) {
-        setFreshAppointment({
-          ...freshAppointment,
-          status: newStatus
-        });
-      } else {
-        setFreshAppointment({
-          ...displayAppointment,
-          status: newStatus
-        } as Appointment);
-      }
-      
-      // Call parent callback if provided
-      if (onStatusChange) {
-        onStatusChange(displayAppointment.firebaseId, newStatus);
-      }
-      
-      console.log(`✅ Status updated to ${newStatus}`);
-      
-    } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Failed to update status. Please try again.");
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
-  
-  // ✅ NEW: Function to handle reschedule save
-  const handleRescheduleSave = async () => {
+  const handleMoreOptionClick = async (action: string) => {
     if (!displayAppointment?.firebaseId) {
       alert("No Firebase ID found");
       return;
     }
     
-    if (!rescheduleDate || !rescheduleTime) {
-      alert("Please select both date and time");
-      return;
-    }
+    setShowMoreOptions(false);
     
+    switch (action) {
+      case 'edit':
+        setIsEditMode(true);
+        break;
+      case 'reschedule':
+        setRescheduleDate(displayAppointment.bookingDate || displayAppointment.date || '');
+        setRescheduleTime(displayAppointment.bookingTime || displayAppointment.time || '');
+        setShowRescheduleDialog(true);
+        break;
+      case 'cancel':
+        setCancelReason('');
+        setShowCancelDialog(true);
+        break;
+      case 'noshow':
+        setShowDeleteConfirm(true);
+        break;
+    }
+  };
+  
+  const updateStatusOnly = async (newStatus: string) => {
+    if (!displayAppointment?.firebaseId) return;
+    setUpdatingStatus(true);
+    try {
+      await updateDoc(doc(db, "bookings", displayAppointment.firebaseId), {
+        status: newStatus,
+        updatedAt: new Date()
+      });
+      if (freshAppointment) setFreshAppointment({...freshAppointment, status: newStatus});
+      if (onStatusChange) onStatusChange(displayAppointment.firebaseId, newStatus);
+    } catch (error) {
+      console.error("Error updating status:", error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+  
+  const handleCancelWithReason = async () => {
+    if (!displayAppointment?.firebaseId || !cancelReason.trim()) return;
+    setUpdatingStatus(true);
+    try {
+      await deleteDoc(doc(db, "bookings", displayAppointment.firebaseId));
+      if (onStatusChange) onStatusChange(displayAppointment.firebaseId, 'cancelled');
+      setShowCancelDialog(false);
+      onClose();
+    } catch (error) {
+      console.error("Error cancelling:", error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+  
+  const handleDeleteAppointment = async () => {
+    if (!displayAppointment?.firebaseId) return;
+    setUpdatingStatus(true);
+    try {
+      await deleteDoc(doc(db, "bookings", displayAppointment.firebaseId));
+      if (onStatusChange) onStatusChange(displayAppointment.firebaseId, 'deleted');
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (error) {
+      console.error("Error deleting:", error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+  
+  const handleRescheduleSave = async () => {
+    if (!displayAppointment?.firebaseId || !rescheduleDate || !rescheduleTime) return;
     setRescheduling(true);
     try {
-      const bookingRef = doc(db, "bookings", displayAppointment.firebaseId);
-      
-      // Prepare update data with new date/time
-      const updateData: any = {
+      await updateDoc(doc(db, "bookings", displayAppointment.firebaseId), {
         status: 'rescheduled',
         bookingDate: rescheduleDate,
         bookingTime: rescheduleTime,
         date: rescheduleDate,
         time: rescheduleTime,
         updatedAt: new Date()
-      };
-      
-      await updateDoc(bookingRef, updateData);
-      
-      // Update local state
-      const updatedAppointment = {
-        ...displayAppointment,
-        status: 'rescheduled',
-        bookingDate: rescheduleDate,
-        bookingTime: rescheduleTime,
-        date: rescheduleDate,
-        time: rescheduleTime
-      };
-      
-      setFreshAppointment(updatedAppointment as Appointment);
-      
-      // Call parent callback if provided
-      if (onStatusChange) {
-        onStatusChange(displayAppointment.firebaseId, 'rescheduled');
+      });
+      if (freshAppointment) {
+        setFreshAppointment({
+          ...displayAppointment,
+          status: 'rescheduled',
+          bookingDate: rescheduleDate,
+          bookingTime: rescheduleTime
+        } as Appointment);
       }
-      
-      console.log(`✅ Appointment rescheduled to ${rescheduleDate} at ${rescheduleTime}`);
-      
-      // Close reschedule dialog
+      if (onStatusChange) onStatusChange(displayAppointment.firebaseId, 'rescheduled');
       setShowRescheduleDialog(false);
-      
     } catch (error) {
-      console.error("Error rescheduling appointment:", error);
-      alert("Failed to reschedule. Please try again.");
+      console.error("Error rescheduling:", error);
     } finally {
       setRescheduling(false);
     }
   };
   
   const displayAppointment = freshAppointment || appointment;
-  
   if (!displayAppointment) return null;
   
   const getStatusColor = (status: string): string => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "completed": return "bg-green-100 text-green-800";
       case "in-progress": return "bg-blue-100 text-blue-800";
-      case "scheduled": return "bg-yellow-100 text-yellow-800";
-      case "approved": return "bg-purple-100 text-purple-800";
-      case "pending": return "bg-orange-100 text-orange-800";
+      case "confirmed": return "bg-emerald-100 text-emerald-800";
+      case "accepted": return "bg-purple-100 text-purple-800";
+      case "pending": return "bg-yellow-100 text-yellow-800";
       case "cancelled": return "bg-red-100 text-red-800";
-      case "rejected": return "bg-gray-100 text-gray-800";
       case "rescheduled": return "bg-indigo-100 text-indigo-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
   
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed": return <CheckCircle className="w-4 h-4" />;
-      case "in-progress": return <Clock className="w-4 h-4" />;
-      case "scheduled": return <Calendar className="w-4 h-4" />;
-      case "approved": return <CheckCircle className="w-4 h-4" />;
-      case "pending": return <Clock className="w-4 h-4" />;
-      case "cancelled": return <X className="w-4 h-4" />;
-      case "rejected": return <X className="w-4 h-4" />;
-      case "rescheduled": return <RotateCcw className="w-4 h-4" />;
-      default: return <AlertCircle className="w-4 h-4" />;
-    }
-  };
-  
   return (
     <>
+      {/* ✅ PINKISH THEME - FULL WIDTH MAIN POPUP */}
       <Sheet open={true} onOpenChange={onClose}>
-        <SheetContent className="w-full sm:max-w-full overflow-y-auto p-5 rounded-2xl mt-5">
-          {/* Hidden Title for Accessibility */}
+        <SheetContent className="w-full sm:max-w-full p-0 bg-gradient-to-br from-pink-50 to-white overflow-y-auto">
           <SheetTitle className="sr-only">Appointment Details</SheetTitle>
           
-          {/* Header with Status Dropdown */}
-          <div className="sticky top-0 bg-white border-b z-10 px-6 py-4">
+          {/* Pink Header */}
+          <div className="sticky top-0 bg-gradient-to-r from-pink-500 to-pink-600 text-white z-10 px-8 py-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-blue-600" />
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Calendar className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Appointment Details</h2>
-                  <p className="text-sm text-gray-500">Booking information</p>
+                  <h2 className="text-2xl font-semibold text-white">Appointment Details</h2>
+                  <p className="text-pink-100">Booking #{displayAppointment.bookingNumber || displayAppointment.id}</p>
                 </div>
               </div>
+              
               <div className="flex items-center gap-3">
-                {/* Status Dropdown with Rescheduled */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Status:</span>
-                  <Select
-                    value={displayAppointment.status}
-                    onValueChange={handleStatusUpdate}
-                    disabled={updatingStatus || !displayAppointment.firebaseId}
+                <Select
+                  value={displayAppointment.status || 'pending'}
+                  onValueChange={(value) => {
+                    if (value === 'cancelled') {
+                      setCancelReason('');
+                      setShowCancelDialog(true);
+                    } else {
+                      updateStatusOnly(value);
+                    }
+                  }}
+                  disabled={updatingStatus}
+                >
+                  <SelectTrigger className={`w-40 h-9 bg-white/20 border-white/30 text-white ${getStatusColor(displayAppointment.status || 'pending')}`}>
+                    <SelectValue>
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize">{displayAppointment.status || 'pending'}</span>
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="rescheduled">Rescheduled</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowMoreOptions(!showMoreOptions)}
+                    className="bg-white/20 hover:bg-white/30 text-white rounded-full w-10 h-10 p-0"
                   >
-                    <SelectTrigger className="w-40 h-9">
-                      <SelectValue>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(displayAppointment.status)}
-                          <span className="capitalize">{displayAppointment.status}</span>
-                        </div>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-orange-500" />
-                          <span>Pending</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="approved">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-purple-500" />
-                          <span>Approved</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="in-progress">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-blue-500" />
-                          <span>In Progress</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="completed">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span>Completed</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="rescheduled">
-                        <div className="flex items-center gap-2">
-                          <RotateCcw className="w-4 h-4 text-indigo-500" />
-                          <span>Rescheduled</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="cancelled">
-                        <div className="flex items-center gap-2">
-                          <X className="w-4 h-4 text-red-500" />
-                          <span>Cancelled</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="rejected">
-                        <div className="flex items-center gap-2">
-                          <X className="w-4 h-4 text-gray-500" />
-                          <span>Rejected</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {updatingStatus && (
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <Settings className="w-5 h-5" />
+                  </Button>
+                  
+                  {showMoreOptions && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-pink-100 z-50">
+                      <div className="py-1">
+                        <button onClick={() => handleMoreOptionClick('edit')} className="w-full px-4 py-2 text-left hover:bg-pink-50 flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-pink-500" /> Edit
+                        </button>
+                        <button onClick={() => handleMoreOptionClick('reschedule')} className="w-full px-4 py-2 text-left hover:bg-pink-50 flex items-center gap-2">
+                          <RotateCcw className="w-4 h-4 text-blue-500" /> Reschedule
+                        </button>
+                        <button onClick={() => handleMoreOptionClick('cancel')} className="w-full px-4 py-2 text-left hover:bg-pink-50 flex items-center gap-2">
+                          <X className="w-4 h-4 text-orange-500" /> Cancel
+                        </button>
+                        <div className="border-t border-pink-100 my-1"></div>
+                        <button onClick={() => handleMoreOptionClick('noshow')} className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2">
+                          <Trash2 className="w-4 h-4" /> No Show & Delete
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-                {loading && (
-                  <Badge className="bg-blue-500 animate-pulse">Loading...</Badge>
-                )}
+                
+                <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-white/20 h-10 w-10 p-0 rounded-full">
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
-            {/* Customer Information */}
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-600" />
-                Customer Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Full Name</p>
-                  <p className="font-medium text-gray-900">{displayAppointment.customerName || displayAppointment.customer}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Email</p>
-                  <p className="font-medium text-gray-900 break-all">{displayAppointment.customerEmail || displayAppointment.email || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Phone</p>
-                  <p className="font-medium text-gray-900">{displayAppointment.customerPhone || displayAppointment.phone || '—'}</p>
-                </div>
+          {/* Main Content */}
+          <div className="p-8">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full"></div>
               </div>
-            </div>
-
-            {/* Services Table */}
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <Scissors className="w-4 h-4 text-blue-600" />
-                Services
-              </h3>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-y">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Service</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Branch</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Staff</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {displayAppointment.serviceDetails && displayAppointment.serviceDetails.length > 0 ? (
-                      displayAppointment.serviceDetails.map((service: any, index: React.Key | null | undefined) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium">{service.name}</td>
-                          <td className="px-4 py-3">{service.branch}</td>
-                          <td className="px-4 py-3">{service.staff}</td>
-                          <td className="px-4 py-3 text-right font-medium">
-                            {formatCurrency(service.price)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{displayAppointment.serviceName || displayAppointment.service}</td>
-                        <td className="px-4 py-3">{displayAppointment.branch}</td>
-                        <td className="px-4 py-3">{displayAppointment.staffName || displayAppointment.staff || displayAppointment.barber}</td>
-                        <td className="px-4 py-3 text-right font-medium">
-                          {formatCurrency(displayAppointment.servicePrice || displayAppointment.price)}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                  <tfoot className="bg-gray-50 border-t">
-                    <tr>
-                      <td colSpan={3} className="px-4 py-3 text-right font-medium text-gray-700">Total:</td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-900">
-                        {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-
-            {/* Schedule */}
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-600" />
-                Schedule
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500">Date</p>
-                  <p className="font-medium text-gray-900">{displayAppointment.bookingDate || displayAppointment.date}</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* LEFT COLUMN */}
+                <div className="space-y-6">
+                  {/* Customer Information */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <User className="w-5 h-5 text-pink-500" />
+                      Customer Information
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between py-2 border-b border-pink-100">
+                        <span className="text-sm text-pink-600">Name</span>
+                        <span className="font-medium">{displayAppointment.customerName || displayAppointment.customer}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-pink-100">
+                        <span className="text-sm text-pink-600">Email</span>
+                        <span className="font-medium">{displayAppointment.customerEmail || displayAppointment.email}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-pink-100">
+                        <span className="text-sm text-pink-600">Phone</span>
+                        <span className="font-medium">{displayAppointment.customerPhone || displayAppointment.phone}</span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-sm text-pink-600">Branch</span>
+                        <span className="font-medium">{displayAppointment.branch}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Schedule */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-pink-500" />
+                      Schedule
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between py-2 border-b border-pink-100">
+                        <span className="text-sm text-pink-600">Date</span>
+                        <span className="font-medium">{displayAppointment.bookingDate || displayAppointment.date}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-pink-100">
+                        <span className="text-sm text-pink-600">Time</span>
+                        <span className="font-medium">{displayAppointment.bookingTime || displayAppointment.time}</span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-sm text-pink-600">Duration</span>
+                        <span className="font-medium">{displayAppointment.duration || '60 min'}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Time</p>
-                  <p className="font-medium text-gray-900">{displayAppointment.bookingTime || displayAppointment.time}</p>
+                
+                {/* RIGHT COLUMN */}
+                <div className="space-y-6">
+                  {/* Services */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <Scissors className="w-5 h-5 text-pink-500" />
+                      Services
+                    </h3>
+                    
+                    <div className="space-y-3">
+                      {displayAppointment.serviceDetails?.map((service: any, idx: number) => (
+                        <div key={idx} className="bg-pink-50 p-4 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <span className="font-medium text-gray-800">{service.name}</span>
+                            <span className="font-bold text-pink-600">{formatCurrency(service.price)}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                            <div>
+                              <span className="text-pink-600">Staff:</span>
+                              <span className="ml-1 text-gray-600">{service.staff}</span>
+                            </div>
+                            <div>
+                              <span className="text-pink-600">Branch:</span>
+                              <span className="ml-1 text-gray-600">{service.branch}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <div className="border-t border-pink-200 pt-3 mt-3">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-gray-700">Total Amount</span>
+                          <span className="text-pink-600 text-lg">
+                            {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Checkout Button */}
+                  <div className="bg-white border border-pink-100 rounded-xl p-6 shadow-sm">
+                    <Button
+                      onClick={() => setShowCheckoutPopup(true)}
+                      className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-6 text-lg gap-3"
+                    >
+                      <Receipt className="w-5 h-5" />
+                      Proceed to Checkout
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Duration</p>
-                  <p className="font-medium text-gray-900">{displayAppointment.duration || '60 min'}</p>
-                </div>
-              </div>
-            </div>
-
-           {/* Payment Details - FIXED: Shows ALL payment methods dynamically */}
-<div className="bg-white border rounded-xl p-5">
-  <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-    <CreditCard className="w-4 h-4 text-blue-600" />
-    Payment Details
-  </h3>
-  
-  <div className="space-y-3">
-    {/* Check if paymentAmounts exists and has data */}
-    {displayAppointment.paymentAmounts && Object.keys(displayAppointment.paymentAmounts).length > 0 ? (
-      <>
-        {/* 🔥 DYNAMIC LOOP - Shows EVERY payment method with amount > 0 */}
-        {Object.entries(displayAppointment.paymentAmounts).map(([method, amount]) => {
-          // Skip if amount is 0 or undefined
-          if (!amount || amount <= 0) return null;
-          
-          // Get appropriate icon and color based on payment method
-          const getPaymentIcon = (method: string) => {
-            const methodLower = method.toLowerCase();
-            switch (methodLower) {
-              case 'cash': return <DollarSign className="w-4 h-4 text-green-600" />;
-              case 'card': return <CreditCard className="w-4 h-4 text-blue-600" />;
-              case 'digital': return <Smartphone className="w-4 h-4 text-purple-600" />;
-              case 'check': return <FileText className="w-4 h-4 text-orange-600" />;
-              case 'wallet': return <Wallet className="w-4 h-4 text-indigo-600" />;
-              default: return <Coins className="w-4 h-4 text-gray-600" />;
-            }
-          };
-          
-          const getBgColor = (method: string) => {
-            const methodLower = method.toLowerCase();
-            switch (methodLower) {
-              case 'cash': return 'bg-green-100';
-              case 'card': return 'bg-blue-100';
-              case 'digital': return 'bg-purple-100';
-              case 'check': return 'bg-orange-100';
-              case 'wallet': return 'bg-indigo-100';
-              default: return 'bg-gray-100';
-            }
-          };
-          
-          return (
-            <div key={method} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 ${getBgColor(method)} rounded-full flex items-center justify-center`}>
-                  {getPaymentIcon(method)}
-                </div>
-                <span className="font-medium text-gray-900 capitalize">{method}</span>
-                {method.toLowerCase() === 'card' && displayAppointment.cardLast4Digits && (
-                  <span className="text-xs text-gray-500">(•••• {displayAppointment.cardLast4Digits})</span>
-                )}
-              </div>
-              <span className="font-bold text-green-700">
-                {formatCurrency(amount)}
-              </span>
-            </div>
-          );
-        })}
-        
-        {/* If no payment methods with amounts but paymentMethods array exists */}
-        {Object.values(displayAppointment.paymentAmounts).filter(v => v > 0).length === 0 && 
-         displayAppointment.paymentMethods && displayAppointment.paymentMethods.length > 0 && (
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800 font-medium mb-2">Payment Methods (no amounts):</p>
-            <div className="flex flex-wrap gap-2">
-              {displayAppointment.paymentMethods.map((method, idx) => (
-                <Badge key={idx} className="bg-blue-100 text-blue-800">
-                  {method}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-      </>
-    ) : (
-      <div className="p-4 bg-yellow-50 rounded-lg text-center">
-        <p className="text-sm text-yellow-800">No payment details found</p>
-      </div>
-    )}
-
-    {/* Total Amount - Always show */}
-    <div className="mt-4 pt-4 border-t flex items-center justify-between">
-      <span className="font-semibold text-gray-700">Total Amount</span>
-      <span className="text-xl font-bold text-blue-700">
-        {formatCurrency(displayAppointment.totalAmount || displayAppointment.servicePrice || displayAppointment.price || 0)}
-      </span>
-    </div>
-  </div>
-</div>
-
-            {displayAppointment.notes && (
-              <div className="bg-white border rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  Notes
-                </h3>
-                <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{displayAppointment.notes}</p>
               </div>
             )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
-            <div className="flex justify-end gap-3 pt-4">
-              {displayAppointment.status === 'completed' && onGenerateInvoice && (
-                <Button
-                  onClick={() => onGenerateInvoice(displayAppointment)}
-                  className="bg-green-600 hover:bg-green-700 text-white gap-2"
-                >
-                  <Receipt className="w-4 h-4" />
-                  Generate Invoice
-                </Button>
-              )}
-              <Button onClick={onClose} variant="outline" className="gap-2">
-                <X className="w-4 h-4" />
-                Close
-              </Button>
+      {/* Checkout Popup */}
+      {showCheckoutPopup && (
+        <CheckoutPopup
+          appointment={displayAppointment}
+          onClose={() => setShowCheckoutPopup(false)}
+          formatCurrency={formatCurrency}
+        />
+      )}
+
+      {/* Cancel Dialog */}
+      <Sheet open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <SheetContent className="w-full sm:max-w-md p-6">
+          <SheetHeader>
+            <SheetTitle className="text-lg font-semibold text-red-600">Cancel Appointment</SheetTitle>
+            <SheetDescription>Please provide a reason</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Reason for cancellation..."
+              rows={4}
+            />
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" onClick={() => setShowCancelDialog(false)}>Back</Button>
+              <Button onClick={handleCancelWithReason} disabled={!cancelReason.trim()} className="bg-red-600">Confirm</Button>
             </div>
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* ✅ NEW: Reschedule Dialog */}
-      <Sheet open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
-        <SheetContent className="w-full sm:max-w-md p-10 rounded-2xl mt-10 h-[700px]">
+      {/* Delete Confirm */}
+      <Sheet open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <SheetContent className="w-full sm:max-w-md p-6">
           <SheetHeader>
-            <SheetTitle className="text-xl font-semibold flex items-center gap-2">
-              <RotateCcw className="w-5 h-5 text-indigo-600" />
-              Reschedule Appointment
-            </SheetTitle>
-            <SheetDescription>
-              Select new date and time for this appointment
-            </SheetDescription>
+            <SheetTitle className="text-lg font-semibold text-red-600">Confirm Delete</SheetTitle>
+            <SheetDescription>This action cannot be undone</SheetDescription>
           </SheetHeader>
-
-          <div className="mt-6 space-y-6">
-            {/* Customer Info */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Customer:</p>
-              <p className="font-semibold text-gray-900">{displayAppointment?.customerName || displayAppointment?.customer}</p>
+          <div className="mt-6">
+            <p className="text-red-600">Permanently delete this appointment?</p>
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+              <Button onClick={handleDeleteAppointment} className="bg-red-600">Delete</Button>
             </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
-            {/* Current Schedule */}
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-700 font-medium mb-2">Current Schedule:</p>
-              <div className="flex items-center gap-4 text-blue-800">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{displayAppointment?.bookingDate || displayAppointment?.date}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{displayAppointment?.bookingTime || displayAppointment?.time}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* New Date & Time */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">New Date *</Label>
-                <Input
-                  type="date"
-                  value={rescheduleDate}
-                  onChange={(e) => setRescheduleDate(e.target.value)}
-                  className="h-11"
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">New Time *</Label>
-                <Input
-                  type="time"
-                  value={rescheduleTime}
-                  onChange={(e) => setRescheduleTime(e.target.value)}
-                  className="h-11"
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowRescheduleDialog(false)}
-                className="flex-1 h-11"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRescheduleSave}
-                disabled={!rescheduleDate || !rescheduleTime || rescheduling}
-                className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 gap-2"
-              >
-                {rescheduling ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent text-black rounded-full animate-spin"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="w-4 h-4" />
-                    <p className='text-black'> Reschedule</p>
-                   
-                  </>
-                )}
-              </Button>
+      {/* Reschedule Dialog */}
+      <Sheet open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <SheetContent className="w-full sm:max-w-md p-6">
+          <SheetHeader>
+            <SheetTitle className="text-lg font-semibold">Reschedule</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 space-y-4">
+            <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+            <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setShowRescheduleDialog(false)}>Cancel</Button>
+              <Button onClick={handleRescheduleSave} disabled={rescheduling}>Reschedule</Button>
             </div>
           </div>
         </SheetContent>
@@ -2079,6 +2505,8 @@ const AdvanceCalendarPopup = ({
     </>
   );
 };
+
+
 
 const fetchStaffFromFirebase = async (): Promise<StaffMember[]> => {
   try {

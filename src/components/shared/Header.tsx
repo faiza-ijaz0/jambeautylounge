@@ -106,7 +106,7 @@ export function Header() {
             <div className="flex items-center gap-6">
               <span className="flex items-center gap-2">
                 <MapPin className="w-3 h-3 text-white/60" />
-                {selectedBranch?.name || "Global Experience"}
+                {selectedBranch?.id === 'all' ? 'All Branches' : (selectedBranch?.name || "Global Experience")}
               </span>
               <span className="flex items-center gap-2">
                 <Calendar className="w-3 h-3 text-white/60" />
@@ -136,7 +136,6 @@ export function Header() {
               priority
             />
           </div>
-         
         </Link>
 
         {/* Desktop Navigation */}
@@ -163,34 +162,60 @@ export function Header() {
 
         {/* Actions Controls */}
         <div className="flex items-center gap-4 relative z-50">
-          {/* Branch Selector (Desktop) */}
-          
-
-         
-<div className={cn(
+          {/* Branch Selector with "All Branches" Option */}
+          <div className={cn(
             "hidden lg:flex items-center border rounded-full pl-3 transition-all",
             isScrolled 
               ? "bg-white/5 border-primary/10 hover:border-primary/30" 
               : "bg-white/5 border-white/10 hover:border-white/30"
           )}>
-            <MapPin className={cn("w-3.5 h-3.5 transition-colors", isScrolled ? "text-primary/40" : "text-white/40")} />
+           
             <Select 
-              value={selectedBranch?.id || ""} 
+              value={selectedBranch?.id || "all"} 
               onValueChange={(branchId) => {
-                const branch = branches.find((b: { id: string; }) => b.id === branchId);
-                if (branch) setSelectedBranch(branch);
+                if (branchId === "all") {
+                  // 👇 ALL BRANCHES SELECT KARO
+                  setSelectedBranch({ 
+                    id: "all", 
+                    name: "All Branches",
+                    // Keep other properties optional
+                    address: "",
+                    city: "",
+                    country: "",
+                    openingTime: "",
+                    closingTime: "",
+                    phone: "",
+                    email: "",
+                    status: "active"
+                  } as any);
+                } else {
+                  const branch = branches.find((b: { id: string; }) => b.id === branchId);
+                  if (branch) setSelectedBranch(branch);
+                }
               }}
             >
               <SelectTrigger className={cn(
-                "w-[150px] h-9 border-none  text-white bg-transparent text-[10px] uppercase tracking-widest font-bold focus:ring-0 transition-colors",
+                "w-[180px] h-9 border-none text-white bg-transparent text-[10px] uppercase tracking-widest font-bold focus:ring-0 transition-colors",
                 isScrolled ? "text-black" : "text-white"
               )}>
-                <SelectValue placeholder="SELECT BRANCH" className="text-white" />
+                <SelectValue placeholder="SELECT BRANCH" />
               </SelectTrigger>
               <SelectContent>
+                {/* 👇 ALL BRANCHES OPTION */}
+                <SelectItem value="all" className="text-xs font-bold text-primary border-b border-primary/10 mb-1">
+                  <div className="flex items-center gap-2">
+                   
+                     ALL BRANCHES
+                  </div>
+                </SelectItem>
+                
+                {/* Regular Branches */}
                 {branches.map((branch: { id: Key | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }) => (
                   <SelectItem key={branch.id} value={branch.id as string} className="text-xs">
-                    {branch.name}
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3 h-3 text-secondary" />
+                      {branch.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -213,8 +238,6 @@ export function Header() {
               )}
             </div>
           </Link>
-
-        
 
           {/* Profile Section */}
           <div className="flex items-center gap-2">
@@ -364,6 +387,58 @@ export function Header() {
                 </div>
                 <span className="text-xs font-bold text-primary">Locations</span>
               </Link>
+            </div>
+
+            {/* Mobile Branch Selection */}
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-[0.3em] font-black text-primary/30">Select Branch</p>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedBranch({ 
+                      id: "all", 
+                      name: "All Branches",
+                      address: "",
+                      city: "",
+                      country: "",
+                      openingTime: "",
+                      closingTime: "",
+                      phone: "",
+                      email: "",
+                      status: "active"
+                    } as any);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-4 rounded-2xl transition-all text-left",
+                    selectedBranch?.id === "all" 
+                      ? "bg-primary text-white" 
+                      : "bg-primary/5 text-primary hover:bg-primary/10"
+                  )}
+                >
+                  <Globe className="w-5 h-5" />
+                  <span className="font-bold">All Branches</span>
+                </button>
+                
+                {branches.map((branch: any) => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setSelectedBranch(branch);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl transition-all text-left",
+                      selectedBranch?.id === branch.id 
+                        ? "bg-primary text-white" 
+                        : "bg-primary/5 text-primary hover:bg-primary/10"
+                    )}
+                  >
+                    <MapPin className="w-5 h-5" />
+                    <span className="font-bold">{branch.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {!isLoggedIn && (
